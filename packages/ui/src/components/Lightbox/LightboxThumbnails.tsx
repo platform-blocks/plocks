@@ -6,17 +6,29 @@ import { useRovingFocus } from '../../core/accessibility/useRovingFocus';
 import { useTheme } from '../../core/theme/ThemeProvider';
 import { withAlpha } from '../../core/theme/colorUtils';
 import { resolveRadius } from '../../core/theme/tokens';
+import { Icon } from '../Icon';
 import { Text } from '../Text';
-import type { LightboxThumbnailProps } from './types';
+import type { LightboxItem, LightboxThumbnailProps } from './types';
 import { resolveImageSource } from '../../utils/imageSource';
 import { useElementSize } from '../../hooks/useElementSize';
 
 const SCROLL_PADDING = 8;
 const THUMBNAIL_MARGIN = 4;
 
-/** Accessible name of a thumbnail: "Image 2 of 5: Sunset". */
-export function getLightboxImageLabel(index: number, total: number, title?: string): string {
-  return `Image ${index + 1} of ${total}${title ? `: ${title}` : ''}`;
+/** Accessible name of a thumbnail: "Image 2 of 5: Sunset" ("Video 2 of 5" for a video slide). */
+export function getLightboxImageLabel(index: number, total: number, title?: string, kind: 'image' | 'video' = 'image'): string {
+  return `${kind === 'video' ? 'Video' : 'Image'} ${index + 1} of ${total}${title ? `: ${title}` : ''}`;
+}
+
+/** {@link getLightboxImageLabel} for a slide. */
+export function getLightboxSlideLabel(item: LightboxItem, index: number, total: number): string {
+  return getLightboxImageLabel(index, total, item.title, item.type === 'video' ? 'video' : 'image');
+}
+
+/** The picture a thumbnail shows: the image, or a video's poster (none: a play glyph). */
+function thumbnailSource(item: LightboxItem) {
+  if (item.type === 'video') return item.poster ? resolveImageSource(item.poster) : undefined;
+  return resolveImageSource(item.uri);
 }
 
 /**
@@ -74,6 +86,7 @@ export const LightboxThumbnails: React.FC<LightboxThumbnailProps> = ({
         <View style={styles.row} {...a11yProps({ role: 'tablist', label: 'Thumbnails', orientation: 'horizontal' })}>
           {images.map((image, index) => {
             const selected = index === currentIndex;
+            const source = thumbnailSource(image);
             return (
               <Pressable
                 key={image.id}
@@ -90,16 +103,23 @@ export const LightboxThumbnails: React.FC<LightboxThumbnailProps> = ({
                 {...getItemProps(index)}
                 {...a11yProps({
                   role: 'tab',
-                  label: getLightboxImageLabel(index, images.length, image.title),
+                  label: getLightboxSlideLabel(image, index, images.length),
                   selected,
                 })}
               >
-                <Image
-                  source={resolveImageSource(image.uri)}
-                  style={[styles.thumbnailImage, { borderRadius: radius }]}
-                  resizeMode="cover"
-                  {...a11yProps({ hidden: true, accessible: false })}
-                />
+                {source ? (
+                  <Image
+                    source={source}
+                    style={[styles.thumbnailImage, { borderRadius: radius }]}
+                    resizeMode="cover"
+                    {...a11yProps({ hidden: true, accessible: false })}
+                  />
+                ) : null}
+                {image.type === 'video' && (
+                  <View style={styles.videoGlyph} {...a11yProps({ hidden: true, accessible: false })}>
+                    <Icon name="play" variant="filled" size={Math.round(thumbnailSize * 0.4)} color="#FFFFFF" />
+                  </View>
+                )}
                 {selected && (
                   <View
                     style={[styles.activeIndicator, { backgroundColor: withAlpha(accent, 0.2), borderRadius: radius }]}
@@ -155,5 +175,15 @@ const styles = StyleSheet.create({
   thumbnailImage: {
     height: '100%',
     width: '100%',
+  },
+  videoGlyph: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    bottom: 0,
+    end: 0,
+    justifyContent: 'center',
+    position: 'absolute',
+    start: 0,
+    top: 0,
   },
 });

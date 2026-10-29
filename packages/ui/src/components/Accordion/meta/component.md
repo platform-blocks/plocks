@@ -13,6 +13,8 @@ theming: [radius, spacing, variant-colors, divider-opacity]
 performanceNotes: Content lazily rendered only when expanded (optional); animations respect ReducedMotionProvider.
 props:
   items: Array of `{ key, title, content, disabled?, icon? }` definitions
+  type: Expansion mode — 'single' (default) keeps one item open, 'multiple' expands items independently
+  disableCollapse: Keep one item open at all times — pressing the open item (or the last open item in multiple mode) does not collapse it
   variant: Visual variant — default | filled | outline | etc.
   size: Size token controlling spacing density
   showChevron: Render the chevron indicator on each header
@@ -26,6 +28,7 @@ props:
 examples:
   - basic
   - multiple
+  - disableCollapse
   - variants
   - colors
   - title-customization

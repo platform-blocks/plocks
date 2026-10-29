@@ -13,6 +13,20 @@ export interface CalendarProps extends BaseProps, DisclaimerSupport {
   level?: CalendarLevel;
   defaultLevel?: CalendarLevel;
   onLevelChange?: (level: CalendarLevel) => void;
+  /**
+   * Replace the header's level button with selects: month + year on the month
+   * level, year on the year level (the decade level keeps its title). Changing
+   * a select moves the view and calls `onDateChange`, like the arrows. Web
+   * renders native `<select>` elements; native platforms have no select
+   * element, so they keep the level button.
+   */
+  withNativeLevelSelect?: boolean;
+  /**
+   * Inclusive `[from, to]` years offered by the year select
+   * (`withNativeLevelSelect`), cut to `minDate` / `maxDate`. Defaults to the
+   * displayed year ±50.
+   */
+  yearsSelectRange?: [number, number];
 
   // Date management
   date?: Date;

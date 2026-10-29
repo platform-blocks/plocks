@@ -144,6 +144,11 @@ export const Axis: React.FC<AxisProps> = ({
   );
   const hLabelWidth = tickLabelWidth ?? Math.max(Math.ceil(widestTick), 24);
   const vLabelWidth = tickLabelWidth ?? Math.max(Math.ceil(widestTick), 24);
+  // The box a vertical label is drawn in. Labels are aligned against the axis line,
+  // so extra width only extends into empty space away from the plot — and it means a
+  // label the estimator reads a few px narrow (a "%" suffix, a wider theme font)
+  // still renders whole instead of ellipsising to "30...".
+  const vLabelBoxWidth = vLabelWidth + Math.ceil(resolvedTickFontSize);
   // Vertical labels never wrap: a category like "Engineering" broken across two
   // lines reads as two categories. Horizontal ones may take a second line, since
   // the padding math reserves for exactly that.
@@ -211,7 +216,7 @@ export const Axis: React.FC<AxisProps> = ({
           // `numberOfLines` makes react-native-web add `max-width: 100%`, and the
           // tick anchor these sit in is a zero-width point — without an explicit
           // cap to beat that rule, every label collapses to nothing.
-          maxWidth: isHorizontal ? hLabelWidth : vLabelWidth,
+          maxWidth: isHorizontal ? hLabelWidth : vLabelBoxWidth,
           ...(orientation === 'bottom' && {
             top: tickTextGap, left: -hLabelWidth / 2, width: hLabelWidth, textAlign: 'center',
           }),
@@ -219,10 +224,13 @@ export const Axis: React.FC<AxisProps> = ({
             bottom: tickTextGap, left: -hLabelWidth / 2, width: hLabelWidth, textAlign: 'center',
           }),
           ...(orientation === 'left' && {
-            left: -(tickTextGap + vLabelWidth), top: -halfLine, width: vLabelWidth, textAlign: 'right',
+            left: -(tickTextGap + vLabelBoxWidth), top: -halfLine, width: vLabelBoxWidth, textAlign: 'right',
           }),
+          // Right-axis labels grow outward, toward the container edge, so they take
+          // their text's width (capped by maxWidth) instead of a fixed box that would
+          // overflow the chart.
           ...(orientation === 'right' && {
-            left: tickTextGap, top: -halfLine, width: vLabelWidth, textAlign: 'left',
+            left: tickTextGap, top: -halfLine, textAlign: 'left',
           }),
         };
         const combinedTickLabelStyle = [baseLabelStyle, tickLabelStyle];

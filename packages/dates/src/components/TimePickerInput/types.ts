@@ -1,6 +1,6 @@
 import type { FieldHandle } from '@plocks/ui';
 import type { PickerFieldBaseProps } from '../DatePickerInput/PickerField';
-import type { TimePickerProps, TimePickerValue } from '../TimePicker/types';
+import type { TimePickerPresets, TimePickerProps, TimePickerValue } from '../TimePicker/types';
 
 /** Panel behavior forwarded verbatim to the inline `<TimePicker/>` in the sheet. */
 type ForwardedPanelProps = Pick<
@@ -33,6 +33,15 @@ export interface TimePickerInputProps extends PickerFieldBaseProps, ForwardedPan
   autoClose?: boolean;
   /** Accessible label of the button that opens the panel. @default 'Choose time' */
   pickerButtonLabel?: string;
+  /**
+   * Preset times shown as buttons under the panel's columns: 24-hour `HH:mm` /
+   * `HH:mm:ss` strings, or `{ label, values }[]` groups. Picking one sets the
+   * value (seconds kept only with `withSeconds`); the matching preset shows as
+   * pressed.
+   */
+  presets?: TimePickerPresets;
+  /** Close the panel when a preset is picked. @default false */
+  closeDropdownOnPresetSelect?: boolean;
 }
 
 /** Ref of TimePickerInput: focus / blur the field, clear the value. */

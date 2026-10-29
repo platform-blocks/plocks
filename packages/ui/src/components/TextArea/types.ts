@@ -24,13 +24,22 @@ export interface TextAreaProps extends Omit<TextFieldBaseProps, 'onEnter' | 'deb
   /** Show a `count/maxLength` counter under the field (needs `maxLength`). */
   showCharCounter?: boolean;
 
-  /** Fixed height of the text box in px (overrides `rows`). Sizes the box, not the root. */
+  /** Fixed height of the text box in px (overrides `rows`, and the fill from `flex`). Sizes the box, not the root. */
   h?: number;
+
+  /**
+   * Flex factor: the field fills its parent's height (in a column) and the text
+   * box takes whatever the label and footer leave, instead of sizing to `rows`.
+   */
+  flex?: number;
+
+  /** Force the focused look regardless of real focus (`false` keeps the ring off). */
+  focused?: boolean;
 
   /** Whether the user may resize the field (web only; CSS `resize`). Default `'none'`. */
   resize?: 'none' | 'vertical' | 'horizontal' | 'both';
 
-  /** Additional TextInput props */
+  /** Additional TextInput props. `onFocus` / `onBlur` here receive the native event. */
   textInputProps?: ExtendedTextInputProps;
 
   // --- Native TextInput passthrough props ---

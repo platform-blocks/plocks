@@ -1,11 +1,11 @@
+import type React from 'react';
 import type { ImageSourcePropType, ViewStyle } from 'react-native';
 
 import type { BaseProps } from '../../core/types/base';
 
-export interface LightboxItem {
+/** Fields shared by every lightbox slide. */
+interface LightboxItemBase {
   id: string;
-  /** Remote image URI, or a bundled asset from `require('./photo.png')` */
-  uri: string | ImageSourcePropType;
   title?: string;
   description?: string;
   metadata?: {
@@ -22,8 +22,45 @@ export interface LightboxItem {
   };
 }
 
+/** An image slide (the default when `type` is omitted). */
+export interface LightboxImageItem extends LightboxItemBase {
+  type?: 'image';
+  /** Remote image URI, or a bundled asset from `require('./photo.png')` */
+  uri: string | ImageSourcePropType;
+}
+
+/**
+ * A video slide. Web plays it in a native `<video controls>` element; native
+ * plays it through `expo-video` when installed, and otherwise shows the poster
+ * with a play button that calls `onVideoPress`. Video slides never zoom.
+ */
+export interface LightboxVideoItem extends LightboxItemBase {
+  type: 'video';
+  /** URL of the video file. */
+  src: string;
+  /** Image shown before playback starts, and as the slide's thumbnail. */
+  poster?: string;
+  /** Start playing when the slide becomes active. @default false */
+  autoPlay?: boolean;
+  /** @default false */
+  muted?: boolean;
+  /** @default false */
+  loop?: boolean;
+}
+
+/** A lightbox slide: an image (default) or a video (`type: 'video'`). */
+export type LightboxItem = LightboxImageItem | LightboxVideoItem;
+
+/** What `renderSlide` gets alongside the item. */
+export interface LightboxSlideState {
+  /** Position of the slide in `images`. */
+  index: number;
+  /** Whether the slide is the one on screen. */
+  active: boolean;
+}
+
 export interface LightboxProps extends BaseProps<ViewStyle> {
-  /** Array of images to display in the lightbox. */
+  /** Slides to display: images, or videos (`type: 'video'`). */
   images: LightboxItem[];
   /**
    * Index of the image shown when the lightbox first opens.
@@ -42,7 +79,8 @@ export interface LightboxProps extends BaseProps<ViewStyle> {
    */
   showMetadata?: boolean;
   /**
-   * Whether to display the thumbnail strip for navigating between images.
+   * Whether to display the thumbnail strip for navigating between images. The
+   * `T` key (web) hides and shows it while the lightbox is open.
    * @default true
    */
   showThumbnails?: boolean;
@@ -76,6 +114,34 @@ export interface LightboxProps extends BaseProps<ViewStyle> {
   animationDuration?: number;
   /** Accessible name of the lightbox dialog. @default 'Image gallery' */
   accessibilityLabel?: string;
+  /**
+   * Whether image slides can be zoomed: double-tap / double-click, pinch,
+   * ctrl/⌘ + wheel or trackpad pinch (web), the `+` `-` `0` and `Z` keys (web),
+   * and the zoom button. While zoomed, dragging pans the image instead of
+   * changing slides.
+   * @default true
+   */
+  allowZoom?: boolean;
+  /**
+   * Largest zoom factor (1 is the fitted image).
+   * @default 3
+   */
+  maxZoom?: number;
+  /**
+   * Width and height of each thumbnail in the strip, in px.
+   * @default 60
+   */
+  thumbnailSize?: number;
+  /**
+   * Renders a slide yourself. Return `undefined` to fall back to the default
+   * image / video rendering for that item. A custom slide is not zoomable.
+   */
+  renderSlide?: (item: LightboxItem, state: LightboxSlideState) => React.ReactNode;
+  /**
+   * Called when the play button of a video slide is pressed on native without
+   * `expo-video` installed — e.g. to open the video in another player.
+   */
+  onVideoPress?: (item: LightboxVideoItem) => void;
 }
 
 export interface LightboxModalProps extends LightboxProps {
@@ -88,11 +154,12 @@ export interface LightboxThumbnailProps {
   currentIndex: number;
   /** Called when a thumbnail is pressed, or focused with the arrow keys. */
   onThumbnailPress: (index: number) => void;
+  /** Width and height of each thumbnail, in px. @default 60 */
   thumbnailSize?: number;
 }
 
 export interface LightboxImageProps {
-  image: LightboxItem;
+  image: LightboxImageItem;
   onLoad?: () => void;
   onError?: () => void;
   resizeMode?: 'contain' | 'cover' | 'stretch' | 'center';
@@ -107,6 +174,10 @@ export interface LightboxControlsProps {
   onDownload?: () => void;
   showDownloadButton?: boolean;
   image?: LightboxItem;
+  /** Whether the current image is zoomed in (sets the zoom button's label and icon). */
+  zoomed?: boolean;
+  /** Toggles zoom on the current image; the zoom button is shown only when set. */
+  onToggleZoom?: () => void;
 }
 
 export interface LightboxMetadataProps {

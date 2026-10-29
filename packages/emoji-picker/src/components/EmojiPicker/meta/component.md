@@ -42,6 +42,10 @@ props:
   - name: "emptyText"
     type: "string"
     description: "Text shown when a search has no matches."
+  - name: "withBorder"
+    type: "boolean"
+    description: "Draw the picker's own border, radius and background. Set `false` inside a Popover, Dialog or sheet that draws its own frame."
+    default: true
 ---
 
 EmojiPicker lets users browse and select Unicode emoji.

@@ -89,6 +89,69 @@ describe('Toast (react-native-web DOM)', () => {
     expect(screen.queryByTestId('toast')).toBeNull();
   });
 
+  it('draws the auto-close progress line and freezes it while paused', () => {
+    render(
+      <ToastProvider withAutoCloseProgress>
+        <Trigger options={{ title: 'Timed', autoHide: 2000, testID: 'toast' }} />
+      </ToastProvider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Notify' }));
+    const line = screen.getByTestId('toast-progress');
+    expect(line.getAttribute('aria-hidden')).toBe('true');
+    // Pausing holds the line where it is; the toast outlives its own timeout.
+    fireEvent.mouseEnter(screen.getByTestId('toast'));
+    advance(5_000);
+    expect(screen.getByTestId('toast-progress')).toBeTruthy();
+    fireEvent.mouseLeave(screen.getByTestId('toast'));
+    advance(4_000);
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('does not draw the line for a persistent toast', () => {
+    render(
+      <ToastProvider withAutoCloseProgress>
+        <Trigger options={{ title: 'Stays', persistent: true, testID: 'toast' }} />
+      </ToastProvider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Notify' }));
+    expect(screen.getByTestId('toast')).toBeTruthy();
+    expect(screen.queryByTestId('toast-progress')).toBeNull();
+  });
+
+  it('collapses a stacked layout into a deck and expands it on hover', () => {
+    function Triggers() {
+      const toast = useToast();
+      return (
+        <>
+          <Pressable role="button" accessibilityLabel="Old" onPress={() => toast.show({ title: 'Old', persistent: true, testID: 'old' })}><Text>Old</Text></Pressable>
+          <Pressable role="button" accessibilityLabel="New" onPress={() => toast.show({ title: 'New', persistent: true, testID: 'new' })}><Text>New</Text></Pressable>
+        </>
+      );
+    }
+    render(
+      <ToastProvider layout="stacked">
+        <Triggers />
+      </ToastProvider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Old' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New' }));
+    advance(500);
+
+    // react-native-web splits `overflow` into its two axes.
+    const overflow = (testID: string) => screen.getByTestId(testID).style.overflowY;
+    expect(overflow('old-slot')).toBe('hidden');
+    expect(overflow('new-slot')).not.toBe('hidden');
+
+    // The pointer resting anywhere on the deck opens it into the list.
+    fireEvent.mouseEnter(screen.getByTestId('new'));
+    advance(500);
+    expect(overflow('old-slot')).not.toBe('hidden');
+
+    fireEvent.mouseLeave(screen.getByTestId('new'));
+    advance(500);
+    expect(overflow('old-slot')).toBe('hidden');
+  });
+
   it('pauses the countdown while the pointer rests on the stack', () => {
     render(
       <ToastProvider>

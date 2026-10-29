@@ -1,6 +1,6 @@
 {
   "name": "@plocks/ui",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A comprehensive React Native UI component library — 100+ accessible, themeable, cross-platform components for iOS, Android, and Web",
   "type": "module",
   "main": "lib/esm/index.js",
@@ -1282,6 +1282,18 @@
       "require": null,
       "default": "./lib/esm/components/Toggle/index.js"
     },
+    "./Toolbar": {
+      "react-native": {
+        "types": "./lib/esm/components/Toolbar/index.d.ts",
+        "default": "./lib/esm/components/Toolbar/index.js"
+      },
+      "import": {
+        "types": "./lib/esm/components/Toolbar/index.d.ts",
+        "default": "./lib/esm/components/Toolbar/index.js"
+      },
+      "require": null,
+      "default": "./lib/esm/components/Toolbar/index.js"
+    },
     "./Tooltip": {
       "react-native": {
         "types": "./lib/esm/components/Tooltip/index.d.ts",
@@ -1455,6 +1467,7 @@
     "expo-linear-gradient": ">=12.0.0",
     "expo-navigation-bar": ">=1.0.0",
     "expo-status-bar": ">=1.12.0",
+    "expo-video": ">=2.0.0",
     "react": ">=18.0.0 <20.0.0",
     "react-native": ">=0.79.0",
     "react-native-gesture-handler": ">=2.0.0",
@@ -1489,6 +1502,9 @@
       "optional": true
     },
     "expo-status-bar": {
+      "optional": true
+    },
+    "expo-video": {
       "optional": true
     },
     "react-native-gesture-handler": {

@@ -12,7 +12,7 @@ import { getZIndex } from '../../core/theme/zIndices';
 import { useMergedRef } from '../../core/utils/mergeRefs';
 import { useStyleProps } from '../../core/utils/spacing';
 import { useAppShell, useAppShellInternal, useNavbarPushOffset } from './AppShellContext';
-import { asDimension, coerceNumber, insetTransition, spacingPx } from './shellUtils';
+import { asDimension, coerceNumber, insetTransition, offsetGeometry, spacingPx } from './shellUtils';
 import type { AppShellMainProps } from './types';
 
 const CONTENT: ViewStyle = { flex: 1, width: '100%' };
@@ -53,8 +53,10 @@ export const AppShellMain = factory<{ props: AppShellMainProps; ref: View }>(
       navbarWidth,
       navbarWidthStyle,
       asideWidth,
+      asideWidthStyle,
       bottomNavHeight,
       footerHeight,
+      footerHeightStyle,
       isMobile,
       navbarPushOnHover,
       cssGeometry,
@@ -89,6 +91,23 @@ export const AppShellMain = factory<{ props: AppShellMainProps; ref: View }>(
     const contentBottom = baseBottom + (isMobile && coerceNumber(bottomNavHeight, 0) === 0 ? bottomInset : 0);
 
     const mainPadding = internal?.mainPadding;
+
+    // Web resizing turns a resizable section's geometry into a `var()` on the
+    // shell root; the content edges then follow it (with the push / TOC offsets
+    // as a `calc()`). Otherwise these are the px computed above.
+    const resizeVars = !cssGeometry && !!internal?.resizeVars;
+    const topStyle =
+      cssGeometry || (resizeVars && typeof internal?.contentTopStyle === 'string')
+        ? internal?.contentTopStyle ?? headerHeightStyle
+        : contentTop;
+    const bottomStyle = cssGeometry || (resizeVars && typeof contentBottomStyle === 'string') ? contentBottomStyle : contentBottom;
+    const startStyle = cssGeometry
+      ? navbarWidthStyle
+      : resizeVars && typeof navbarWidthStyle === 'string'
+        ? offsetGeometry(navbarWidthStyle, pushOffset)
+        : contentStart;
+    const endStyle =
+      resizeVars && typeof asideWidthStyle === 'string' ? offsetGeometry(asideWidthStyle, effectiveTocWidth) : contentEnd;
 
     // On web, forward wheel events from the outer (full-width) container
     // to the inner ScrollView so scrolling works even when the cursor is
@@ -153,12 +172,12 @@ export const AppShellMain = factory<{ props: AppShellMainProps; ref: View }>(
           style={[
             {
               position: 'absolute',
-              top: asDimension(cssGeometry ? internal?.contentTopStyle ?? headerHeightStyle : contentTop),
-              bottom: asDimension(cssGeometry ? contentBottomStyle : contentBottom),
+              top: asDimension(topStyle),
+              bottom: asDimension(bottomStyle),
               // Under `cssGeometry` the navbar side is a custom property and the
               // hover push is a transition on it (see createAppShellCss).
-              start: asDimension(cssGeometry ? navbarWidthStyle : contentStart),
-              end: contentEnd,
+              start: asDimension(startStyle),
+              end: asDimension(endStyle),
               // Use the page background token so the area outside the centered
               // `maw` content column matches the scrollable page body (which
               // paints theme.backgrounds.base).
@@ -192,9 +211,9 @@ export const AppShellMain = factory<{ props: AppShellMainProps; ref: View }>(
             style={{
               width: numericTocWidth,
               position: 'absolute',
-              top: asDimension(cssGeometry ? headerHeightStyle : headerHeight),
-              bottom: isMobile ? coerceNumber(bottomNavHeight, 0) : coerceNumber(footerHeight, 0),
-              end: numericAsideWidth,
+              top: asDimension(headerHeightStyle),
+              bottom: isMobile ? coerceNumber(bottomNavHeight, 0) : asDimension(footerHeightStyle),
+              end: asDimension(asideWidthStyle),
               backgroundColor: chrome.background,
               zIndex: internal?.zIndices.toc ?? getZIndex(theme, 'sticky'),
               borderStartWidth: tocWithBorder ? 1 : 0,

@@ -10,7 +10,7 @@ import type { BlockProps } from '../Block';
 type AnimatedNumber = number | Animated.Value;
 type AnimatedString = string | Animated.AnimatedInterpolation<string>;
 
-export interface MotionBlockProps extends Omit<BlockProps, 'component' | 'translateY' | 'rotate'> {
+export interface MotionBlockProps extends Omit<BlockProps, 'component' | 'translateX' | 'translateY' | 'rotate'> {
   scale?: AnimatedNumber;
   translateX?: AnimatedNumber;
   translateY?: AnimatedNumber;

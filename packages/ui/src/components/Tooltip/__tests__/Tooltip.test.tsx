@@ -140,6 +140,22 @@ describe('Tooltip', () => {
     expect(findStyleUp(getByText('Long copy'), 'width')).toBe(160);
   });
 
+  it('lets touches through the bubble unless interactive', () => {
+    const { getByText, rerender } = render(
+      <Tooltip label="Plain" opened>
+        <Text>Target</Text>
+      </Tooltip>
+    );
+    expect(findStyleUp(getByText('Plain'), 'pointerEvents')).toBe('none');
+    rerender(
+      <Tooltip label="Plain" opened interactive>
+        <Text>Target</Text>
+      </Tooltip>
+    );
+    // Nearest pointerEvents is now the inline portal's `box-none`, not the bubble's `none`.
+    expect(findStyleUp(getByText('Plain'), 'pointerEvents')).not.toBe('none');
+  });
+
   it('renders in the tooltip layer with role="tooltip" through the overlay renderer', async () => {
     const { getByText } = render(
       <OverlayProvider>
@@ -159,6 +175,30 @@ describe('Tooltip', () => {
     }
     expect(role).toBe('tooltip');
     expect(findStyleUp(labelNode, 'zIndex')).toBe(DEFAULT_Z_INDICES.tooltip);
+  });
+
+  it('hideDetached is web-only; native still drops a bubble whose trigger measures 0x0', async () => {
+    const tree = (hideDetached: boolean) => (
+      <OverlayProvider>
+        <Tooltip label="Native tip" opened hideDetached={hideDetached}>
+          <Pressable testID="trigger"><Text>Target</Text></Pressable>
+        </Tooltip>
+        <OverlayRenderer />
+      </OverlayProvider>
+    );
+    const { queryByText, rerender, unmount } = render(tree(true));
+    await settle();
+    expect(queryByText('Native tip')).toBeTruthy();
+    rerender(tree(false));
+    await settle();
+    expect(queryByText('Native tip')).toBeTruthy();
+    unmount();
+
+    // The positioning layer, not hideDetached, declines a zero-size anchor.
+    mockedMeasure.mockResolvedValue({ x: 0, y: 0, width: 0, height: 0 });
+    const collapsed = render(tree(false));
+    await settle();
+    expect(collapsed.queryByText('Native tip')).toBeNull();
   });
 
   it('Android back dismisses an open tooltip', async () => {

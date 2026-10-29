@@ -6,6 +6,12 @@ import type {
   KnobRingSegment,
   KnobRingShadow,
   KnobPointerStyle,
+  KnobBodyStyle,
+  KnobBodyDisc,
+  KnobBodyGrip,
+  KnobGradient,
+  KnobShading,
+  KnobShadow,
   KnobTickLayer,
   KnobThumbShape,
   KnobThumbStyle,
@@ -28,6 +34,7 @@ const getDefaultThumbSize = (size: number) => Math.max(12, Math.round(size * 0.1
 const DEFAULT_THUMB_ACTIVE_SCALE = 1.25;
 
 export type ResolvedRingStyle = {
+  visible: boolean;
   thickness: number;
   color: string;
   trailColor: string;
@@ -39,12 +46,53 @@ export type ResolvedRingStyle = {
   segmentMode: 'track' | 'progress';
 };
 
-export type ResolvedFillStyle = {
+export type ResolvedBodyDisc = {
+  ratio: number;
   color: string;
+  shading: KnobShading;
+  gradient?: KnobGradient;
+  borderWidth: number;
+  borderColor: string;
+};
+
+export type ResolvedBodyStyle = {
+  shape: NonNullable<KnobBodyStyle['shape']>;
+  sides: number;
+  fluteDepth: number;
+  color: string;
+  shading: KnobShading;
+  gradient?: KnobGradient;
   borderWidth: number;
   borderColor: string;
   radiusOffset: number;
+  rotates: boolean;
+  grip: Required<Omit<KnobBodyGrip, 'color'>> & { color: string } | null;
+  cap: ResolvedBodyDisc | null;
+  skirt: ResolvedBodyDisc | null;
+  shadows: KnobShadow[];
 };
+
+const GRIP_DEFAULT_COUNT: Record<NonNullable<KnobBodyGrip['style']>, number> = {
+  knurl: 60,
+  ridge: 24,
+  dots: 16,
+};
+
+const resolveDisc = (
+  disc: KnobBodyDisc | false | undefined,
+  fallbackRatio: number,
+  fallbackColor: string
+): ResolvedBodyDisc | null =>
+  !disc
+    ? null
+    : {
+        ratio: disc.ratio ?? fallbackRatio,
+        color: disc.color ?? fallbackColor,
+        shading: disc.shading ?? 'flat',
+        gradient: disc.gradient,
+        borderWidth: disc.borderWidth ?? 0,
+        borderColor: disc.borderColor ?? 'transparent',
+      };
 
 export type ResolvedThumbStyle = {
   size: number;
@@ -69,7 +117,7 @@ export type ResolvedProgressStyle = {
 
 export type ResolvedKnobAppearance = {
   ring: ResolvedRingStyle;
-  fill: ResolvedFillStyle | null;
+  body: ResolvedBodyStyle | null;
   thumb: ResolvedThumbStyle | null;
   progress: ResolvedProgressStyle | null;
   pointer: (KnobPointerStyle & { visible: boolean }) | null;
@@ -87,6 +135,7 @@ export interface ResolveAppearanceOptions {
   size: number;
   thumbSize?: number;
   accentColor?: string;
+  hasMarks?: boolean;
 }
 
 const pickAccentColor = (
@@ -114,6 +163,7 @@ export const resolveKnobAppearance = ({
   size,
   thumbSize,
   accentColor,
+  hasMarks,
 }: ResolveAppearanceOptions): ResolvedKnobAppearance => {
   const derivedThumbSize = thumbSize ?? getDefaultThumbSize(size);
   const ringThicknessBase = getDefaultRingThickness(size);
@@ -121,41 +171,72 @@ export const resolveKnobAppearance = ({
 
   // The variant only supplies defaults, so it goes underneath everything the caller passed.
   const appearance = mergeKnobAppearance(
-    buildKnobVariantAppearance(variant, { theme, size, accentColor: highlightColor, disabled }),
+    buildKnobVariantAppearance(variant, { theme, size, accentColor: highlightColor, disabled, hasMarks }),
     appearanceProp
   );
 
-  const resolvedRingThickness = appearance?.ring?.thickness ?? ringThicknessBase;
+  // `ring: false` hides the track but keeps its geometry: ticks, thumb and arm still place
+  // themselves off the ring radius.
+  const ringInput = appearance?.ring === false ? undefined : appearance?.ring;
+  const resolvedRingThickness = ringInput?.thickness ?? ringThicknessBase;
   // Drawn as SVG strokes, so the literal colors (on web the tokens are `var()` references).
   const text = literalText(theme);
   const lines = literalBackgrounds(theme);
   const ringColorFallback = disabled ? text.muted : text.disabled;
 
   const ring: ResolvedRingStyle = {
+    visible: appearance?.ring !== false && ringInput?.visible !== false,
     thickness: resolvedRingThickness,
-    color: appearance?.ring?.color ?? ringColorFallback,
-    trailColor:
-      appearance?.ring?.trailColor ?? lines.borderStrong ?? lines.border,
-    backgroundColor: appearance?.ring?.backgroundColor ?? theme.backgrounds.surface,
-    cap: appearance?.ring?.cap ?? 'round',
-    radiusOffset: appearance?.ring?.radiusOffset ?? 0,
-    shadow: appearance?.ring?.shadow,
-    segments: (appearance?.ring?.segments ?? []).filter(
+    color: ringInput?.color ?? ringColorFallback,
+    trailColor: ringInput?.trailColor ?? lines.borderStrong ?? lines.border,
+    backgroundColor: ringInput?.backgroundColor ?? theme.backgrounds.surface,
+    cap: ringInput?.cap ?? 'round',
+    radiusOffset: ringInput?.radiusOffset ?? 0,
+    shadow: ringInput?.shadow,
+    segments: (ringInput?.segments ?? []).filter(
       (segment): segment is KnobRingSegment =>
         !!segment && Number.isFinite(segment.value) && segment.value > 0
     ),
-    segmentMode: appearance?.ring?.segmentMode === 'progress' ? 'progress' : 'track',
+    segmentMode: ringInput?.segmentMode === 'progress' ? 'progress' : 'track',
   };
 
-  const fill: ResolvedFillStyle | null = appearance?.fill === null
-    ? null
-    : {
-        color: appearance?.fill?.color ?? theme.backgrounds.surface,
-        borderWidth: appearance?.fill?.borderWidth ?? 0,
-        borderColor: appearance?.fill?.borderColor ?? 'transparent',
-        radiusOffset:
-          appearance?.fill?.radiusOffset ?? -Math.max(4, Math.round(ring.thickness * 0.6)),
-      };
+  const bodyInput = appearance?.body;
+  let body: ResolvedBodyStyle | null = null;
+  if (bodyInput !== false) {
+    const shape = bodyInput?.shape ?? 'circle';
+    const bodyColor = bodyInput?.color ?? theme.backgrounds.surface;
+    const gripInput = bodyInput?.grip;
+    const gripStyle = (gripInput && gripInput.style) || 'knurl';
+    const grip = gripInput
+      ? {
+          style: gripStyle,
+          count: gripInput.count ?? GRIP_DEFAULT_COUNT[gripStyle],
+          depth: gripInput.depth ?? 0.12,
+          width: gripInput.width ?? (gripStyle === 'ridge' ? Math.max(2, size * 0.012) : 1),
+          color: gripInput.color ?? '#000000',
+          opacity: gripInput.opacity ?? 0.35,
+        }
+      : null;
+    const shadowInput = bodyInput?.shadow;
+    body = {
+      shape,
+      sides: Math.max(3, Math.round(bodyInput?.sides ?? 8)),
+      fluteDepth: bodyInput?.fluteDepth ?? 0.08,
+      color: bodyColor,
+      shading: bodyInput?.shading ?? 'flat',
+      gradient: bodyInput?.gradient,
+      borderWidth: bodyInput?.borderWidth ?? 0,
+      borderColor: bodyInput?.borderColor ?? 'transparent',
+      radiusOffset:
+        bodyInput?.radiusOffset ?? -Math.max(4, Math.round(ring.thickness * 0.6)),
+      // A plain disc looks the same at every angle, so turning it would only cost renders.
+      rotates: bodyInput?.rotates ?? (shape !== 'circle' || !!grip),
+      grip,
+      cap: resolveDisc(bodyInput?.cap, 0.55, bodyColor),
+      skirt: resolveDisc(bodyInput?.skirt, 1.25, bodyColor),
+      shadows: !shadowInput ? [] : Array.isArray(shadowInput) ? shadowInput : [shadowInput],
+    };
+  }
 
   const thumb: ResolvedThumbStyle | null = appearance?.thumb === false
     ? null
@@ -180,7 +261,7 @@ export const resolveKnobAppearance = ({
         mode: appearance?.progress?.mode ?? 'none',
         color: appearance?.progress?.color ?? highlightColor,
         trailColor:
-          appearance?.progress?.trailColor ?? appearance?.ring?.trailColor ?? ring.trailColor,
+          appearance?.progress?.trailColor ?? ring.trailColor,
         roundedCaps: appearance?.progress?.roundedCaps ?? true,
         thickness: appearance?.progress?.thickness ?? ring.thickness,
       };
@@ -206,7 +287,7 @@ export const resolveKnobAppearance = ({
 
   return {
     ring,
-    fill,
+    body,
     thumb,
     progress,
     pointer,

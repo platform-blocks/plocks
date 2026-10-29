@@ -34,4 +34,16 @@ describe('DatePicker (react-native-web DOM)', () => {
     expect(screen.queryByRole('group')).toBeNull();
     expect(screen.getByRole('grid', { name: 'March 2026' })).toBeTruthy();
   });
+
+  it('forwards withNativeLevelSelect / yearsSelectRange to the calendar header', () => {
+    render(
+      <DatePicker withNativeLevelSelect yearsSelectRange={[2020, 2030]} calendarProps={{ defaultDate: new Date(2026, 2, 1) }} />
+    );
+    const year = screen.getByRole('combobox', { name: 'Year' }) as HTMLSelectElement;
+    expect(year.options).toHaveLength(11);
+    act(() => {
+      fireEvent.change(year, { target: { value: '2021' } });
+    });
+    expect(screen.getByRole('grid', { name: 'March 2021' })).toBeTruthy();
+  });
 });

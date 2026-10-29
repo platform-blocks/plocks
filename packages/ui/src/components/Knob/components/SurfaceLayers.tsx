@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, ViewStyle, StyleProp } from 'react-native';
-import Svg, { Circle, Line, Path } from 'react-native-svg';
+import Svg, { Line, Path } from 'react-native-svg';
 
-import type { KnobFillStyle } from '../types';
 import type { LayoutState } from '../hooks/useKnobGeometry';
 import { knobStyles as styles } from '../styles';
 
 export type SurfaceLayersProps = {
   layoutState: LayoutState;
-  fillConfig?: KnobFillStyle | null;
-  fillRadius: number;
-  fillDiameter: number;
+  /** The rendered body (`BodyLayer`), painted between the surface disk and the ring. */
+  bodyLayer?: React.ReactNode;
+  /** `false` hides the track and the disk under it; progress still draws. */
+  ringVisible: boolean;
   ringBaseDiameter: number;
   ringSvgCenter: number;
   ringBackgroundColor?: string;
@@ -43,9 +43,8 @@ export type SurfaceLayersProps = {
 
 export const SurfaceLayers: React.FC<SurfaceLayersProps> = ({
   layoutState,
-  fillConfig,
-  fillRadius,
-  fillDiameter,
+  bodyLayer,
+  ringVisible,
   ringBaseDiameter,
   ringSvgCenter,
   ringBackgroundColor,
@@ -70,52 +69,30 @@ export const SurfaceLayers: React.FC<SurfaceLayersProps> = ({
   zeroIndicatorPoints,
   zeroIndicatorColor,
 }) => {
-  const shouldRenderFill = Boolean(fillConfig && fillDiameter > 0);
-
   return (
     <>
-      {/* Background disk first: it spans the whole knob, so painting it after the fill hid
-          the body entirely and made `appearance.fill` a no-op. */}
-      <View
-        pointerEvents="none"
-        style={[
-          styles.ringBase,
-          {
-            left: layoutState.cx - ringSvgCenter,
-            top: layoutState.cy - ringSvgCenter,
-            width: ringBaseDiameter,
-            height: ringBaseDiameter,
-            borderRadius: ringBaseDiameter / 2,
-            backgroundColor: ringBackgroundColor,
-          },
-          ringShadowStyle ?? undefined,
-          trackStyle,
-        ]}
-      />
-
-      {shouldRenderFill && fillConfig ? (
-        <Svg
+      {/* Surface disk first, then the body over it: the disk spans the whole knob, so
+          painting it later would hide the body. */}
+      {ringVisible ? (
+        <View
           pointerEvents="none"
-          width={fillDiameter}
-          height={fillDiameter}
           style={[
-            styles.fillLayer,
+            styles.ringBase,
             {
-              left: layoutState.cx - fillRadius,
-              top: layoutState.cy - fillRadius,
+              left: layoutState.cx - ringSvgCenter,
+              top: layoutState.cy - ringSvgCenter,
+              width: ringBaseDiameter,
+              height: ringBaseDiameter,
+              borderRadius: ringBaseDiameter / 2,
+              backgroundColor: ringBackgroundColor,
             },
+            ringShadowStyle ?? undefined,
+            trackStyle,
           ]}
-        >
-          <Circle
-            cx={fillRadius}
-            cy={fillRadius}
-            r={Math.max(0, fillRadius - (fillConfig.borderWidth ?? 0) / 2)}
-            fill={fillConfig.color}
-            stroke={fillConfig.borderColor}
-            strokeWidth={fillConfig.borderWidth ?? 0}
-          />
-        </Svg>
+        />
       ) : null}
+
+      {bodyLayer}
 
       <Svg
         pointerEvents="none"
@@ -129,13 +106,15 @@ export const SurfaceLayers: React.FC<SurfaceLayersProps> = ({
           },
         ]}
       >
-        <Path
-          d={ringPath}
-          stroke={ringBaseStroke}
-          strokeWidth={ringThickness}
-          strokeLinecap={ringCap}
-          fill="none"
-        />
+        {ringVisible ? (
+          <Path
+            d={ringPath}
+            stroke={ringBaseStroke}
+            strokeWidth={ringThickness}
+            strokeLinecap={ringCap}
+            fill="none"
+          />
+        ) : null}
         {ringSegmentPaths.map((segment) => (
           <Path
             key={segment.key}

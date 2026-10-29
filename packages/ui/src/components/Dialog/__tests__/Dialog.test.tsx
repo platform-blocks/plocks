@@ -104,6 +104,34 @@ describe('Dialog - behavior', () => {
     expect(body.maxHeight).toBeUndefined();
   });
 
+  const bodyStyle = (getByText: (text: string) => any) =>
+    StyleSheet.flatten(getByText('Dialog body').parent?.parent?.props.style);
+
+  it('pads the body 20 by default, 8 on top below the title', () => {
+    const { getByText } = render(renderDialog());
+    expect(bodyStyle(getByText)).toMatchObject({ paddingTop: 8, paddingBottom: 20, paddingStart: 20, paddingEnd: 20 });
+  });
+
+  it.each(['modal', 'bottomsheet', 'fullscreen'] as const)('p={0} takes every edge of the %s body', (variant) => {
+    const { getByText } = render(renderDialog({ variant, p: 0 }));
+    const body = bodyStyle(getByText);
+    expect(body).toMatchObject({ paddingTop: 0, paddingBottom: 0, paddingStart: 0, paddingEnd: 0 });
+    expect(body.padding).toBeUndefined();
+  });
+
+  it('keeps the default on edges a single-edge prop leaves alone', () => {
+    const { getByText } = render(renderDialog({ variant: 'bottomsheet', px: 0 }));
+    expect(bodyStyle(getByText)).toMatchObject({ paddingTop: 8, paddingBottom: 20, paddingStart: 0, paddingEnd: 0 });
+  });
+
+  it('lets a shorthand style padding win over the default longhands', () => {
+    const { getByText } = render(renderDialog({ variant: 'bottomsheet', style: { padding: 0 } }));
+    const body = bodyStyle(getByText);
+    expect(body.padding).toBe(0);
+    expect(body.paddingTop).toBeUndefined();
+    expect(body.paddingStart).toBeUndefined();
+  });
+
   it('invokes onClose when the close button is pressed', () => {
     const onClose = jest.fn();
     const { getByTestId } = render(renderDialog({ onClose }));

@@ -23,6 +23,7 @@ export const CORE_COMPONENTS: CoreComponentConfig[] = [
   { name: 'Checkbox', category: 'input', icon: 'check' },
   { name: 'Switch', category: 'input', icon: 'toggle' },
   { name: 'Toggle', category: 'input', icon: 'toggle', description: 'Toggle button group for single or multiple selection' },
+  { name: 'Toolbar', category: 'input', icon: 'toggle', description: 'Row or column of toggles with toggle groups, dividers and one shared tab stop' },
   { name: 'BrandButton', category: 'input', icon: 'bolt', description: 'Branded action button and store badge for every brand in the icon registry' },
   { name: 'Radio', category: 'input', icon: 'radio' },
   { name: 'IconButton', category: 'input', icon: 'button', description: 'Icon-only button with the Button variant and size API' },
@@ -189,6 +190,12 @@ export const CORE_COMPONENTS: CoreComponentConfig[] = [
   { name: 'ViolinChart', category: 'charts', icon: 'chart-area' },
   { name: 'ParetoChart', category: 'charts', icon: 'chart-line' },
   { name: 'MarimekkoChart', category: 'charts', icon: 'chart-bar' },
+  { name: 'WaffleChart', category: 'charts', icon: 'grid' },
+  { name: 'MatrixChart', category: 'charts', icon: 'chart-heatmap' },
+  { name: 'BulletChart', category: 'charts', icon: 'chart-bar' },
+  { name: 'SunburstChart', category: 'charts', icon: 'chart-donut' },
+  { name: 'CalendarHeatmapChart', category: 'charts', icon: 'chart-heatmap' },
+  { name: 'ChartBrush', category: 'charts', icon: 'slider', description: 'Range selector with a miniature preview for zooming cartesian charts' },
 
   // Media Components
   { name: 'Image', category: 'media', icon: 'image', description: 'Basic image component with optional caption and overlay' },

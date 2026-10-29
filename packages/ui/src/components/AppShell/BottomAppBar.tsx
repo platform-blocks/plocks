@@ -16,7 +16,7 @@ import { getZIndex } from '../../core/theme/zIndices';
 import { useStyleProps } from '../../core/utils/spacing';
 import { Text } from '../Text';
 import { useAppShellInternal } from './AppShellContext';
-import type { BottomAppBarProps, BottomAppBarItem } from './types';
+import type { BottomAppBarIcon, BottomAppBarItem, BottomAppBarProps } from './types';
 
 const ROW: ViewStyle = {
   flexDirection: 'row',
@@ -70,10 +70,10 @@ const getVariantStyles = (
   }
 };
 
-const ItemBadge: React.FC<{ count?: number; theme: PlocksTheme }> = ({ count, theme }) => {
+const ItemBadge: React.FC<{ count?: number; color?: string; theme: PlocksTheme }> = ({ count, color, theme }) => {
   if (!count || count < 0) return null;
   const limited = count > 99 ? '99+' : String(count);
-  const background = theme.colors.error[5];
+  const background = color ?? theme.colors.error[5];
   return (
     <View
       // The count is part of the item's accessible name; the badge is visual only.
@@ -98,16 +98,33 @@ const ItemBadge: React.FC<{ count?: number; theme: PlocksTheme }> = ({ count, th
   );
 };
 
+const renderIcon = (icon: BottomAppBarIcon, active: boolean, color: string) =>
+  typeof icon === 'function' ? icon({ active, color }) : icon;
+
 interface NavItemProps {
   item: BottomAppBarItem;
   active: boolean;
   showLabel: boolean;
   theme: PlocksTheme;
+  activeColor?: string;
+  inactiveColor?: string;
+  indicatorColor: string | undefined;
+  badgeColor?: string;
   onSelect: (item: BottomAppBarItem) => void;
 }
 
-const NavItem = React.memo(function NavItem({ item, active, showLabel, theme, onSelect }: NavItemProps) {
-  const color = active ? theme.colors.primary[5] : theme.text.secondary;
+const NavItem = React.memo(function NavItem({
+  item,
+  active,
+  showLabel,
+  theme,
+  activeColor,
+  inactiveColor,
+  indicatorColor,
+  badgeColor,
+  onSelect,
+}: NavItemProps) {
+  const color = active ? activeColor ?? theme.colors.primary[5] : inactiveColor ?? theme.text.secondary;
   const handlePress = useCallback(() => onSelect(item), [onSelect, item]);
   const name = item.badgeCount && item.badgeCount > 0 ? `${item.label}, ${item.badgeCount}` : item.label;
   return (
@@ -119,14 +136,14 @@ const NavItem = React.memo(function NavItem({ item, active, showLabel, theme, on
       <View style={ICON_WRAP}>
         <View
           aria-hidden
-          style={[ICON, { backgroundColor: active ? shellChrome(theme).navActive : 'transparent' }]}
+          style={[ICON, { backgroundColor: active && indicatorColor ? indicatorColor : 'transparent' }]}
         >
-          {active && item.activeIcon ? item.activeIcon : item.icon}
+          {renderIcon(active && item.activeIcon ? item.activeIcon : item.icon, active, color)}
         </View>
-        <ItemBadge count={item.badgeCount} theme={theme} />
+        <ItemBadge count={item.badgeCount} color={badgeColor} theme={theme} />
       </View>
       {showLabel && (
-        <Text size="xs" style={{ marginTop: 2, fontSize: 10, color, textAlign: 'center' }}>
+        <Text size="xs" style={{ marginTop: 2, fontSize: 10, color, textAlign: 'center', fontWeight: active ? '600' : '400' }}>
           {item.label}
         </Text>
       )}
@@ -150,6 +167,11 @@ export const BottomAppBar = factory<{ props: BottomAppBarProps; ref: View }>(
       elevation,
       fab,
       withBorder = true,
+      activeColor,
+      inactiveColor,
+      indicator = true,
+      borderColor,
+      badgeColor,
       zIndex,
       style,
       accessibilityLabel,
@@ -158,6 +180,8 @@ export const BottomAppBar = factory<{ props: BottomAppBarProps; ref: View }>(
     const theme = useTheme();
     const spacingStyles = useStyleProps(props);
     const internal = useAppShellInternal();
+    const indicatorColor =
+      typeof indicator === 'string' ? indicator : indicator ? shellChrome(theme).navActive : undefined;
 
     const handleSelect = useCallback(
       (item: BottomAppBarItem) => {
@@ -178,7 +202,7 @@ export const BottomAppBar = factory<{ props: BottomAppBarProps; ref: View }>(
           getVariantStyles(variant, theme, elevation),
           {
             borderTopWidth: withBorder ? 1 : 0,
-            borderTopColor: shellChrome(theme).border,
+            borderTopColor: borderColor ?? shellChrome(theme).border,
             zIndex: zIndex ?? internal?.zIndices.bottomNav ?? getZIndex(theme, 'sticky'),
           },
           POSITION,
@@ -195,6 +219,10 @@ export const BottomAppBar = factory<{ props: BottomAppBarProps; ref: View }>(
                   theme={theme}
                   active={it.key === activeKey}
                   showLabel={showLabels}
+                  activeColor={activeColor}
+                  inactiveColor={inactiveColor}
+                  indicatorColor={indicatorColor}
+                  badgeColor={badgeColor}
                   onSelect={handleSelect}
                 />
               ))

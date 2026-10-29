@@ -19,6 +19,7 @@ import type { FieldHandle } from '@plocks/ui';
 import { PickerActions } from '../DatePickerInput/PickerActions';
 import { PickerField } from '../DatePickerInput/PickerField';
 import { TimePicker, buildTimeValue } from '../TimePicker/TimePicker';
+import { TimePresets } from '../TimePicker/TimePresets';
 import type { TimePickerValue } from '../TimePicker/types';
 import type { TimePickerInputHandle, TimePickerInputProps } from './types';
 
@@ -67,6 +68,8 @@ export const TimePickerInput = factory<{ props: TimePickerInputProps; ref: TimeP
       title = 'Select time',
       autoClose = false,
       pickerButtonLabel = 'Choose time',
+      presets,
+      closeDropdownOnPresetSelect = false,
       label = 'Time',
       clearable = false,
       clearButtonLabel = 'Clear time',
@@ -158,6 +161,19 @@ export const TimePickerInput = factory<{ props: TimePickerInputProps; ref: TimeP
           disabled={disabled || readOnly}
           accessibilityLabel={title}
         />
+        {presets ? (
+          <TimePresets
+            presets={presets}
+            format={format}
+            withSeconds={withSeconds}
+            value={current}
+            onSelect={(time) => {
+              commit(buildTimeValue(format, withSeconds, time));
+              if (closeDropdownOnPresetSelect) close();
+            }}
+            disabled={disabled || readOnly}
+          />
+        ) : null}
         {!autoClose ? <PickerActions onDone={close} /> : null}
       </View>
     );

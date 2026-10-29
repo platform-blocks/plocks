@@ -12,6 +12,7 @@ import { useStyleProps } from '../../core/utils/spacing';
 import { isNative, isWeb, webProps } from '../../core/platform';
 import type { WebMouseEvent } from '../../core/platform';
 import { useFloating } from '../../core/overlay/useFloating';
+import { resolveDOMElement } from '../../core/overlay/focus';
 import { resolvePlacementForDirection, useIsRTL } from '../../core/overlay/placement';
 import { useLatestCallback } from '../../core/hooks/useLatestCallback';
 import type { PlacementType } from '../../core/utils/positioning-enhanced';
@@ -30,6 +31,15 @@ interface TargetProps {
   onHoverOut?: (event: unknown) => void;
   onMouseEnter?: (event: WebMouseEvent) => void;
   onMouseLeave?: (event: WebMouseEvent) => void;
+}
+
+/** Where focus went on a blur (web only; DOM `relatedTarget`, `null` when it left the page). */
+function getRelatedTarget(event: unknown): Node | null {
+  const synthetic = event as { relatedTarget?: unknown; nativeEvent?: { relatedTarget?: unknown } } | null;
+  const related = synthetic?.relatedTarget ?? synthetic?.nativeEvent?.relatedTarget;
+  return related && typeof related === 'object' && typeof (related as Node).nodeType === 'number'
+    ? (related as Node)
+    : null;
 }
 
 function chain<A extends unknown[]>(
@@ -122,6 +132,7 @@ function HoverCardBase(props: HoverCardProps, ref: Ref<View>) {
     w,
     withArrow = false,
     closeOnEscape = true,
+    returnFocus = true,
     onOpen,
     onClose,
     disabled = false,
@@ -207,7 +218,7 @@ function HoverCardBase(props: HoverCardProps, ref: Ref<View>) {
     closeOnEscape,
     // Touch has no hover: a tap elsewhere is the natural way to dismiss it.
     closeOnOutsidePress: !isHover || isNative,
-    restoreFocus: true,
+    restoreFocus: returnFocus,
   });
 
   // --- anchor: the target when it forwards a ref, else the wrapper ------------------
@@ -221,6 +232,20 @@ function HoverCardBase(props: HoverCardProps, ref: Ref<View>) {
     if (node && !targetNodeRef.current) refs.setReference(node);
   }, [refs]);
   const wrapperRef = useMergedRef<View>(ref, setWrapperNode);
+
+  // Focus moving between the target and the card (a keyboard user tabbing onto
+  // a button inside it) is not a reason to close; only leaving both is.
+  const focusStaysInside = useCallback((event: unknown) => {
+    if (!isWeb) return false;
+    const related = getRelatedTarget(event);
+    if (!related) return false;
+    const card = resolveDOMElement(refs.floating.current);
+    const anchor = resolveDOMElement(refs.reference.current);
+    return (!!card && card.contains(related)) || (!!anchor && anchor.contains(related));
+  }, [refs]);
+  const closeUnlessFocusInside = useCallback((event: unknown) => {
+    if (!focusStaysInside(event)) scheduleClose();
+  }, [focusStaysInside, scheduleClose]);
 
   const targetProps = (target.props ?? {}) as TargetProps;
   const targetRef: Ref<unknown> | undefined = parseInt(React.version, 10) >= 19
@@ -247,7 +272,7 @@ function HoverCardBase(props: HoverCardProps, ref: Ref<View>) {
   if (isHover) {
     // Keyboard users get the same card when the target takes focus.
     overrides.onFocus = chain(targetProps.onFocus, scheduleOpen);
-    overrides.onBlur = chain(targetProps.onBlur, scheduleClose);
+    overrides.onBlur = chain(targetProps.onBlur, closeUnlessFocusInside);
   }
   if (disabled) overrides.disabled = true;
   const enhancedTarget = cloneElement(target, overrides);
@@ -272,8 +297,9 @@ function HoverCardBase(props: HoverCardProps, ref: Ref<View>) {
       {...floating.getFloatingProps({
         style: cardStyle,
         testID: testID ? `${testID}-card` : undefined,
-        // The pointer may travel onto the card without it closing.
+        // The pointer may travel onto the card without it closing, and so may focus.
         ...(isHover && isWeb ? webProps({ onMouseEnter: clearTimer, onMouseLeave: scheduleClose }) : null),
+        ...(isHover && isWeb ? { onFocus: clearTimer, onBlur: closeUnlessFocusInside } : null),
       })}
     >
       {children}

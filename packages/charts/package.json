@@ -1,6 +1,6 @@
 {
   "name": "@plocks/charts",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Data visualization chart components for React Native and Web — bar, line, area, pie, scatter, radar, heatmap, and more",
   "type": "module",
   "main": "lib/esm/index.js",

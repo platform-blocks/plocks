@@ -137,6 +137,8 @@ const SCALE_SCALE_FROM = 0.85;
 const EXIT_DURATION_RATIO = 0.6;
 /** Max tilt while dragging a toast sideways. */
 const SWIPE_ROTATION = 6;
+/** Thickness of the auto-close progress line along the bottom edge. */
+const AUTO_CLOSE_PROGRESS_HEIGHT = 3;
 const SWIPE_FLING_DURATION = 180;
 
 const resolveToastMetrics = (value: ComponentSizeValue | undefined): ToastSizeMetrics => {
@@ -203,6 +205,7 @@ function ToastBase(props: ToastProps, ref: React.Ref<View>) {
     transitionDuration,
     autoHide = 4000,
     paused = false,
+    withAutoCloseProgress = false,
     position = 'top',
     style,
     testID,
@@ -291,6 +294,8 @@ function ToastBase(props: ToastProps, ref: React.Ref<View>) {
   const swipeX = useSharedValue(0);
   const swipeY = useSharedValue(0);
   const swipeFade = useSharedValue(1);
+  // 1 → 0 over the auto-hide countdown; drives the optional progress line.
+  const autoCloseProgress = useSharedValue(1);
 
   const shouldUnmountOnHide = !keepMounted;
   const [shouldRender, setShouldRender] = React.useState(shouldUnmountOnHide ? visible : true);
@@ -488,7 +493,10 @@ function ToastBase(props: ToastProps, ref: React.Ref<View>) {
 
   useEffect(() => {
     remainingRef.current = autoHide;
-  }, [visible, autoHide, persistent]);
+    // A fresh countdown starts from a full line; a hiding toast keeps whatever
+    // was left so the line does not jump back to full while it fades out.
+    if (visible) autoCloseProgress.value = 1;
+  }, [visible, autoHide, persistent, autoCloseProgress]);
 
   useEffect(() => {
     if (!visible || !timedOut || paused) return;
@@ -498,11 +506,21 @@ function ToastBase(props: ToastProps, ref: React.Ref<View>) {
       remainingRef.current = 0;
       requestClose();
     }, remaining);
+    // The progress line follows the same clock: it runs from wherever it is to
+    // empty over the time that is left, and cancelling it on pause freezes it
+    // in place, so the line and the timer can never disagree.
+    autoCloseProgress.value = withTiming(0, { duration: remaining, easing: Easing.linear });
     return () => {
       clearTimeout(timer);
+      cancelAnimation(autoCloseProgress);
       remainingRef.current = Math.max(0, remaining - (Date.now() - startedAt));
     };
-  }, [visible, timedOut, paused, requestClose]);
+  }, [visible, timedOut, paused, requestClose, autoCloseProgress]);
+
+  const autoCloseProgressStyle = useAnimatedStyle(() => ({
+    width: `${autoCloseProgress.value * 100}%` as const,
+  }), []);
+  const showAutoCloseProgress = withAutoCloseProgress && timedOut;
 
   // ---- Loading ring ---------------------------------------------------------
   const spin = useSharedValue(0);
@@ -732,6 +750,9 @@ function ToastBase(props: ToastProps, ref: React.Ref<View>) {
   // The loading ring sits inside the icon slot, slightly inset so it reads as
   // the same optical weight as a severity glyph at every size.
   const spinnerSize = Math.max(10, Math.round(metrics.iconSize * 0.8));
+  // The progress line takes the accent color; on a filled toast the accent is
+  // the background, so it uses the readable foreground at half strength.
+  const autoCloseProgressColor = variant === 'filled' ? withAlpha(textColor, 0.6) : iconColor;
 
   if (shouldUnmountOnHide && !shouldRender) {
     return null;
@@ -919,6 +940,35 @@ function ToastBase(props: ToastProps, ref: React.Ref<View>) {
             marginEnd: -Math.round(metrics.gap / 2),
           }}
         />
+      )}
+
+      {/* Auto-close progress — decorative: the countdown is already conveyed
+          by the toast leaving, so it is hidden from assistive tech. */}
+      {showAutoCloseProgress && (
+        <View
+          pointerEvents="none"
+          aria-hidden
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          testID={testID ? `${testID}-progress` : undefined}
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            start: 0,
+            end: 0,
+            height: AUTO_CLOSE_PROGRESS_HEIGHT,
+            overflow: 'hidden',
+            borderBottomStartRadius: borderRadius,
+            borderBottomEndRadius: borderRadius,
+          }}
+        >
+          <Animated.View
+            style={[
+              { height: '100%', backgroundColor: autoCloseProgressColor },
+              autoCloseProgressStyle,
+            ]}
+          />
+        </View>
       )}
         </View>
       </Pressable>

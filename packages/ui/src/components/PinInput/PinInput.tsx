@@ -54,6 +54,7 @@ export const PinInput = factory<{ props: PinInputProps; ref: FieldHandle }>((pro
     label,
     description,
     helperText,
+    success,
     required,
     withAsterisk,
     labelProps,
@@ -280,7 +281,7 @@ export const PinInput = factory<{ props: PinInputProps; ref: FieldHandle }>((pro
   const cellLabel = (index: number) =>
     labelText ? `${labelText}, digit ${index + 1} of ${length}` : `Digit ${index + 1} of ${length}`;
 
-  const renderCells = ({ controlProps }: FieldRenderProps) => {
+  const renderCells = ({ controlProps, success: successState }: FieldRenderProps) => {
     // The row is a group named by the field label; each cell has its own name and
     // carries the field's description / error / required / invalid wiring.
     const { id: groupId, 'aria-labelledby': labelledBy, 'aria-label': _groupLabel, ...cellWiring } = controlProps;
@@ -288,7 +289,7 @@ export const PinInput = factory<{ props: PinInputProps; ref: FieldHandle }>((pro
       <View id={groupId} role="group" aria-labelledby={labelledBy} style={styles.row}>
         {digits.map((digit, index) => {
           const focused = focusedIndex === index;
-          const frame = getFieldFrameStyles(theme, size, variant, radius, invalid, focused, disabled);
+          const frame = getFieldFrameStyles(theme, size, variant, radius, invalid, focused, disabled, successState);
           return (
             <View key={index} style={[frame.frame, styles.cell]}>
               {focused && !disabled ? <View style={frame.focusRing} /> : null}
@@ -337,6 +338,7 @@ export const PinInput = factory<{ props: PinInputProps; ref: FieldHandle }>((pro
       description={description}
       error={error}
       helperText={helperText}
+      success={success}
       required={required}
       withAsterisk={withAsterisk}
       disabled={disabled}

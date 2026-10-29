@@ -2,7 +2,13 @@ import React, { createContext, useContext, useMemo } from 'react';
 import type { EasingFunction, EasingFunctionFactory } from 'react-native-reanimated';
 
 import { useHover, type UseHoverHandlers } from '../../hooks/useHover/useHover';
-import type { AppShellApi, AppShellContextValue, AppShellLayoutValue } from './types';
+import type {
+  AppShellApi,
+  AppShellContextValue,
+  AppShellLayoutValue,
+  AppShellResizeSection,
+  UseAppShellResizeReturn,
+} from './types';
 
 export const AppShellContext = createContext<AppShellContextValue | undefined>(undefined);
 // Split contexts to minimize re-renders in hot components
@@ -91,6 +97,20 @@ export interface AppShellInternalValue {
   easing: EasingFunction | EasingFunctionFactory | undefined;
   /** The same curve as a CSS timing function, for web transitions. */
   cssTimingFunction: string;
+  /** The `resize` prop (`useAppShellResize()`), if any. */
+  resize: UseAppShellResizeReturn | undefined;
+  /** Which sections show a resize handle right now (named by `resize`, configured, and inline at this breakpoint). */
+  resizable: Record<AppShellResizeSection, boolean>;
+  /** Whether each resizable section is collapsed (the navbar: closed to its rail). */
+  resizeCollapsed: Record<AppShellResizeSection, boolean>;
+  /** Each resizable section's expanded size in px (what it returns to when it expands). */
+  resizeExpandedSize: Record<AppShellResizeSection, number>;
+  /**
+   * Web, with `resize`: resizable sections' geometry is a `var()` on the shell
+   * root, so a drag moves it without a render. The navbar then sizes itself
+   * from that variable instead of its animated width.
+   */
+  resizeVars: boolean;
 }
 
 export const AppShellInternalContext = createContext<AppShellInternalValue | undefined>(undefined);

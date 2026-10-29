@@ -12,6 +12,7 @@ import { useReducedMotion } from '../../motion/useReducedMotion';
 import { useAnnouncer, useFocus } from '../../accessibility/hooks';
 import { useHapticsSettings } from '../../haptics/HapticsProvider';
 import { useOverlayApi } from '../OverlayProvider';
+import { ToastProvider, useOptionalToast, useToast } from '../../../components/Toast/ToastProvider';
 
 const renders = { count: 0 };
 
@@ -26,6 +27,7 @@ const Consumer = React.memo(function Consumer() {
   useFocus('consumer');
   useHapticsSettings();
   useOverlayApi();
+  useOptionalToast();
   return null;
 });
 
@@ -141,5 +143,81 @@ describe('PlocksProvider', () => {
       </PlocksProvider>
     );
     expect(insets).toEqual({ top: 0, right: 0, bottom: 0, left: 0 });
+  });
+
+  describe('toasts', () => {
+    type Api = ReturnType<typeof useOptionalToast>;
+    const probe = (sink: { api?: Api }) => function Probe() {
+      sink.api = useOptionalToast();
+      return null;
+    };
+
+    it('mounts a ToastProvider, so useToast() works with no setup', () => {
+      const sink: { api?: Api } = {};
+      const Probe = probe(sink);
+      function Trigger() {
+        const toast = useToast();
+        return <Text onPress={() => toast.show({ title: 'Built in', persistent: true })}>show</Text>;
+      }
+      render(
+        <PlocksProvider>
+          <Probe />
+          <Trigger />
+        </PlocksProvider>
+      );
+      expect(sink.api).not.toBeNull();
+      act(() => { screen.getByText('show').click(); });
+      expect(screen.getAllByText('Built in')).toHaveLength(1);
+    });
+
+    it('leaves it out with toast={false}', () => {
+      const sink: { api?: Api } = {};
+      const Probe = probe(sink);
+      render(
+        <PlocksProvider toast={false}>
+          <Probe />
+        </PlocksProvider>
+      );
+      expect(sink.api).toBeNull();
+    });
+
+    it("lets the app's own ToastProvider take over below it: one toast, one viewport", () => {
+      const outer: { api?: Api } = {};
+      const inner: { api?: Api } = {};
+      const OuterProbe = probe(outer);
+      const InnerProbe = probe(inner);
+      function Trigger() {
+        const toast = useToast();
+        return <Text onPress={() => toast.show({ title: 'Mine', persistent: true })}>show</Text>;
+      }
+      render(
+        <PlocksProvider>
+          <OuterProbe />
+          <ToastProvider defaultPosition="bottom-center">
+            <InnerProbe />
+            <Trigger />
+          </ToastProvider>
+        </PlocksProvider>
+      );
+      expect(inner.api).not.toBe(outer.api);
+      act(() => { screen.getByText('show').click(); });
+      expect(screen.getAllByText('Mine')).toHaveLength(1);
+    });
+
+    it('skips the built-in provider under an app ToastProvider above it', () => {
+      const outside: { api?: Api } = {};
+      const inside: { api?: Api } = {};
+      const OutsideProbe = probe(outside);
+      const InsideProbe = probe(inside);
+      render(
+        <ToastProvider>
+          <OutsideProbe />
+          <PlocksProvider>
+            <InsideProbe />
+          </PlocksProvider>
+        </ToastProvider>
+      );
+      expect(inside.api).toBe(outside.api);
+    });
   });
 });

@@ -26,6 +26,12 @@ export { useDebouncedValue, type UseDebouncedValueOptions } from './useDebounced
 export { useDebouncedCallback, type UseDebouncedCallbackReturn } from './useDebouncedCallback';
 export { useMediaQuery } from './useMediaQuery';
 export { useHover, type UseHoverHandlers, type UseHoverReturn } from './useHover';
+export {
+  useLongPress,
+  type UseLongPressEvent,
+  type UseLongPressHandlers,
+  type UseLongPressOptions,
+} from './useLongPress';
 export { useScrollSpy, type ScrollSpyOptions, type UseScrollSpyItem } from './useScrollSpy';
 export { useHaptics, type UseHapticsOptions, type UseHapticsReturn } from './useHaptics';
 export { useMaskedInput, type UseMaskedInputOptions, type UseMaskedInputReturn } from './useMaskedInput';

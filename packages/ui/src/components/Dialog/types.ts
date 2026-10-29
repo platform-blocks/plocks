@@ -1,7 +1,7 @@
 import type { ReactNode, RefObject } from 'react';
 import type { StyleProp, View, ViewStyle } from 'react-native';
 
-import type { BaseProps } from '../../core/types/base';
+import type { BaseProps, SpacingValue } from '../../core/types/base';
 import type { TextProps } from '../Text';
 
 /** Something that can take focus: a TextInput, an imperative field handle, a host view. */
@@ -51,6 +51,13 @@ export interface DialogProps extends BaseProps {
   radius?: number;
   /** Style overrides for the dialog body. */
   style?: StyleProp<ViewStyle>;
+  /**
+   * Body padding, in every variant. Defaults to 20 (8 on top below a title or
+   * the bottom-sheet handle; 0 for `fullscreen`). `p={0}` lets content such as
+   * a banner image run edge to edge; `px` / `py` / `pt` / `pb` / `pl` / `pr`
+   * set single edges and leave the rest at the default.
+   */
+  p?: SpacingValue;
   /** Whether to paint the header area with the dialog surface. @default true */
   showHeader?: boolean;
   /** Controls which part of the bottom sheet responds to swipe-to-dismiss gestures */
@@ -101,6 +108,8 @@ export interface DialogConfig {
   h?: number;
   radius?: number;
   style?: StyleProp<ViewStyle>;
+  /** Body padding (see `DialogProps.p`); `0` for edge-to-edge content. */
+  p?: SpacingValue;
   showHeader?: boolean;
   titleProps?: Omit<TextProps, 'children'>;
   /** Where focus lands when the dialog opens. See {@link DialogAutoFocus}. */

@@ -6,6 +6,7 @@
 export { Alert } from './Alert';
 export { EmptyState, EmptyStateIndicator, EmptyStateTitle, EmptyStateDescription, EmptyStateActions } from './EmptyState';
 export { AppShell } from './AppShell';
+export { useAppShellResize } from './AppShell';
 export { Avatar, AvatarGroup } from './Avatar';
 export { Block } from './Block';
 export { BackgroundImage } from './BackgroundImage';
@@ -88,6 +89,7 @@ export { ReorderableList } from './ReorderableList';
 export { SwipeableRow } from './SwipeableRow';
 export { Toast } from './Toast';
 export { ToggleButton, ToggleGroup } from './Toggle';
+export { Toolbar, ToolbarToggle, ToolbarToggleGroup, ToolbarToggleItem, ToolbarDivider } from './Toolbar';
 export { Tooltip } from './Tooltip';
 export { Tabs } from './Tabs';
 export { Accordion } from './Accordion';
@@ -112,6 +114,7 @@ export type {
   AlertSeverity,
 } from './Alert';
 export type { AppShellProps } from './AppShell';
+export type { AppShellResizeSectionOptions, UseAppShellResizeOptions, UseAppShellResizeReturn } from './AppShell';
 export type { BackgroundImageProps } from './BackgroundImage';
 export type { GradientProps } from './Gradient';
 export type { KeyboardAvoidingAreaProps } from './KeyboardAvoidingArea';
@@ -128,7 +131,7 @@ export { SegmentedControl } from './SegmentedControl';
 export type { ButtonProps } from './Button';
 export type { CardProps } from './Card';
 export type { StickyNoteProps, StickyNoteColor } from './StickyNote';
-export type { CheckboxProps } from './Checkbox';
+export type { CheckboxProps, CheckboxVariant } from './Checkbox';
 export type { ChipProps } from './Chip';
 export type { CopyButtonProps } from './CopyButton/types';
 export type { ColorInputProps } from './ColorInput';
@@ -180,7 +183,7 @@ export type { CascaderProps, CascaderOption } from './Cascader';
 export type { FileInputProps, FileInputFile } from './FileInput';
 export type { FormProps, FormFieldProps, FormInputProps, FormLabelProps, FormErrorProps, FormSubmitProps } from './Form';
 export type { RowProps, ColumnProps } from './Layout';
-export type { ToastOptions, ToastStackPosition } from './Toast';
+export type { ToastOptions, ToastStackPosition, ToastLayout } from './Toast';
 export type {
   ProgressProps,
   ProgressRootProps,
@@ -188,7 +191,7 @@ export type {
   ProgressLabelProps,
   ProgressOrientation,
 } from './Progress';
-export type { RadioProps, RadioGroupProps } from './Radio';
+export type { RadioProps, RadioGroupProps, RadioVariant } from './Radio';
 export type { RatingProps, RatingIcon } from './Rating';
 export type { RollingNumberProps, RollingNumberTimingFunction, RollingNumberTrend } from './RollingNumber';
 export type { MarqueeProps } from './Marquee';
@@ -215,13 +218,14 @@ export type { HoverCardProps } from './HoverCard/types';
 export type { ContextMenuProps, ContextMenuItem } from './ContextMenu/ContextMenu';
 export type { PopoverProps, PopoverTargetProps, PopoverDropdownProps } from './Popover';
 export type { ActionBarProps, ActionBarDividerProps, ActionBarCloseButtonProps } from './ActionBar';
+export type { ToolbarProps, ToolbarToggleProps, ToolbarToggleItemProps, ToolbarToggleGroupProps, ToolbarDividerProps, ToolbarOrientation, ToolbarVariant, ToolbarToggleValue, ToolbarToggleGroupType } from './Toolbar';
 export type { ReorderableListProps, ReorderResult } from './ReorderableList';
 export type { SwipeableRowProps, SwipeableRowAction } from './SwipeableRow';
 export type { FloatingWindowProps, FloatingWindowDragHandleProps, FloatingWindowResizeHandleProps, FloatingWindowPosition, FloatingWindowInitialPosition, FloatingWindowDimensions, FloatingWindowHandle, UseFloatingWindowOptions, UseFloatingWindowReturn } from './FloatingWindow';
 export type { SegmentedControlProps, SegmentedControlItem, SegmentedControlData } from './SegmentedControl';
 
 // Media Types
-export type { LightboxProps, LightboxModalProps, LightboxItem } from './Lightbox';
+export type { LightboxProps, LightboxModalProps, LightboxItem, LightboxImageItem, LightboxVideoItem, LightboxSlideState } from './Lightbox';
 
 // Accessibility components
 export * from './_internal/Accessibility/AccessibilityHelpers';

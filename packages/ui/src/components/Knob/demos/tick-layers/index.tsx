@@ -28,7 +28,7 @@ export function Demo() {
           // their labels; the 270deg arc gives each end of the scale its own position.
           arc: { startAngle: -135, sweepAngle: 270 },
           ring: { thickness: 16 },
-          fill: { radiusOffset: -24 },
+          body: { radiusOffset: -24 },
           progress: { mode: 'contiguous', color: '#f97316' },
           ticks: [
             // Two layers over the same dial: labelled lines from `marks`, and a finer

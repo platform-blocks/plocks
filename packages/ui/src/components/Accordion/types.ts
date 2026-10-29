@@ -79,6 +79,14 @@ export interface AccordionProps extends BaseProps<ViewStyle> {
    */
   onItemToggle?: OnAccordionToggle;
   /**
+   * Keeps one item open at all times: pressing the expanded item does not
+   * collapse it. In `type="single"` the open item can only be swapped for
+   * another; in `type="multiple"` the last open item cannot be closed.
+   * Pair with `defaultExpanded` / `expanded` so an item starts open.
+   * @default false
+   */
+  disableCollapse?: boolean;
+  /**
    * Visual variant style preset.
    * @default 'default'
    */

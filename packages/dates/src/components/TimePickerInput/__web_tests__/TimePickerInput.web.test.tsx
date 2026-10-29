@@ -38,4 +38,19 @@ describe('TimePickerInput (react-native-web DOM)', () => {
     expect(button.textContent).toContain('08:00');
     expect(button.getAttribute('aria-haspopup')).toBe('dialog');
   });
+
+  it('picks a preset in the dialog and closes it with closeDropdownOnPresetSelect', async () => {
+    const onChange = jest.fn();
+    render(<TimePickerInput label="Start" onChange={onChange} presets={['08:00', '12:00']} closeDropdownOnPresetSelect />);
+    const button = screen.getByRole('button', { name: 'Choose time' });
+    fireEvent.click(button);
+    await flush();
+    const dialog = screen.getByRole('dialog', { name: 'Select time' });
+    const presets = within(dialog).getByRole('group', { name: 'Presets' });
+    fireEvent.click(within(presets).getByRole('button', { name: '12:00' }));
+    await flush();
+    expect(onChange).toHaveBeenLastCalledWith({ hours: 12, minutes: 0 });
+    expect((screen.getByRole('textbox', { name: 'Start' }) as HTMLInputElement).value).toBe('12:00');
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+  });
 });

@@ -39,6 +39,7 @@ export const Accordion = factory<{ props: AccordionProps; ref: AccordionRef }>((
     defaultExpanded,
     expanded: controlledExpanded,
     onExpandedChange,
+    disableCollapse = false,
     variant = 'default',
     size = 'md',
     color,
@@ -131,6 +132,9 @@ export const Accordion = factory<{ props: AccordionProps; ref: AccordionRef }>((
     if (!item || item.disabled) return;
 
     const currentlyExpanded = expanded.includes(itemKey);
+    // `disableCollapse` keeps one item open: the open item (single) or the
+    // last open item (multiple) ignores presses instead of closing.
+    if (currentlyExpanded && disableCollapse && (type === 'single' || expanded.length <= 1)) return;
     let newExpanded: string[];
 
     if (type === 'single') {

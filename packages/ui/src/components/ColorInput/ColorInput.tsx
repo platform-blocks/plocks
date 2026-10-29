@@ -71,6 +71,7 @@ export const ColorInput = factory<{ props: ColorInputProps; ref: FieldHandle }>(
     description,
     error,
     helperText,
+    success,
     required = false,
     withAsterisk,
     disabled = false,
@@ -98,6 +99,7 @@ export const ColorInput = factory<{ props: ColorInputProps; ref: FieldHandle }>(
     swatches = DEFAULT_SWATCHES,
     swatchLabels,
     withSwatches = true,
+    dropdownFullWidth = false,
     placement = 'bottom-start',
     flip = true,
     shift = true,
@@ -148,6 +150,8 @@ export const ColorInput = factory<{ props: ColorInputProps; ref: FieldHandle }>(
     variant,
     focused: focused || opened,
     invalid,
+    // Field's rule: any truthy `success` flags it; `invalid` wins inside the frame styles.
+    success: !!success,
     disabled,
   });
   const { metrics, styles } = getColorInputStyles(theme, size);
@@ -159,7 +163,9 @@ export const ColorInput = factory<{ props: ColorInputProps; ref: FieldHandle }>(
     setFrameWidth((previous) => (previous === width ? previous : width));
   }, []);
 
-  const dropdownWidth = Math.max(frameWidth, DROPDOWN_MIN_WIDTH);
+  // `dropdownFullWidth` matches the field exactly (once it has been measured).
+  const dropdownWidth =
+    dropdownFullWidth && frameWidth > 0 ? frameWidth : Math.max(frameWidth, DROPDOWN_MIN_WIDTH);
   // Expected height, so the first frame already opens on the side it fits.
   const estimatedHeight = useMemo(() => {
     const inner = dropdownWidth - metrics.dropdownPadding * 2 - 2;
@@ -310,6 +316,7 @@ export const ColorInput = factory<{ props: ColorInputProps; ref: FieldHandle }>(
       description={description}
       error={error}
       helperText={helperText}
+      success={success}
       required={required}
       withAsterisk={withAsterisk}
       disabled={disabled}

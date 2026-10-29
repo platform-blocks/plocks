@@ -28,17 +28,51 @@ export interface KnobMark {
 export type KnobBehavior = 'level' | 'stepped' | 'endless' | 'dual' | 'status';
 
 /**
- * How the knob looks. Variants set stroke weights, caps, body fill, and which indicator
- * carries the value; they take their colors from the theme and the accent rather than
- * shipping their own palettes. Every value is a default that `appearance` can override.
+ * How the knob looks. Variants set the body, ring, pointer and ticks; they take their
+ * colors from the theme (its neutrals and the accent) rather than shipping their own
+ * palettes. Every value is a default that `appearance` can override.
  *
+ * Interface styles:
  * - `default` — the stock dial: neutral ring, accent thumb, no arm
- * - `minimal` — hairline track and a small dot, no body or arm; for dense panels
- * - `digital` — a 128-segment collar that lights with the value; step-readout look
- * - `retro` — solid body with a bevel border and a stubby indicator arm, no rim dot
- * - `studio` — chunky track with a bright filled arc and an outlined rim dot
+ * - `minimal` — hairline track and a small dot; for dense panels
+ * - `outline` — wireframe: an empty bordered body and a full-length arm
+ * - `material` — thick track and a rounded arc around the value; a circular slider
+ * - `studio` — chunky track, bright arc, and an outlined rim dot; the plugin-rack look
+ * - `neumorphic` — a soft raised disc lit from the top left, with an inset track
+ *
+ * Digital and metering:
+ * - `digital` — a 128-segment collar that lights with the value
+ * - `segmented` — a dozen chunky blocks that fill like a game or DAW meter
+ * - `led-ring` — a dark encoder cap ringed by glowing LEDs, as on MIDI controllers
+ * - `gauge` — a 240° dial with a scale and a tapered needle
+ *
+ * Hardware:
+ * - `retro` — domed body, a stubby arm over a center cap, silkscreened ticks
+ * - `knurled` — machined aluminum with a knurled grip that turns with the value
+ * - `encoder` — endless-style ridged cap with a finger dimple
+ * - `soft-touch` — matte rubber synth knob with a ribbed edge and a white line
+ * - `chickenhead` — the pointed bar knob of amp and selector switches
+ * - `skirted` — a flared skirt with a numbered scale and a contrasting cap
+ * - `fluted` — a scalloped, vintage console/radio knob
  */
-export type KnobVariant = 'default' | 'minimal' | 'digital' | 'retro' | 'studio';
+export type KnobVariant =
+  | 'default'
+  | 'minimal'
+  | 'outline'
+  | 'material'
+  | 'studio'
+  | 'neumorphic'
+  | 'digital'
+  | 'segmented'
+  | 'led-ring'
+  | 'gauge'
+  | 'retro'
+  | 'knurled'
+  | 'encoder'
+  | 'soft-touch'
+  | 'chickenhead'
+  | 'skirted'
+  | 'fluted';
 
 export type KnobValueLabelPosition = 'center' | 'top' | 'bottom' | 'left' | 'right';
 
@@ -111,13 +145,7 @@ export interface KnobInteractionConfig {
   onModeChange?: (mode: KnobInteractionMode | null) => void;
 }
 
-export interface KnobRingShadow {
-  color?: string;
-  offsetX?: number;
-  offsetY?: number;
-  blur?: number;
-  opacity?: number;
-}
+export type KnobRingShadow = KnobShadow;
 
 /**
  * One band of a segmented ring, in the spirit of `Progress.Section`: segments are laid end
@@ -134,6 +162,8 @@ export interface KnobRingSegment {
 }
 
 export interface KnobRingStyle {
+  /** Hide the track (and the surface disk under it). Geometry still uses it. @default true */
+  visible?: boolean;
   thickness?: number;
   color?: string;
   trailColor?: string;
@@ -155,11 +185,108 @@ export interface KnobRingStyle {
   segmentMode?: 'track' | 'progress';
 }
 
-export interface KnobFillStyle {
+/**
+ * A two-or-more stop gradient. `linear` runs along `angle` (0° = top to bottom, 90° = left
+ * to right); `radial` spreads from `center` (fractions of the shape's box) out to `radius`.
+ */
+export interface KnobGradient {
+  type?: 'linear' | 'radial';
+  stops: { offset: number; color: string; opacity?: number }[];
+  /** Linear only. @default 0 */
+  angle?: number;
+  /** Radial only, as fractions of the shape's box. @default { x: 0.5, y: 0.5 } */
+  center?: { x: number; y: number };
+  /** Radial only, as a fraction of the shape's box. @default 0.5 */
+  radius?: number;
+}
+
+/**
+ * Lighting painted over a surface's base color as white/black overlays, so it works with
+ * any color — a brand accent or a theme neutral alike. Lighting stays fixed while the
+ * body turns, the way a real knob catches the room's light.
+ *
+ * - `flat` — no lighting
+ * - `dome` — convex, lit from the top left
+ * - `concave` — a dish, the inverse of `dome` (finger dimples, inset caps)
+ * - `matte` — a soft top-to-bottom falloff; rubber and plastic
+ * - `metal` — a hard linear sheen; machined and chromed parts
+ * - `brushed` — concentric spun-aluminum rings plus a metal sheen
+ */
+export type KnobShading = 'flat' | 'dome' | 'concave' | 'matte' | 'metal' | 'brushed';
+
+/** A soft shadow. Several can be stacked (neumorphism uses a light and a dark one). */
+export interface KnobShadow {
   color?: string;
+  offsetX?: number;
+  offsetY?: number;
+  blur?: number;
+  opacity?: number;
+}
+
+/**
+ * Grip texture around the body's rim. It turns with the body when `body.rotates` is on.
+ *
+ * - `knurl` — many fine lines; machined metal
+ * - `ridge` — fewer, wider ribs; rubber and plastic
+ * - `dots` — a ring of small studs
+ */
+export interface KnobBodyGrip {
+  style?: 'knurl' | 'ridge' | 'dots';
+  /** Number of grip marks around the rim. */
+  count?: number;
+  /** How far the marks reach in from the rim, as a fraction of the body radius. @default 0.12 */
+  depth?: number;
+  /** Stroke width (or stud diameter) in pixels. */
+  width?: number;
+  color?: string;
+  opacity?: number;
+}
+
+/** A concentric disc layered on the body: the cap on top, or the skirt underneath. */
+export interface KnobBodyDisc {
+  /** Radius as a fraction of the body radius — under 1 for a cap, over 1 for a skirt. */
+  ratio?: number;
+  color?: string;
+  shading?: KnobShading;
+  gradient?: KnobGradient;
   borderWidth?: number;
   borderColor?: string;
+}
+
+/**
+ * The physical part of the knob: the thing you grab. Hardware looks live almost entirely
+ * here — shape, finish, grip texture, cap, and skirt.
+ */
+export interface KnobBodyStyle {
+  /**
+   * - `circle` — round
+   * - `polygon` — `sides` straight edges
+   * - `fluted` — `sides` scalloped flutes
+   * - `chickenhead` — a pointed bar with a short tail; aims at the value
+   * @default 'circle'
+   */
+  shape?: 'circle' | 'polygon' | 'fluted' | 'chickenhead';
+  /** Edges for `polygon`, flutes for `fluted`. @default 8 */
+  sides?: number;
+  /** How deep each flute cuts, as a fraction of the radius. @default 0.08 */
+  fluteDepth?: number;
+  color?: string;
+  shading?: KnobShading;
+  /** A custom gradient fill. Takes precedence over `color`; `shading` still layers on top. */
+  gradient?: KnobGradient;
+  borderWidth?: number;
+  borderColor?: string;
+  /** Pixels added to the knob radius (negative shrinks the body). */
   radiusOffset?: number;
+  /**
+   * Turn the body — shape, grip, and anything else drawn on it — with the value, as a real
+   * knob does. Defaults to on for non-circular shapes and bodies with a grip.
+   */
+  rotates?: boolean;
+  grip?: KnobBodyGrip | false;
+  cap?: KnobBodyDisc | false;
+  skirt?: KnobBodyDisc | false;
+  shadow?: KnobShadow | KnobShadow[] | false;
 }
 
 export type KnobThumbShape = 'circle' | 'pill' | 'square';
@@ -256,6 +383,10 @@ export interface KnobTickLayer {
    *   or detent indicator reads. Matched by angle, so it works on endless knobs too.
    */
   activeMode?: 'fill' | 'nearest';
+  /** Line-tick stroke caps. `butt` gives hard-edged blocks. @default 'round' */
+  cap?: 'round' | 'butt';
+  /** A halo around lit ticks, for LED rings. Unlit ticks never glow. */
+  glow?: { color?: string; intensity?: number; blur?: number };
   iconName?: string;
   label?: KnobTickLabelConfig;
   renderTick?: (context: {
@@ -268,9 +399,26 @@ export interface KnobTickLayer {
   }) => ReactNode;
 }
 
+/**
+ * The indicator drawn on the body.
+ *
+ * - `line` — a stroke from `inset` out to `length`
+ * - `needle` — a tapered gauge needle from the hub
+ * - `notch` — a groove cut into the body, with a lit edge
+ * - `dot` — a single dot at `length`
+ * - `dimple` — a concave finger dimple at `length`
+ * - `triangle` — an arrowhead at `length`, pointing outward
+ */
+export type KnobPointerShape = 'line' | 'needle' | 'notch' | 'dot' | 'dimple' | 'triangle';
+
 export interface KnobPointerStyle {
   visible?: boolean;
+  shape?: KnobPointerShape;
+  /** Distance from the center to the far end (or to the dot/dimple/arrowhead). */
   length?: number;
+  /** Distance from the center where a `line`/`notch` starts. @default 0 */
+  inset?: number;
+  /** Stroke width, or the dot/dimple/arrowhead size. */
   width?: number;
   offset?: number;
   color?: string;
@@ -313,8 +461,8 @@ export interface KnobAppearance {
    * an `accentColor` leave the theme accent in place. @default false
    */
   accentFromMarks?: boolean;
-  ring?: KnobRingStyle;
-  fill?: KnobFillStyle;
+  ring?: KnobRingStyle | false;
+  body?: KnobBodyStyle | false;
   thumb?: KnobThumbStyle | false;
   ticks?: KnobTickLayer | KnobTickLayer[] | false;
   pointer?: KnobPointerStyle | false;
@@ -397,7 +545,7 @@ export interface KnobRootProps extends KnobProps {
   children?: ReactNode;
 }
 
-export interface KnobFillPartProps extends KnobFillStyle {
+export interface KnobBodyPartProps extends KnobBodyStyle {
   visible?: boolean;
 }
 
@@ -428,7 +576,7 @@ export interface KnobValueLabelPartProps extends KnobValueLabelConfig {
 }
 
 export type KnobPartKind =
-  | 'fill'
+  | 'body'
   | 'ring'
   | 'ringSegment'
   | 'progress'
@@ -438,7 +586,7 @@ export type KnobPartKind =
   | 'valueLabel';
 
 export type KnobPartEntry =
-  | { kind: 'fill'; props: KnobFillPartProps; order: number }
+  | { kind: 'body'; props: KnobBodyPartProps; order: number }
   | { kind: 'ring'; props: KnobRingPartProps; order: number }
   | { kind: 'ringSegment'; props: KnobRingSegmentPartProps; order: number }
   | { kind: 'progress'; props: KnobProgressPartProps; order: number }

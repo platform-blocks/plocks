@@ -43,6 +43,7 @@ export function Demo() {
         show: true,
         title: 'Billing day',
         labelFormatter: (value) => new Date(value).toLocaleDateString('en-US', {
+          timeZone: 'UTC',
           month: 'short',
           day: 'numeric',
         }),

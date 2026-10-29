@@ -15,7 +15,10 @@ props:
   radius: Corner radius (size token or number)
   shadow: Shadow token (overrides the variant's default shadow)
   onPress: Makes the card pressable; renders inside a `<Pressable>` with a pressed-state style
-  disabled: Disables interaction + dims to 50%
+  onLongPress: Long-press handler; also makes the card pressable (`delayLongPress` sets the delay in ms)
+  onPressIn: Press-start handler; also makes the card pressable (`onPressOut` for press end)
+  pressedStyle: Style while pressed — replaces the variant's built-in press feedback, e.g. `{ opacity: 0.7 }`
+  disabled: Disables every press handler + dims to 50%
 examples:
   - basic
   - variants
@@ -31,3 +34,15 @@ subComponents:
       px: Horizontal padding inside the section (overrides `inheritPadding`)
 ---
 The Card component provides a flexible container for displaying content.
+
+## Selection
+
+Card forwards `role` and `aria-*` to its root, so a selectable card needs no extra prop. Give it a role that has a selected state and pass `aria-selected`:
+
+```tsx
+<Card role="option" aria-selected={selected} onPress={() => setSelected(!selected)}>
+  <Text>Pro plan</Text>
+</Card>
+```
+
+Use `role="radio"` with `aria-checked` for single-choice groups.

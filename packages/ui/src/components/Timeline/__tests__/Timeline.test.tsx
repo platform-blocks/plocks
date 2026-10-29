@@ -372,6 +372,63 @@ describe('Timeline - Type Safety and Prop Validation', () => {
     });
   });
 
+  describe('Opposite Content', () => {
+    const textOrder = (json: unknown, a: string, b: string) => {
+      const raw = JSON.stringify(json);
+      return raw.indexOf(a) < raw.indexOf(b);
+    };
+
+    it('renders opposite content across the line and switches to the centered layout', () => {
+      const { getByText, toJSON } = render(
+        <Timeline>
+          <Timeline.Item title="Order placed" opposite="09:30"><Text>Paid</Text></Timeline.Item>
+          <Timeline.Item title="Shipped" opposite="14:00"><Text>Carrier</Text></Timeline.Item>
+        </Timeline>
+      );
+      expect(getByText('09:30')).toBeTruthy();
+      expect(getByText('14:00')).toBeTruthy();
+      // Content keeps the default side (after the bullet), so opposite comes first in order.
+      expect(textOrder(toJSON(), '09:30', 'Order placed')).toBe(true);
+      expect(textOrder(toJSON(), '14:00', 'Shipped')).toBe(true);
+    });
+
+    it('accepts a node as opposite content', () => {
+      const { getByTestId } = render(
+        <Timeline>
+          <Timeline.Item title="Shipped" opposite={<View testID="opposite-node"><Text>Day 2</Text></View>} />
+        </Timeline>
+      );
+      expect(getByTestId('opposite-node')).toBeTruthy();
+    });
+
+    it('alternate swaps the content and opposite sides', () => {
+      const { toJSON } = render(
+        <Timeline>
+          <Timeline.Item title="Order placed" opposite="09:30" />
+          <Timeline.Item title="Shipped" opposite="14:00" alternate />
+        </Timeline>
+      );
+      expect(textOrder(toJSON(), '09:30', 'Order placed')).toBe(true);
+      expect(textOrder(toJSON(), 'Shipped', '14:00')).toBe(true);
+    });
+
+    it('follows align="right" and explicit itemAlign for the content side', () => {
+      const right = render(
+        <Timeline align="right">
+          <Timeline.Item title="Order placed" opposite="09:30" />
+        </Timeline>
+      );
+      expect(textOrder(right.toJSON(), 'Order placed', '09:30')).toBe(true);
+
+      const explicit = render(
+        <Timeline>
+          <Timeline.Item title="Order placed" opposite="09:30" itemAlign="left" />
+        </Timeline>
+      );
+      expect(textOrder(explicit.toJSON(), 'Order placed', '09:30')).toBe(true);
+    });
+  });
+
   describe('Custom Bullet', () => {
     it('should render custom bullet content', () => {
       const { getByTestId, getByText } = render(
@@ -622,6 +679,8 @@ describe('Timeline - Type Safety and Prop Validation', () => {
             color="#ffffff"
             active={true}
             itemAlign="left"
+            opposite="Opposite"
+            alternate={false}
           >
             Content
           </Timeline.Item>

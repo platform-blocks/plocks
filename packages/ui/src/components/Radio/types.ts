@@ -18,6 +18,14 @@ export type RadioGroupVariant = 'default' | 'card' | 'segmented' | 'chip';
 export type RadioLabelPosition = 'left' | 'right';
 
 /**
+ * How a selected `Radio` is drawn. Distinct from `RadioGroupVariant`, which
+ * lays out a whole group.
+ * - `filled` — solid accent disc with the dot on it (default)
+ * - `light` — a light accent tint (the same one a light Chip or Badge uses) with the dot in the accent
+ */
+export type RadioVariant = 'filled' | 'light';
+
+/**
  * Props for a single `Radio`.
  *
  * `style`, spacing and layout props apply to the root (dot + label + footer);
@@ -35,6 +43,13 @@ export interface RadioProps extends Omit<FieldBaseProps, 'variant' | 'keyboardFo
 
   /** Radio color: a palette token, `'primary.6'` shade syntax, or any CSS color. */
   color?: ThemeColor;
+
+  /**
+   * How the radio is drawn once selected. `filled` fills the disc with the
+   * accent and draws the dot on it; `light` tints the disc and draws the dot in
+   * the accent. Disabled radios look the same in both. Default `'filled'`.
+   */
+  variant?: RadioVariant;
 
   /** Label side. Default `'right'`. */
   labelPosition?: RadioLabelPosition;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { render, fireEvent } from '@testing-library/react-native';
 
 import { Stepper } from '../Stepper';
@@ -84,6 +84,37 @@ describe('Stepper - behavior', () => {
     expect(getByText('Details content')).toBeTruthy();
   });
 
+  it('centers labels under the icon by default and starts them beside it with labelPosition="right"', () => {
+    const stacked = render(
+      <Stepper active={0}>
+        <Stepper.Step label="Cart" description="Review items" />
+        <Stepper.Step label="Payment" />
+      </Stepper>
+    );
+    expect(StyleSheet.flatten(stacked.getByText('Cart').props.style).textAlign).toBe('center');
+    expect(StyleSheet.flatten(stacked.getByText('Review items').props.style).textAlign).toBe('center');
+
+    const inline = render(
+      <Stepper active={0} labelPosition="right">
+        <Stepper.Step label="Cart" description="Review items" />
+        <Stepper.Step label="Payment" />
+      </Stepper>
+    );
+    expect(StyleSheet.flatten(inline.getByText('Cart').props.style).textAlign).toBe('left');
+    expect(StyleSheet.flatten(inline.getByText('Review items').props.style).textAlign).toBe('left');
+    expect(inline.getByText('Payment')).toBeTruthy();
+  });
+
+  it('ignores labelPosition for vertical steppers', () => {
+    const { getByText } = render(
+      <Stepper active={0} orientation="vertical" labelPosition="right">
+        <Stepper.Step label="Cart" />
+        <Stepper.Step label="Payment" />
+      </Stepper>
+    );
+    expect(StyleSheet.flatten(getByText('Cart').props.style).textAlign).toBe('left');
+  });
+
   it('renders completed content when active exceeds step count', () => {
     const { getByText } = render(
       <Stepper active={2}>
@@ -96,5 +127,50 @@ describe('Stepper - behavior', () => {
     );
 
     expect(getByText('All done!')).toBeTruthy();
+  });
+
+  describe('compact', () => {
+    const steps = (
+      [
+        <Stepper.Step key="a" label="Cart" description="Review items" />,
+        <Stepper.Step key="b" label="Shipping" description="Where to" />,
+        <Stepper.Step key="c" label="Payment" />,
+      ]
+    );
+
+    it('shows only the active step label, once, below the indicators', () => {
+      const { queryByText, getAllByText, getByLabelText } = render(
+        <Stepper active={1} compact>{steps}</Stepper>
+      );
+      expect(queryByText('Cart')).toBeNull();
+      expect(queryByText('Payment')).toBeNull();
+      expect(getAllByText('Shipping')).toHaveLength(1);
+      expect(getAllByText('Where to')).toHaveLength(1);
+      expect(StyleSheet.flatten(getAllByText('Shipping')[0].props.style).textAlign).toBe('center');
+      // Hidden labels still name their steps.
+      expect(getByLabelText('Cart')).toBeTruthy();
+      expect(getByLabelText('Payment')).toBeTruthy();
+    });
+
+    it('shows no caption once every step is complete', () => {
+      const { queryByText } = render(<Stepper active={3} compact>{steps}</Stepper>);
+      expect(queryByText('Cart')).toBeNull();
+      expect(queryByText('Payment')).toBeNull();
+    });
+
+    it('resolves a breakpoint map against the viewport', () => {
+      const compactNow = render(<Stepper active={0} compact={{ base: true, xl: false }}>{steps}</Stepper>);
+      expect(compactNow.queryByText('Shipping')).toBeNull();
+      compactNow.unmount();
+
+      const fullNow = render(<Stepper active={0} compact={{ base: false }}>{steps}</Stepper>);
+      expect(fullNow.getByText('Shipping')).toBeTruthy();
+    });
+
+    it('is ignored by vertical steppers', () => {
+      const { getByText } = render(<Stepper active={0} compact orientation="vertical">{steps}</Stepper>);
+      expect(getByText('Shipping')).toBeTruthy();
+      expect(getByText('Payment')).toBeTruthy();
+    });
   });
 });

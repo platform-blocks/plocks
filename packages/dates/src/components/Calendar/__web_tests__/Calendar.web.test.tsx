@@ -202,4 +202,78 @@ describe('Calendar (react-native-web DOM)', () => {
     expect(stops).toHaveLength(1);
     expect(within(april).getByRole('gridcell', { name: 'Wednesday, April 8, 2026' })).toBe(stops[0]);
   });
+
+  describe('withNativeLevelSelect', () => {
+    const select = (name: string) => screen.getByRole('combobox', { name }) as HTMLSelectElement;
+    const change = (node: HTMLSelectElement, value: number) =>
+      act(() => {
+        fireEvent.change(node, { target: { value: String(value) } });
+      });
+
+    it('replaces the level button with month and year selects that move the view', () => {
+      const onDateChange = jest.fn();
+      renderMarch({ withNativeLevelSelect: true, onDateChange });
+
+      expect(screen.queryByRole('button', { name: /March 2026/ })).toBeNull();
+      const month = select('Month');
+      const year = select('Year');
+      expect(month.tagName).toBe('SELECT');
+      expect(month.value).toBe('2');
+      expect(year.value).toBe('2026');
+      // Default range: the displayed year ±50.
+      expect(year.options).toHaveLength(101);
+      expect(year.options[0].value).toBe('1976');
+
+      change(year, 2030);
+      expect(screen.getByRole('grid', { name: 'March 2030' })).toBeTruthy();
+      expect(onDateChange).toHaveBeenLastCalledWith(new Date(2030, 2, 1));
+
+      change(select('Month'), 6);
+      expect(screen.getByRole('grid', { name: 'July 2030' })).toBeTruthy();
+      expect(onDateChange).toHaveBeenLastCalledWith(new Date(2030, 6, 1));
+    });
+
+    it('offers yearsSelectRange cut to minDate / maxDate and disables out-of-range months', () => {
+      renderMarch({
+        withNativeLevelSelect: true,
+        yearsSelectRange: [2000, 2040],
+        minDate: new Date(2024, 4, 10),
+        maxDate: new Date(2028, 1, 1),
+      });
+      const years = Array.from(select('Year').options).map((option) => option.value);
+      expect(years).toEqual(['2024', '2025', '2026', '2027', '2028']);
+
+      // Into 2024, March is before May 10 — the view clamps to May.
+      change(select('Year'), 2024);
+      expect(screen.getByRole('grid', { name: 'May 2024' })).toBeTruthy();
+      const months = Array.from(select('Month').options);
+      expect(months.filter((option) => option.disabled).map((option) => option.textContent)).toEqual([
+        'January',
+        'February',
+        'March',
+        'April',
+      ]);
+    });
+
+    it('shows only the year select on the year level and keeps the decade title', () => {
+      const { rerender } = render(<Calendar defaultDate={MARCH} level="year" withNativeLevelSelect />);
+      expect(screen.queryByRole('combobox', { name: 'Month' })).toBeNull();
+      fireEvent.change(select('Year'), { target: { value: '2031' } });
+      expect(screen.getByRole('grid', { name: '2031' })).toBeTruthy();
+
+      rerender(
+        <PlocksProvider direction={{ initialDirection: 'ltr' }}>
+          <Calendar defaultDate={MARCH} level="decade" withNativeLevelSelect />
+        </PlocksProvider>
+      );
+      expect(screen.queryByRole('combobox')).toBeNull();
+      expect(screen.getByRole('button', { name: /2030 - 2039/ })).toBeTruthy();
+    });
+
+    it('disables the selects in static mode', () => {
+      renderMarch({ withNativeLevelSelect: true, static: true });
+      expect(select('Month').disabled).toBe(true);
+      expect(select('Year').disabled).toBe(true);
+    });
+  });
 });

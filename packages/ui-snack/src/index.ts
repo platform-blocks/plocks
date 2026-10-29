@@ -70,6 +70,7 @@ export { ControlField, ControlFieldGroup, useControlField } from '../../ui/src/c
 export { Radio, RadioGroup } from '../../ui/src/components/Radio';
 export { Switch } from '../../ui/src/components/Switch';
 export { ToggleButton, ToggleGroup } from '../../ui/src/components/Toggle';
+export { Toolbar } from '../../ui/src/components/Toolbar';
 export { SegmentedControl } from '../../ui/src/components/SegmentedControl';
 export { Slider, RangeSlider } from '../../ui/src/components/Slider';
 export { Search } from '../../ui/src/components/Search';

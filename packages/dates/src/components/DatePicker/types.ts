@@ -6,7 +6,10 @@ import type {
   CalendarLevel,
 } from '../Calendar/types';
 
-export interface DatePickerProps extends BaseProps {
+/** Header select options lifted from `calendarProps` (see Calendar). */
+export type CalendarLevelSelectProps = Pick<CoreCalendarProps, 'withNativeLevelSelect' | 'yearsSelectRange'>;
+
+export interface DatePickerProps extends BaseProps, CalendarLevelSelectProps {
   /** Selected value; type depends on `type` prop */
   value?: CalendarValue;
   /** Initial value for uncontrolled usage */

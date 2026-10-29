@@ -62,6 +62,9 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = (props) => {
     xScaleType = 'time',
     yScaleType = 'linear',
     annotations,
+    xDomain: xDomainProp,
+    yDomain: yDomainProp,
+    domainPadding,
     movingAveragePeriods = [],
     movingAverageColors = [],
     showMovingAverages = true,
@@ -123,13 +126,15 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = (props) => {
   const setActiveSlice = interaction?.setActiveSlice;
   const defaultScheme = theme.colors.accentPalette;
   const xDomain = React.useMemo<[number, number]>(() => {
+    if (xDomainProp) return xDomainProp;
     if (!flattened.length) {
       return [0, 1];
     }
     const points = flattened.map((d) => ({ x: toNumeric(d.x), y: toNumeric(d.x) }));
     return getDataDomain(points as any, (d) => toNumeric(d.x));
-  }, [flattened]);
+  }, [flattened, xDomainProp]);
   const yDomain = React.useMemo<[number, number]>(() => {
+    if (yDomainProp) return yDomainProp;
     if (!flattened.length) {
       return [0, 1];
     }
@@ -145,7 +150,7 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = (props) => {
       return [min - delta, max + delta];
     }
     return [min, max];
-  }, [flattened]);
+  }, [flattened, yDomainProp]);
 
   const basePadding = React.useMemo(
     () => {
@@ -192,6 +197,24 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = (props) => {
   const volumeHeight = volumeEnabled ? Math.max(40, availableHeight * volumeSectionRatio) : 0;
   const plotHeight = Math.max(0, availableHeight - volumeHeight);
 
+  // Inner padding: data maps into [padX, plotWidth - padX] × [padY, plotHeight - padY]
+  // so the edge candles' bodies and the extreme wicks stay inside the plot. Half a
+  // slot on x centres every candle in its slot when the data is evenly spaced.
+  const distinctXCount = React.useMemo(
+    () => new Set(flattened.map((d) => toNumeric(d.x))).size,
+    [flattened],
+  );
+  const { padX, padY } = React.useMemo(() => {
+    const requested = typeof domainPadding === 'number' ? { x: domainPadding, y: domainPadding } : (domainPadding ?? {});
+    const autoX = plotWidth / Math.max(distinctXCount, 1) / 2;
+    return {
+      padX: clampNumber(requested.x ?? autoX, 0, plotWidth / 2),
+      padY: clampNumber(requested.y ?? 8, 0, plotHeight / 2),
+    };
+  }, [domainPadding, plotWidth, plotHeight, distinctXCount, clampNumber]);
+  const xRange = React.useMemo<[number, number]>(() => [padX, plotWidth - padX], [padX, plotWidth]);
+  const yRange = React.useMemo<[number, number]>(() => [plotHeight - padY, padY], [padY, plotHeight]);
+
   const xTicks = React.useMemo(() => {
     if (xAxis?.ticks && xAxis.ticks.length) {
       return xAxis.ticks;
@@ -235,24 +258,24 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = (props) => {
     const value = toNumeric(v);
     switch (xScaleType) {
       case 'log':
-        return scaleLog(value, xDomain, [0, plotWidth]);
+        return scaleLog(value, xDomain, xRange);
       case 'time':
-        return scaleTime(value, xDomain, [0, plotWidth]);
+        return scaleTime(value, xDomain, xRange);
       default:
-        return scaleLinear(value, xDomain, [0, plotWidth]);
+        return scaleLinear(value, xDomain, xRange);
     }
-  }, [xScaleType, xDomain, plotWidth]);
+  }, [xScaleType, xDomain, xRange]);
   const scaleY = React.useCallback((v: number) => {
     switch (yScaleType) {
-      case 'log': return scaleLog(v, yDomain, [plotHeight, 0]);
-      case 'time': return scaleTime(v, yDomain, [plotHeight, 0]);
-      default: return scaleLinear(v, yDomain, [plotHeight, 0]);
+      case 'log': return scaleLog(v, yDomain, yRange);
+      case 'time': return scaleTime(v, yDomain, yRange);
+      default: return scaleLinear(v, yDomain, yRange);
     }
-  }, [yScaleType, yDomain, plotHeight]);
+  }, [yScaleType, yDomain, yRange]);
 
   const axisScaleX = React.useMemo<Scale<number>>(() => {
     const domain: [number, number] = [xDomain[0], xDomain[1]];
-    const range: [number, number] = [0, plotWidth];
+    const range: [number, number] = [xRange[0], xRange[1]];
     if (!Number.isFinite(domain[0]) || !Number.isFinite(domain[1]) || plotWidth <= 0) {
       const fallback = ((_: number) => 0) as Scale<number>;
       fallback.domain = () => domain.slice();
@@ -291,11 +314,11 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = (props) => {
       }
     };
     return scale;
-  }, [plotWidth, xDomain, xTicks, xScaleType, scaleX]);
+  }, [plotWidth, xDomain, xRange, xTicks, xScaleType, scaleX]);
 
   const axisScaleY = React.useMemo<Scale<number>>(() => {
     const domain: [number, number] = [yDomain[0], yDomain[1]];
-    const range: [number, number] = [plotHeight, 0];
+    const range: [number, number] = [yRange[0], yRange[1]];
     if (!Number.isFinite(domain[0]) || !Number.isFinite(domain[1]) || plotHeight <= 0) {
       const fallback = ((_: number) => 0) as Scale<number>;
       fallback.domain = () => domain.slice();
@@ -333,7 +356,7 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = (props) => {
       }
     };
     return scale;
-  }, [plotHeight, yDomain, yTicks, yScaleType, scaleY]);
+  }, [plotHeight, yDomain, yRange, yTicks, yScaleType, scaleY]);
 
   const resolvedXTicks = React.useMemo(() => (xTicks ?? []).slice(), [xTicks]);
   const resolvedYTicks = React.useMemo(() => (yTicks ?? []).slice(), [yTicks]);

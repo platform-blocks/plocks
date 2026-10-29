@@ -32,7 +32,7 @@ export function Demo() {
           },
         }}
       >
-        <Knob.Fill
+        <Knob.Body
           radiusOffset={-28}
           color="#0f172a"
           borderWidth={2}

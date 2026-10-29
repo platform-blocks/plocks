@@ -37,10 +37,17 @@ export interface PasswordStrengthRule extends Omit<ValidationRule, 'type'> {
 /** Visual variant of a field: `default` (surface + border), `filled` (subtle fill, no border), `outline` (border only), `unstyled`. */
 export type InputVariant = FieldVariant;
 
+/** The event a `TextInput` passes to `onFocus` / `onBlur`. */
+export type TextInputFocusEvent = Parameters<NonNullable<RNTextInputProps['onFocus']>>[0];
+
 /** Props forwarded to the underlying `TextInput`, plus the web keyboard events react-native-web exposes. */
 export type ExtendedTextInputProps = Omit<RNTextInputProps, keyof TextFieldBaseProps> & {
   /** Style of the TextInput itself, merged after the field's text style. */
   style?: RNTextInputProps['style'];
+  /** Receives the TextInput's focus event. Runs alongside the field's own focus tracking (the ring) and `onFocus`. */
+  onFocus?: (event: TextInputFocusEvent) => void;
+  /** Receives the TextInput's blur event. Runs alongside the field's own focus tracking (the ring) and `onBlur`. */
+  onBlur?: (event: TextInputFocusEvent) => void;
   onKeyDown?: (event: WebKeyboardEvent) => void;
   onKeyUp?: (event: WebKeyboardEvent) => void;
 };
@@ -187,6 +194,14 @@ export interface PasswordInputProps extends Omit<InputProps, 'type' | 'secureTex
 
   /** Whether to show toggle visibility button */
   showVisibilityToggle?: boolean;
+
+  /**
+   * Keep the show/hide toggle in the keyboard tab order (`tabIndex` 0 on web,
+   * `focusable` on native). It stays clickable and reachable by screen readers
+   * either way.
+   * @default false
+   */
+  visibilityToggleFocusable?: boolean;
 
   /** Password strength validation rules */
   strengthValidation?: PasswordStrengthRule[];

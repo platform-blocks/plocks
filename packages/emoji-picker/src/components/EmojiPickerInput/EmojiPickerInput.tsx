@@ -56,6 +56,7 @@ export const EmojiPickerInput = factory<{ props: EmojiPickerInputProps; ref: Emo
       description,
       error,
       helperText,
+      success,
       required = false,
       withAsterisk,
       disabled = false,
@@ -168,6 +169,7 @@ export const EmojiPickerInput = factory<{ props: EmojiPickerInputProps; ref: Emo
         description={description}
         error={error}
         helperText={helperText}
+        success={success}
         required={required}
         withAsterisk={withAsterisk}
         disabled={disabled}
@@ -180,7 +182,7 @@ export const EmojiPickerInput = factory<{ props: EmojiPickerInputProps; ref: Emo
         style={[getLayoutStyles({ fullWidth }), styles, style]}
         testID={testID}
       >
-        {({ controlProps, invalid }) => (
+        {({ controlProps, invalid, success: successState }) => (
           <>
             <View style={ANCHOR_STYLE}>
               <PickerTrigger
@@ -207,6 +209,7 @@ export const EmojiPickerInput = factory<{ props: EmojiPickerInputProps; ref: Emo
                 variant={variant}
                 opened={opened}
                 invalid={invalid}
+                success={successState}
                 disabled={disabled}
                 readOnly={readOnly}
                 startSection={startSection}

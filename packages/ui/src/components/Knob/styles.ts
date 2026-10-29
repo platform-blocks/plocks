@@ -16,7 +16,7 @@ export const knobStyles = StyleSheet.create({
     left: '50%',
     top: '50%',
   },
-  fillLayer: {
+  bodyLayer: {
     position: 'absolute',
   },
   ringBase: {

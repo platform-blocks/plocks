@@ -9,6 +9,7 @@ import {
   ListGroupItem,
   Form,
 } from '@plocks/ui';
+import type { KnobVariant } from '@plocks/ui';
 import { brandIcons } from '@plocks/brands';
 import { Asset } from 'expo-asset';
 
@@ -77,7 +78,14 @@ const CITY_SUGGESTIONS = [
 
 const PROGRESS_COLORS = ['primary', 'secondary', 'success', 'warning', 'error', 'gray'];
 const KNOB_BEHAVIORS: Array<'level' | 'stepped' | 'endless' | 'dual' | 'status'> = ['level', 'stepped', 'endless', 'dual', 'status'];
-const KNOB_VARIANTS: Array<'default' | 'minimal' | 'digital' | 'retro' | 'studio'> = ['default', 'minimal', 'digital', 'retro', 'studio'];
+const KNOB_BODY_SHAPES = ['auto', 'circle', 'polygon', 'fluted', 'chickenhead'];
+const KNOB_SHADINGS = ['auto', 'flat', 'dome', 'concave', 'matte', 'metal', 'brushed'];
+const KNOB_POINTER_SHAPES = ['auto', 'none', 'line', 'needle', 'notch', 'dot', 'dimple', 'triangle'];
+const KNOB_VARIANTS: KnobVariant[] = [
+  'default', 'minimal', 'outline', 'material', 'studio', 'neumorphic',
+  'digital', 'segmented', 'led-ring', 'gauge',
+  'retro', 'knurled', 'encoder', 'soft-touch', 'chickenhead', 'skirted', 'fluted',
+];
 const SLIDER_VARIANTS: Array<'horizontal' | 'vertical'> = ['horizontal', 'vertical'];
 const TAB_VARIANTS: Array<'line' | 'chip' | 'card' | 'folder'> = ['line', 'chip', 'card', 'folder'];
 const TAB_COLOR_OPTIONS = ['primary', 'secondary', 'gray', 'tertiary'];
@@ -401,10 +409,11 @@ const CHART_HIDDEN_PROPS = [
   // Object-shaped configuration
   'xAxis', 'yAxis', 'yAxisRight', 'grid', 'legend', 'tooltip', 'animation',
   'annotations', 'thresholds', 'bands', 'valueLabel', 'valueLabels', 'colorScale',
+  'referenceLines', 'referenceAreas', 'referenceDots',
   'colorOptions', 'quadrants', 'labels', 'labelTextStyle', 'track', 'ticks', 'needle',
   'centerLabel', 'centerSubLabel', 'ranges', 'statsMarkers', 'valueBands', 'radialGrid',
   'defaultSliceStyle', 'padding', 'chartPadding', 'layout', 'connectors', 'cellSize',
-  'domain', 'xDomain', 'yDomain', 'yDomainRight', 'rangeHighlights', 'hoverHighlight',
+  'domain', 'xDomain', 'yDomain', 'yDomainRight', 'domainPadding', 'rangeHighlights', 'hoverHighlight',
   'gradientLegend', 'accessibilityTable', 'movingAveragePeriods', 'movingAverageColors',
   'nodeRadiusRange', 'linkWidthRange', 'linkPalette', 'range',
   // Formatter / render callbacks
@@ -570,6 +579,50 @@ const LINE_CHART_SERIES = [
   },
 ];
 
+const BULLET_CHART_RANGES = [
+  { value: 150000, label: 'Poor' },
+  { value: 225000, label: 'Average' },
+  { value: 300000, label: 'Good' },
+];
+const SUNBURST_CHART_DATA = [
+  { name: 'Media', children: [
+    { name: 'Photos', children: [{ name: '2023', value: 24 }, { name: '2024', value: 31 }, { name: '2025', value: 17 }] },
+    { name: 'Videos', value: 26 },
+    { name: 'Music', value: 9 },
+  ] },
+  { name: 'Apps', children: [{ name: 'Xcode', value: 12 }, { name: 'Photoshop', value: 4 }, { name: 'Chrome', value: 1.5 }, { name: 'Slack', value: 1 }] },
+  { name: 'Documents', children: [{ name: 'Work', value: 8 }, { name: 'Personal', value: 5 }] },
+  { name: 'System', value: 14 },
+];
+// Deterministic: a fixed pattern over 2025, so the playground matches its screenshot.
+const CALENDAR_HEATMAP_CHART_DATA: Record<string, number> = (() => {
+  const out: Record<string, number> = {};
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  for (let day = new Date(2025, 0, 1), i = 0; day.getFullYear() === 2025; day = new Date(2025, day.getMonth(), day.getDate() + 1), i += 1) {
+    const value = (i * 7919) % 13;
+    if (value > 3 && day.getDay() !== 0) out[`2025-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`] = value - 3;
+  }
+  return out;
+})();
+const WAFFLE_CHART_DATA = [
+  { name: 'Chrome', value: 65 },
+  { name: 'Safari', value: 19 },
+  { name: 'Firefox', value: 10 },
+  { name: 'Other', value: 6 },
+];
+const MATRIX_CHART_HOURS = ['6 AM', '8 AM', '10 AM', '12 PM', '2 PM', '4 PM', '6 PM', '8 PM'];
+const MATRIX_CHART_ROWS: Array<[string, Array<number | null>]> = [
+  ['Mon', [3, 14, 26, 30, 28, 22, 12, 5]],
+  ['Tue', [4, 16, 28, 32, 30, 24, 14, 6]],
+  ['Wed', [5, 18, 30, 35, 32, 26, 16, 8]],
+  ['Thu', [3, 15, 25, 29, 27, 21, 13, 7]],
+  ['Fri', [2, 12, 22, 26, 24, 18, 15, 10]],
+  ['Sat', [1, 4, 8, 12, 14, 10, 8, 6]],
+  ['Sun', [null, 2, 5, 9, 10, 7, 5, 3]],
+];
+const MATRIX_CHART_DATA = MATRIX_CHART_ROWS.flatMap(([y, values]) =>
+  values.map((value, i) => ({ x: MATRIX_CHART_HOURS[i], y, value })),
+);
 const MARIMEKKO_CHART_DATA = [
   { label: 'Inbound', segments: [{ label: 'North America', value: 52 }, { label: 'EMEA', value: 34 }, { label: 'APAC', value: 24 }] },
   { label: 'Outbound', segments: [{ label: 'North America', value: 44 }, { label: 'EMEA', value: 28 }, { label: 'APAC', value: 18 }] },
@@ -881,8 +934,8 @@ const PLAYGROUND_CONFIGS: Record<string, ComponentPlaygroundConfig> = {
       size: 'xl',
       behavior: 'level',
       variant: 'default',
+      // No `position`: each variant places its own readout (hardware moves it off the cap).
       valueLabel: {
-        position: 'center',
         suffix: '%'
       }
     },
@@ -898,17 +951,32 @@ const PLAYGROUND_CONFIGS: Record<string, ComponentPlaygroundConfig> = {
     // Ring thickness lives under the nested `appearance` prop, which flat controls can't
     // reach — expose it on its own and fold it back in. It starts at 0 meaning "auto", so
     // the visual variants keep the stroke weights that distinguish them until you take over.
+    // The body and pointer controls start at 'auto' for the same reason: each variant's own
+    // shape and finish show until you pick something else.
     extraControls: [
       { name: 'ringThickness', label: 'Ring Thickness (0 = auto)', controlType: 'number', min: 0, max: 40, step: 1, initialValue: 0 },
+      { name: 'bodyShape', label: 'Body shape', controlType: 'select', options: KNOB_BODY_SHAPES, initialValue: 'auto' },
+      { name: 'bodyShading', label: 'Body finish', controlType: 'select', options: KNOB_SHADINGS, initialValue: 'auto' },
+      { name: 'pointerShape', label: 'Pointer', controlType: 'select', options: KNOB_POINTER_SHAPES, initialValue: 'auto' },
     ],
     transformProps: (values) => {
-      const { ringThickness, ...rest } = values;
+      const { ringThickness, bodyShape, bodyShading, pointerShape, ...rest } = values;
+      const appearance = { ...(rest.appearance ?? {}) };
       if (typeof ringThickness === 'number' && ringThickness > 0) {
-        rest.appearance = {
-          ...(rest.appearance ?? {}),
-          ring: { ...(rest.appearance?.ring ?? {}), thickness: ringThickness },
-        };
+        appearance.ring = { ...(appearance.ring ?? {}), thickness: ringThickness };
       }
+      if (bodyShape && bodyShape !== 'auto') {
+        appearance.body = { ...(appearance.body ?? {}), shape: bodyShape };
+      }
+      if (bodyShading && bodyShading !== 'auto') {
+        appearance.body = { ...(appearance.body ?? {}), shading: bodyShading };
+      }
+      if (pointerShape === 'none') {
+        appearance.pointer = false;
+      } else if (pointerShape && pointerShape !== 'auto') {
+        appearance.pointer = { ...(appearance.pointer ?? {}), shape: pointerShape };
+      }
+      if (Object.keys(appearance).length) rest.appearance = appearance;
       return rest;
     },
   },
@@ -2530,7 +2598,7 @@ const PLAYGROUND_CONFIGS: Record<string, ComponentPlaygroundConfig> = {
     },
     pinnedProps: ['label', 'variant', 'multiple', 'showFileList', 'enableDragDrop', 'imagePreview', 'size', 'disabled', 'clearable', 'required'],
     hiddenProps: [
-      ...COMMON_EVENT_PROPS, ...INPUT_NOISE_PROPS, 'accept', 'maxSize', 'maxFiles', 'onUpload', 'onProgress', 'onFilesChange',
+      ...COMMON_EVENT_PROPS, ...INPUT_NOISE_PROPS, 'accept', 'maxSize', 'maxFiles', 'onUpload', 'onProgress', 'onChange', 'value', 'defaultValue',
       'onFileRemove', 'PreviewComponent', 'validateFile', 'uploadSettings', 'placeholder', 'error', 'helperText', 'description',
       'withAsterisk', 'onChangeText', 'onClear', 'm', 'mt', 'mr', 'mb', 'ml', 'mx', 'my', 'p', 'pt', 'pr', 'pb', 'pl', 'px', 'py',
     ],
@@ -3525,6 +3593,125 @@ const PLAYGROUND_CONFIGS: Record<string, ComponentPlaygroundConfig> = {
       h: CHART_HEIGHT_CONTROL,
       columnGap: { controlType: 'number', min: 0, max: 40, step: 2 },
       segmentBorderRadius: { controlType: 'number', min: 0, max: 16, step: 1 },
+    },
+  },
+  WaffleChart: {
+    id: 'WaffleChart',
+    component: 'WaffleChart',
+    initialProps: {
+      title: 'Browser share',
+      w: 360,
+      data: WAFFLE_CHART_DATA,
+      rows: 10,
+      columns: 10,
+      gap: 4,
+      cellRadius: 2,
+      fillDirection: 'bottom-to-top',
+      legend: { show: true, position: 'bottom' },
+    },
+    pinnedProps: ['w', 'rows', 'columns', 'gap', 'cellRadius', 'fillDirection', 'total'],
+    hiddenProps: CHART_HIDDEN_PROPS,
+    controlOverrides: {
+      w: CHART_WIDTH_CONTROL,
+      rows: { controlType: 'number', min: 2, max: 20, step: 1 },
+      columns: { controlType: 'number', min: 2, max: 25, step: 1 },
+      gap: { controlType: 'number', min: 0, max: 12, step: 1 },
+      cellRadius: { controlType: 'number', min: 0, max: 16, step: 1 },
+      total: { controlType: 'number', min: 100, max: 200, step: 10 },
+    },
+  },
+  MatrixChart: {
+    id: 'MatrixChart',
+    component: 'MatrixChart',
+    initialProps: {
+      title: 'Visitors by hour',
+      w: 520,
+      data: MATRIX_CHART_DATA,
+      gap: 2,
+      cellRadius: 2,
+      xLabelsRotation: 0,
+      xLabelsPosition: 'bottom',
+      tooltip: { show: true },
+      legend: { show: true },
+    },
+    pinnedProps: ['w', 'cellSize', 'gap', 'cellRadius', 'xLabelsRotation', 'xLabelsPosition', 'withXLabels', 'withYLabels'],
+    hiddenProps: CHART_HIDDEN_PROPS,
+    controlOverrides: {
+      w: CHART_WIDTH_CONTROL,
+      cellSize: { controlType: 'number', min: 12, max: 48, step: 2 },
+      gap: { controlType: 'number', min: 0, max: 8, step: 1 },
+      cellRadius: { controlType: 'number', min: 0, max: 12, step: 1 },
+      xLabelsRotation: { controlType: 'number', min: -90, max: 90, step: 15 },
+    },
+  },
+  BulletChart: {
+    id: 'BulletChart',
+    component: 'BulletChart',
+    initialProps: {
+      label: 'Revenue',
+      description: 'USD, Q3',
+      w: 520,
+      value: 230000,
+      target: 250000,
+      ranges: BULLET_CHART_RANGES,
+      orientation: 'horizontal',
+      barThickness: 0.33,
+      withAxis: true,
+    },
+    pinnedProps: ['w', 'value', 'target', 'orientation', 'barThickness', 'withAxis'],
+    hiddenProps: [...CHART_HIDDEN_PROPS, 'ranges'],
+    controlOverrides: {
+      w: CHART_WIDTH_CONTROL,
+      value: { controlType: 'number', min: 0, max: 320000, step: 10000 },
+      target: { controlType: 'number', min: 0, max: 320000, step: 10000 },
+      barThickness: { controlType: 'number', min: 0.1, max: 1, step: 0.05 },
+    },
+  },
+  SunburstChart: {
+    id: 'SunburstChart',
+    component: 'SunburstChart',
+    initialProps: {
+      title: 'Disk usage',
+      w: 400,
+      data: SUNBURST_CHART_DATA,
+      innerRadius: 0.2,
+      padAngle: 0,
+      ringGap: 0,
+      withLabels: true,
+      zoomOnClick: false,
+    },
+    pinnedProps: ['w', 'innerRadius', 'padAngle', 'ringGap', 'withLabels', 'zoomOnClick', 'maxDepth'],
+    hiddenProps: CHART_HIDDEN_PROPS,
+    controlOverrides: {
+      w: CHART_WIDTH_CONTROL,
+      innerRadius: { controlType: 'number', min: 0, max: 0.8, step: 0.05 },
+      padAngle: { controlType: 'number', min: 0, max: 4, step: 0.5 },
+      ringGap: { controlType: 'number', min: 0, max: 8, step: 1 },
+      maxDepth: { controlType: 'number', min: 1, max: 4, step: 1 },
+    },
+  },
+  CalendarHeatmapChart: {
+    id: 'CalendarHeatmapChart',
+    component: 'CalendarHeatmapChart',
+    initialProps: {
+      title: 'Contributions',
+      data: CALENDAR_HEATMAP_CHART_DATA,
+      startDate: '2025-01-01',
+      endDate: '2025-12-31',
+      rectSize: 10,
+      gap: 1,
+      rectRadius: 2,
+      firstDayOfWeek: 1,
+      withMonthLabels: true,
+      withWeekdayLabels: false,
+      splitMonths: false,
+    },
+    pinnedProps: ['rectSize', 'gap', 'rectRadius', 'firstDayOfWeek', 'withMonthLabels', 'withWeekdayLabels', 'monthLabelsPosition', 'splitMonths', 'withOutsideDates'],
+    hiddenProps: [...CHART_HIDDEN_PROPS, 'startDate', 'endDate'],
+    controlOverrides: {
+      rectSize: { controlType: 'number', min: 4, max: 20, step: 1 },
+      gap: { controlType: 'number', min: 0, max: 4, step: 1 },
+      rectRadius: { controlType: 'number', min: 0, max: 6, step: 1 },
     },
   },
   NetworkChart: {

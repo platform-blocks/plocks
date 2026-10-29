@@ -12,8 +12,8 @@ const CHROME = '#FFFFFF';
 const CHROME_DISABLED = 'rgba(255, 255, 255, 0.5)';
 
 /**
- * The lightbox's overlay chrome: close, title + counter, download, and the
- * previous / next buttons (at the start / end edge, so they swap in RTL).
+ * The lightbox's overlay chrome: close, title + counter, zoom, download, and
+ * the previous / next buttons (at the start / end edge, so they swap in RTL).
  */
 export const LightboxControls: React.FC<LightboxControlsProps> = ({
   currentIndex,
@@ -24,17 +24,29 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
   onDownload,
   showDownloadButton = true,
   image,
+  zoomed = false,
+  onToggleZoom,
 }) => {
   const atStart = currentIndex === 0;
   const atEnd = currentIndex === totalImages - 1;
+  const showDownload = showDownloadButton && !!onDownload;
+  const endButtons = (onToggleZoom ? 1 : 0) + (showDownload ? 1 : 0);
+  // Placeholders balance the two sides so the title stays centered.
+  const startPlaceholders = Math.max(0, endButtons - 1);
+  const endPlaceholders = Math.max(0, 1 - endButtons);
 
   return (
     <>
       {/* Top Controls */}
       <View style={styles.topControls}>
-        <Pressable style={styles.controlButton} onPress={onClose} {...a11yProps({ role: 'button', label: 'Close gallery' })}>
-          <Icon name="x" size={24} color={CHROME} />
-        </Pressable>
+        <View style={styles.buttonGroup}>
+          <Pressable style={styles.controlButton} onPress={onClose} {...a11yProps({ role: 'button', label: 'Close gallery' })}>
+            <Icon name="x" size={24} color={CHROME} />
+          </Pressable>
+          {Array.from({ length: startPlaceholders }, (_, index) => (
+            <View key={index} style={styles.controlButtonPlaceholder} />
+          ))}
+        </View>
 
         <View style={styles.titleContainer}>
           {image?.title ? (
@@ -47,18 +59,29 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
           </Text>
         </View>
 
-        {showDownloadButton && onDownload ? (
-          <Pressable
-            style={styles.controlButton}
-            onPress={onDownload}
-            {...a11yProps({ role: 'button', label: 'Download image' })}
-          >
-            <Icon name="download" size={24} color={CHROME} />
-          </Pressable>
-        ) : (
-          // Keeps the title centered when there's no download button.
-          <View style={styles.controlButtonPlaceholder} />
-        )}
+        <View style={styles.buttonGroup}>
+          {Array.from({ length: endPlaceholders }, (_, index) => (
+            <View key={index} style={styles.controlButtonPlaceholder} />
+          ))}
+          {onToggleZoom ? (
+            <Pressable
+              style={styles.controlButton}
+              onPress={onToggleZoom}
+              {...a11yProps({ role: 'button', label: zoomed ? 'Reset zoom' : 'Zoom in' })}
+            >
+              <Icon name={zoomed ? 'compress' : 'expand'} size={22} color={CHROME} />
+            </Pressable>
+          ) : null}
+          {showDownload ? (
+            <Pressable
+              style={styles.controlButton}
+              onPress={onDownload}
+              {...a11yProps({ role: 'button', label: image?.type === 'video' ? 'Download video' : 'Download image' })}
+            >
+              <Icon name="download" size={24} color={CHROME} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       {/* Navigation Controls */}
@@ -88,6 +111,10 @@ export const LightboxControls: React.FC<LightboxControlsProps> = ({
 };
 
 const styles = StyleSheet.create({
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   controlButton: {
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

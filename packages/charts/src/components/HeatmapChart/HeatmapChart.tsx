@@ -21,6 +21,7 @@ import { ChartGrid } from '../../core/ChartGrid';
 import { Axis } from '../../core/Axis';
 import { useChartTheme } from '../../theme/ChartThemeContext';
 import { AnimatedHeatmapCell } from './AnimatedHeatmapCell';
+import { resolveSvgFontFamily } from '../../utils/platform';
 import type { Scale } from '../../utils/scales';
 import {
   createColorScale,
@@ -163,6 +164,7 @@ export const HeatmapChart: React.FC<HeatmapChartProps> = (props) => {
   } = props;
 
   const theme = useChartTheme();
+  const svgFontFamily = resolveSvgFontFamily(theme.fontFamily);
 
   // Only the chart-level tooltip `formatter` and `show` flag are honored here.
   // All other tooltip styling (background, text color, padding, font) is owned
@@ -784,6 +786,7 @@ export const HeatmapChart: React.FC<HeatmapChartProps> = (props) => {
               disabled={animationDisabled}
               cornerRadius={cellCornerRadius}
               showText={cellData.showLabel}
+              fontFamily={svgFontFamily}
             />
           ))}
         </G>
@@ -855,7 +858,7 @@ export const HeatmapChart: React.FC<HeatmapChartProps> = (props) => {
               fontSize={11}
               fill={theme.colors.textSecondary}
               textAnchor="start"
-              fontFamily="System"
+              fontFamily={svgFontFamily}
             >
               {legendLayout.label}
             </SvgText>
@@ -874,7 +877,7 @@ export const HeatmapChart: React.FC<HeatmapChartProps> = (props) => {
             fontSize={10}
             fill={theme.colors.textSecondary}
             textAnchor="start"
-            fontFamily="System"
+            fontFamily={svgFontFamily}
           >
             {formatLegendValue(legendLayout.minValue, 0)}
           </SvgText>
@@ -884,7 +887,7 @@ export const HeatmapChart: React.FC<HeatmapChartProps> = (props) => {
             fontSize={10}
             fill={theme.colors.textSecondary}
             textAnchor="middle"
-            fontFamily="System"
+            fontFamily={svgFontFamily}
           >
             {formatLegendValue((legendLayout.minValue + legendLayout.maxValue) / 2, 0.5)}
           </SvgText>
@@ -894,7 +897,7 @@ export const HeatmapChart: React.FC<HeatmapChartProps> = (props) => {
             fontSize={10}
             fill={theme.colors.textSecondary}
             textAnchor="end"
-            fontFamily="System"
+            fontFamily={svgFontFamily}
           >
             {formatLegendValue(legendLayout.maxValue, 1)}
           </SvgText>

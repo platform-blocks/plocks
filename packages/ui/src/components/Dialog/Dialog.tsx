@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import type { Ref } from 'react';
-import { Modal, PanResponder, Pressable, StyleSheet, View } from 'react-native';
-import type { GestureResponderEvent, ViewStyle } from 'react-native';
+import { Modal, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import type { GestureResponderEvent, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, PanResponderGestureState, ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -83,10 +83,8 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
   const modalEffectiveWidth = variant !== 'modal'
     ? undefined
     : Math.min(defaultModalMaxWidth, screenWidth - HORIZONTAL_MARGIN);
-  const bottomSheetMaxWidth = Math.min(
-    w ? w : (isNative ? 720 : Math.min(600, screenWidth - HORIZONTAL_MARGIN)),
-    screenWidth,
-  );
+  // Edge to edge on phones; only caps (and centers) once the viewport is wider.
+  const bottomSheetMaxWidth = Math.min(w ? w : (isNative ? 720 : 600), screenWidth);
   const resolvedRadius = radius ?? (variant === 'bottomsheet' ? 20 : 16);
   const resolvedMaxHeight = variant === 'bottomsheet'
     ? (h ?? Math.max(200, screenHeight - insets.top - 24))
@@ -175,66 +173,95 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
   }, [opened, autoFocus, motionDuration]);
 
   // --- swipe-to-dismiss (bottom sheet) -------------------------------------------------
-  const swipeEnabled = variant === 'bottomsheet' && bottomSheetSwipeZone !== 'none';
-  const panResponder = useMemo(() => PanResponder.create({
-    // Never capture on touch start — let events reach children (buttons) first.
-    onStartShouldSetPanResponderCapture: () => false,
-    // Claim in the bubble phase, after children had their chance.
-    onStartShouldSetPanResponder: () => swipeEnabled,
-    onMoveShouldSetPanResponderCapture: () => false,
-    onMoveShouldSetPanResponder: (_, gestureState) => (
-      swipeEnabled && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && Math.abs(gestureState.dy) > 2
-    ),
-    onPanResponderGrant: (event: GestureResponderEvent) => {
-      if (!isWeb) return;
-      // Prevent text selection while dragging on web.
-      const domEvent = event.nativeEvent as unknown as DomLikeEvent;
-      domEvent.preventDefault?.();
-      domEvent.stopPropagation?.();
-    },
-    onPanResponderMove: (event: GestureResponderEvent, gestureState) => {
-      if (!swipeEnabled) return;
-      if (isWeb) (event.nativeEvent as unknown as DomLikeEvent).preventDefault?.();
-      // Only downward movement dismisses; resist a little for feel.
-      const dragDistance = Math.max(0, gestureState.dy);
-      slideAnim.value = dragDistance * 0.8 + (dragDistance > 100 ? (dragDistance - 100) * 0.2 : 0);
-    },
-    onPanResponderRelease: (_, gestureState) => {
-      if (!swipeEnabled) return;
-      const dragDistance = gestureState.dy;
-      const velocity = gestureState.vy;
-      const shouldDismiss =
-        dragDistance > screenHeight * 0.25 ||
-        (velocity > 0.6 && dragDistance > 50) ||
-        (dragDistance > 80 && velocity > 0.2);
+  const swipeEnabled = variant === 'bottomsheet' && closable && bottomSheetSwipeZone !== 'none';
+  // Where the sheet's scroll area sits, and how tall the sheet is, so a drag only
+  // takes over once the content is scrolled to the top, and the scrim fades in step.
+  const scrollYRef = useRef(0);
+  const sheetHeightRef = useRef(0);
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollYRef.current = event.nativeEvent.contentOffset.y;
+  }, []);
+  const handleSheetLayout = useCallback((event: LayoutChangeEvent) => {
+    sheetHeightRef.current = event.nativeEvent.layout.height;
+  }, []);
 
-      if (shouldDismiss && dragDistance > 0) {
-        const dismissDuration = ms(Math.max(120, 220 - Math.max(0, velocity) * 60));
-        closingRef.current = true;
-        if (instantMotion) {
-          slideAnim.value = screenHeight;
-          backdropOpacity.value = 0;
-          invokeOnClose();
-        } else {
-          slideAnim.value = withTiming(screenHeight, { duration: dismissDuration, easing: Easing.in(Easing.cubic) }, (finished) => {
-            'worklet';
-            if (finished) runOnJS(invokeOnClose)();
-          });
-          backdropOpacity.value = withTiming(0, { duration: dismissDuration, easing: Easing.in(Easing.cubic) });
-        }
-      } else {
-        slideAnim.value = instantMotion
-          ? 0
-          : withSpring(0, { damping: 25, stiffness: 280, mass: 0.7, overshootClamping: true });
+  const panResponder = useMemo(() => {
+    // A downward, mostly vertical drag with nothing above to scroll back to.
+    const claimsDrag = (gestureState: PanResponderGestureState) => (
+      swipeEnabled
+      && gestureState.dy > 2
+      && Math.abs(gestureState.dy) > Math.abs(gestureState.dx)
+      && (bottomSheetSwipeZone === 'handle' || scrollYRef.current <= 0)
+    );
+    const settle = () => {
+      if (instantMotion) {
+        slideAnim.value = 0;
+        backdropOpacity.value = 1;
+        return;
       }
-    },
-    onPanResponderTerminate: () => {
-      if (!swipeEnabled) return;
-      slideAnim.value = instantMotion
-        ? 0
-        : withSpring(0, { damping: 25, stiffness: 280, mass: 0.7, overshootClamping: true });
-    },
-  }), [swipeEnabled, screenHeight, slideAnim, backdropOpacity, invokeOnClose, instantMotion, ms]);
+      slideAnim.value = withSpring(0, { damping: 25, stiffness: 280, mass: 0.7, overshootClamping: true });
+      backdropOpacity.value = withTiming(1, { duration: ms(200), easing: Easing.out(Easing.quad) });
+    };
+
+    return PanResponder.create({
+      // Never claim a touch start — taps reach children (buttons) and scrolling
+      // reaches the content. The drag handle alone may take a press outright.
+      onStartShouldSetPanResponderCapture: () => false,
+      onStartShouldSetPanResponder: () => swipeEnabled && bottomSheetSwipeZone === 'handle',
+      // Claim a downward drag before the scroll area does, but only at its top.
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => claimsDrag(gestureState),
+      onMoveShouldSetPanResponder: (_, gestureState) => claimsDrag(gestureState),
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: (event: GestureResponderEvent) => {
+        if (!isWeb) return;
+        // Drop any text selection the drag started on web.
+        const domEvent = event.nativeEvent as unknown as DomLikeEvent;
+        domEvent.preventDefault?.();
+        domEvent.stopPropagation?.();
+        (globalThis as { getSelection?: () => { removeAllRanges?: () => void } | null })
+          .getSelection?.()?.removeAllRanges?.();
+      },
+      onPanResponderMove: (event: GestureResponderEvent, gestureState) => {
+        if (!swipeEnabled) return;
+        if (isWeb) (event.nativeEvent as unknown as DomLikeEvent).preventDefault?.();
+        // Only downward movement dismisses; resist a little for feel.
+        const dragDistance = Math.max(0, gestureState.dy);
+        const offset = dragDistance * 0.8 + (dragDistance > 100 ? (dragDistance - 100) * 0.2 : 0);
+        slideAnim.value = offset;
+        backdropOpacity.value = Math.max(0, 1 - offset / (sheetHeightRef.current || screenHeight));
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (!swipeEnabled) return;
+        const dragDistance = gestureState.dy;
+        const velocity = gestureState.vy;
+        const shouldDismiss =
+          dragDistance > screenHeight * 0.25 ||
+          (velocity > 0.6 && dragDistance > 50) ||
+          (dragDistance > 80 && velocity > 0.2);
+
+        if (shouldDismiss && dragDistance > 0) {
+          const dismissDuration = ms(Math.max(120, 220 - Math.max(0, velocity) * 60));
+          closingRef.current = true;
+          if (instantMotion) {
+            slideAnim.value = screenHeight;
+            backdropOpacity.value = 0;
+            invokeOnClose();
+          } else {
+            slideAnim.value = withTiming(screenHeight, { duration: dismissDuration, easing: Easing.in(Easing.cubic) }, (finished) => {
+              'worklet';
+              if (finished) runOnJS(invokeOnClose)();
+            });
+            backdropOpacity.value = withTiming(0, { duration: dismissDuration, easing: Easing.in(Easing.cubic) });
+          }
+        } else {
+          settle();
+        }
+      },
+      onPanResponderTerminate: () => {
+        if (swipeEnabled) settle();
+      },
+    });
+  }, [swipeEnabled, bottomSheetSwipeZone, screenHeight, slideAnim, backdropOpacity, invokeOnClose, instantMotion, ms]);
 
   // --- enter / reset ---------------------------------------------------------------------
   useEffect(() => {
@@ -270,7 +297,7 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
     // Level 3 — takes over the screen. Except when it *is* the screen: a
     // fullscreen dialog floats above nothing, so it takes the page surface.
     const surface = resolveSurface(t, variant === 'fullscreen' ? 0 : 3);
-    const table: Record<'backdrop' | 'modalContainer' | 'header' | 'content' | 'closeButton' | 'dragHandle' | 'dragHandleContainer', ViewStyle> = {
+    const table: Record<'backdrop' | 'modalContainer' | 'header' | 'content' | 'scroll' | 'closeButton' | 'dragHandle' | 'dragHandleContainer', ViewStyle> = {
       backdrop: {
         position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
         backgroundColor: variant === 'fullscreen' ? 'transparent' : resolveScrim(t),
@@ -292,9 +319,9 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
         minWidth: variant === 'modal' ? Math.min(300, Math.max(200, screenWidth - HORIZONTAL_MARGIN)) : undefined,
         alignSelf: 'center',
         paddingTop: variant === 'fullscreen' ? insets.top : 0,
-        paddingBottom: variant === 'fullscreen' ? insets.bottom : 0,
+        // A bottom sheet sits on the screen edge too, so it clears the home indicator.
+        paddingBottom: variant === 'modal' ? 0 : insets.bottom,
         ...(variant === 'fullscreen' ? null : resolveShadow(t, surface.shadow === 'none' ? 'xl' : surface.shadow)),
-        ...(variant === 'bottomsheet' ? webStyle({ userSelect: 'none', WebkitUserSelect: 'none' }) : null),
       },
       header: {
         alignItems: 'center',
@@ -303,19 +330,21 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
         justifyContent: 'space-between',
         padding: 20,
         paddingBottom: 0,
+        // The drag handle above already supplies the top spacing.
+        ...(swipeEnabled ? { paddingTop: 4 } : null),
       },
       content: {
         ...(variant === 'fullscreen' ? { flex: 1 } : null),
         alignSelf: 'stretch',
         backgroundColor: surface.background,
-        padding: variant === 'fullscreen' ? 0 : 20,
-        // The header already sits 20 above the title and the close button adds a
-        // few px below it, so a second full 20 here reads as a gap.
-        ...(variant !== 'fullscreen' && hasHeader ? { paddingTop: 8 } : null),
         width: '100%',
       },
       closeButton: {
         padding: 8,
+      },
+      scroll: {
+        // Shrink to the sheet's max height and scroll the rest.
+        flexShrink: 1,
       },
       dragHandle: {
         alignSelf: 'center',
@@ -337,7 +366,16 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
     };
     return table;
   }, [variant, resolvedRadius, resolvedMaxHeight, bottomSheetMaxWidth, defaultModalMaxWidth,
-    modalEffectiveWidth, screenWidth, insets.top, insets.bottom, showHeader, hasHeader]);
+    modalEffectiveWidth, screenWidth, insets.top, insets.bottom, showHeader, hasHeader, swipeEnabled]);
+
+  // Body padding, in the same longhands the padding props resolve to. Only the
+  // edges the caller leaves alone get the default, so `p={0}` (or a `style`
+  // padding, shorthand or not) reaches every edge on every platform instead of
+  // losing to a default longhand.
+  const bodyPadding = useMemo(
+    () => getDefaultBodyPadding(variant, hasHeader || swipeEnabled, StyleSheet.flatten([spacingStyles, style])),
+    [variant, hasHeader, swipeEnabled, spacingStyles, style]
+  );
 
   const blurBackdrop = isWeb && variant !== 'fullscreen';
   const backdropAnimatedStyle = useAnimatedStyle(() => {
@@ -370,15 +408,22 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
     label: hasHeader ? undefined : accessibilityLabel,
   });
 
+  const body = (
+    <View ref={contentRef} style={[styles.content, bodyPadding, spacingStyles, style]}>
+      {children}
+    </View>
+  );
+
   const content = (
     <Animated.View
       ref={mergedContainerRef}
       style={[styles.modalContainer, animatedStyle] as ViewStyle[]}
       testID={testID}
       {...dialogA11y}
+      onLayout={variant === 'bottomsheet' ? handleSheetLayout : undefined}
       {...(bottomSheetSwipeZone === 'container' ? panHandlers : null)}
     >
-      {variant === 'bottomsheet' && (
+      {swipeEnabled && (
         <View
           style={styles.dragHandleContainer}
           hitSlop={{ top: 8, bottom: 16, left: 0, right: 0 }}
@@ -407,9 +452,17 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
         </View>
       )}
 
-      <View ref={contentRef} style={[styles.content, spacingStyles, style]}>
-        {children}
-      </View>
+      {variant === 'bottomsheet' ? (
+        <ScrollView
+          style={styles.scroll}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {body}
+        </ScrollView>
+      ) : body}
     </Animated.View>
   );
 
@@ -449,6 +502,32 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
       </OverlayHost>
     </Modal>
   );
+}
+
+const DEFAULT_BODY_PADDING = 20;
+
+/**
+ * The body's default padding: 20 on every edge (8 on top below a header or
+ * drag handle, which already supply that spacing), none for fullscreen. Edges
+ * the caller's body style covers are left out so the caller's value is the only
+ * one on that edge.
+ */
+function getDefaultBodyPadding(
+  variant: DialogProps['variant'],
+  belowHeader: boolean,
+  bodyStyle: ViewStyle | undefined
+): ViewStyle {
+  if (variant === 'fullscreen') {
+    // Fullscreen bodies have always been edge to edge.
+    return {};
+  }
+  const has = (...keys: (keyof ViewStyle)[]) => keys.some(key => bodyStyle?.[key] !== undefined);
+  const padding: ViewStyle = {};
+  if (!has('padding', 'paddingVertical', 'paddingTop')) padding.paddingTop = belowHeader ? 8 : DEFAULT_BODY_PADDING;
+  if (!has('padding', 'paddingVertical', 'paddingBottom')) padding.paddingBottom = DEFAULT_BODY_PADDING;
+  if (!has('padding', 'paddingHorizontal', 'paddingStart', 'paddingLeft')) padding.paddingStart = DEFAULT_BODY_PADDING;
+  if (!has('padding', 'paddingHorizontal', 'paddingEnd', 'paddingRight')) padding.paddingEnd = DEFAULT_BODY_PADDING;
+  return padding;
 }
 
 /**

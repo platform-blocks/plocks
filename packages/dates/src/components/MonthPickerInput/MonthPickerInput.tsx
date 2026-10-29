@@ -28,6 +28,8 @@ export const MonthPickerInput = factory<{ props: MonthPickerInputProps; ref: Mon
       clearable = false,
       closeOnSelect = true,
       monthPickerProps,
+      withNativeLevelSelect,
+      yearsSelectRange,
       modalTitle = 'Select month',
       dropdownType = 'modal',
       size = 'md',
@@ -95,6 +97,8 @@ export const MonthPickerInput = factory<{ props: MonthPickerInputProps; ref: Mon
       >
         <MonthPicker
           {...restMonthPickerProps}
+          withNativeLevelSelect={withNativeLevelSelect ?? restMonthPickerProps.withNativeLevelSelect}
+          yearsSelectRange={yearsSelectRange ?? restMonthPickerProps.yearsSelectRange}
           value={currentValue}
           onChange={handleMonthChange}
           locale={restMonthPickerProps.locale ?? locale}

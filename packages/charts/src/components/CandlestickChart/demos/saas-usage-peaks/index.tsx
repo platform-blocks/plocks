@@ -3,6 +3,7 @@ import { CandlestickChart } from '@plocks/charts';
 import { USAGE_SERIES, UsageCandle, annotations } from './data';
 
 const formatDay = (value: number) => new Date(value).toLocaleDateString('en-US', {
+  timeZone: 'UTC',
   month: 'short',
   day: 'numeric',
 });

@@ -62,7 +62,7 @@ export function Demo() {
             appearance={{
               arc: { startAngle: -135, sweepAngle: 270, clampInput: true },
               ring: { thickness: 16, color: '#0f172a', trailColor: '#1e293b' },
-              fill: { color: '#020617', radiusOffset: -14 },
+              body: { color: '#020617', radiusOffset: -14 },
               progress: {
                 mode: 'split',
                 roundedCaps: true,

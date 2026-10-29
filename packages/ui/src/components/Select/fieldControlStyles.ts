@@ -24,6 +24,8 @@ export interface FieldControlStyleOptions {
   /** Focused / open: the frame border switches to the accent color. */
   focused?: boolean;
   invalid?: boolean;
+  /** Success state: the frame border takes the theme's success color (`invalid` wins). */
+  success?: boolean;
   disabled?: boolean;
 }
 
@@ -49,10 +51,10 @@ export interface FieldControlStyles {
 
 export function getFieldControlStyles(
   theme: PlocksTheme,
-  { size = 'md', radius, variant = 'default', focused = false, invalid = false, disabled = false }: FieldControlStyleOptions
+  { size = 'md', radius, variant = 'default', focused = false, invalid = false, success = false, disabled = false }: FieldControlStyleOptions
 ): FieldControlStyles {
   const metrics = getControlSize(theme, size);
-  const frameStyles = getFieldFrameStyles(theme, size, variant, radius, invalid, focused, disabled);
+  const frameStyles = getFieldFrameStyles(theme, size, variant, radius, invalid, focused, disabled, success);
 
   const text: TextStyle = {
     flexShrink: 1,
@@ -78,10 +80,10 @@ export function getFieldControlStyles(
 /** Memoized `getFieldControlStyles` for the current theme. */
 export function useFieldControlStyles(options: FieldControlStyleOptions): FieldControlStyles {
   const theme = useTheme();
-  const { size, radius, variant, focused, invalid, disabled } = options;
+  const { size, radius, variant, focused, invalid, success, disabled } = options;
   return useMemo(
-    () => getFieldControlStyles(theme, { size, radius, variant, focused, invalid, disabled }),
-    [theme, size, radius, variant, focused, invalid, disabled]
+    () => getFieldControlStyles(theme, { size, radius, variant, focused, invalid, success, disabled }),
+    [theme, size, radius, variant, focused, invalid, success, disabled]
   );
 }
 

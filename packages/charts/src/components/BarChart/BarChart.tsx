@@ -14,7 +14,8 @@ import { roundedBarPath, barCornerMask } from '../../utils/barPath';
 import { useChartTheme, useNumberFormatter } from '../../theme/ChartThemeContext';
 import { BarChartProps, BarChartDataPoint, BarChartSeries } from './types';
 import { ChartInteractionEvent } from '../../types';
-import { ChartContainer, ChartTitle, ChartLegend , withChartBandPadding, estimateChartTextWidth } from '../../ChartBase';
+import { ChartContainer, ChartTitle, ChartLegend , withChartBandPadding, estimateChartTextWidth, measureChartBrushBand, CHART_BRUSH_GAP, CHART_BRUSH_HEIGHT } from '../../ChartBase';
+import { ChartBrush, pickBrushSeries, useChartBrushRange } from '../ChartBrush/ChartBrush';
 import { resolveCartesianPadding } from '../../core/axisLayout';
 import { Axis } from '../../core/Axis';
 import { ChartGrid as Grid } from '../../core/ChartGrid';
@@ -26,6 +27,7 @@ import type { HitSeries, Mark } from '../../core/hittest/types';
 import { generateTicks, getColorFromScheme, formatNumber, createTickFormatter } from '../../utils';
 import { createColorScale, type ColorScaleContext } from '../../utils/colorScale';
 import { ChartGradientDef, fillSwatchColor, isChartGradient, useChartFillId } from '../../core/ChartFill';
+import { ReferenceAreas, ReferenceDots, ReferenceLines, categoryReference, numericReference, type ReferenceMarkScales } from '../../core/ReferenceMarks';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -227,7 +229,14 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
     valueFormatter,
     valueLabel,
     thresholds,
+    referenceLines,
+    referenceAreas,
+    referenceDots,
     colorScale,
+    withBrush = false,
+    brushProps,
+    brushRange,
+    onBrushChange,
     ...rest
   } = props;
 
@@ -294,7 +303,7 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
     return seriesCount > 1 ? 'grouped' : 'single';
   }, [layout, seriesCount]);
 
-  const categories = useMemo(() => {
+  const allCategories = useMemo(() => {
     const seen = new Set<string>();
     const ordered: string[] = [];
     const addCategory = (category: string) => {
@@ -310,6 +319,23 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
     });
     return ordered;
   }, [resolvedSeries]);
+
+  // Brush: an inclusive range of category indices; the plot lays out only those.
+  const brushDomain = useMemo<[number, number]>(() => [0, Math.max(allCategories.length - 1, 0)], [allCategories.length]);
+  const brush = useChartBrushRange({
+    domain: brushDomain,
+    value: brushRange,
+    start: withBrush ? brushProps?.start : undefined,
+    end: withBrush ? brushProps?.end : undefined,
+    onChange: [onBrushChange, brushProps?.onChange],
+  });
+  const brushWindowed = (withBrush || brushRange !== undefined) && brush.active;
+  const categoryOffset = brushWindowed ? Math.round(brush.range[0]) : 0;
+  const categoryEnd = brushWindowed ? Math.round(brush.range[1]) : allCategories.length - 1;
+  const categories = useMemo(
+    () => (brushWindowed ? allCategories.slice(categoryOffset, categoryEnd + 1) : allCategories),
+    [brushWindowed, allCategories, categoryOffset, categoryEnd]
+  );
 
   // A scale config reads bar values over a domain that includes zero, where bars start.
   const valueExtent = useMemo<[number, number]>(() => {
@@ -366,7 +392,7 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
           return {
             datum,
             value: datum.value,
-            ...resolvePointColor(datum, seriesItem, seriesIndex, categoryIndex),
+            ...resolvePointColor(datum, seriesItem, seriesIndex, categoryIndex + categoryOffset),
             category,
             categoryIndex,
             isSynthetic: false,
@@ -381,7 +407,7 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
         return {
           datum: synthetic,
           value: 0,
-          ...resolvePointColor(synthetic, seriesItem, seriesIndex, categoryIndex),
+          ...resolvePointColor(synthetic, seriesItem, seriesIndex, categoryIndex + categoryOffset),
           category,
           categoryIndex,
           isSynthetic: true,
@@ -396,7 +422,7 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
         points,
       };
     });
-  }, [resolvedSeries, categories, resolvePointColor]);
+  }, [resolvedSeries, categories, resolvePointColor, categoryOffset]);
 
   const autoLegend = !legend?.items || legend.items.length === 0;
   const allowLegendToggles = legendToggleEnabled ?? (autoLegend && normalizedSeries.length > 1);
@@ -517,6 +543,8 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
     return valueTicks.map((tick) => format(tick));
   }, [valueTicks, orientation, yAxis?.labelFormatter, xAxis?.labelFormatter, valueTickFormat]);
 
+  const brushHeight = brushProps?.height ?? CHART_BRUSH_HEIGHT;
+  const brushBand = measureChartBrushBand(withBrush, brushHeight);
   const chartDimensions = useMemo(
     () => {
       const isVertical = orientation === 'vertical';
@@ -537,7 +565,7 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
           ? valueLabelFontSize + valueLabelOffset
           : 0,
       });
-      // Grown so the plot clears the title and legend overlays.
+      // Grown so the plot clears the title and legend overlays (and the brush strip).
       const adjustedPadding = withChartBandPadding(measured, {
         title,
         subtitle,
@@ -546,9 +574,11 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
         legendFontSize: legend?.fontSize,
         containerWidth: width,
         topAllowance: measured.top,
+        bottomAllowance: brushBand,
       });
       return {
         padding: adjustedPadding,
+        axisBottom: measured.bottom,
         axisLabelWidths: {
           y: measured.yTickLabelWidth,
           x: measured.xTickLabelWidth,
@@ -560,10 +590,10 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
     },
     [width, height, title, subtitle, legend?.show, legend?.position, legend?.fontSize, legendLabels,
      orientation, categories, valueTickLabels, yAxis?.title, xAxis?.title, yAxis?.show, xAxis?.show,
-     yAxis?.showLabels, xAxis?.showLabels, showValueLabels, valueLabelInside, valueLabelFontSize, valueLabelOffset]
+     yAxis?.showLabels, xAxis?.showLabels, showValueLabels, valueLabelInside, valueLabelFontSize, valueLabelOffset, brushBand]
   );
 
-  const { padding, plotWidth, plotHeight, axisLabelWidths } = chartDimensions;
+  const { padding, plotWidth, plotHeight, axisLabelWidths, axisBottom } = chartDimensions;
 
   const valueScaleY = useMemo(() => linearScale([metrics.minValue, metrics.maxValue], [plotHeight, 0]), [metrics.minValue, metrics.maxValue, plotHeight]);
   const valueScaleX = useMemo(() => linearScale([metrics.minValue, metrics.maxValue], [0, plotWidth]), [metrics.minValue, metrics.maxValue, plotWidth]);
@@ -585,6 +615,21 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
     const end = count > 1 ? plotHeight - band / 2 : start;
     return linearScale([0, Math.max(count - 1, 1)], [start, end]);
   }, [categories.length, plotHeight]);
+
+  // Reference marks follow the screen axes: in the vertical orientation x is the
+  // category axis (index or label, placed at the band center) and y the value axis;
+  // the horizontal orientation swaps them.
+  // A numeric category position is an index into the full category list, so a
+  // brushed window shifts it onto the visible slice.
+  const referenceScales = useMemo<ReferenceMarkScales>(() => {
+    const categoryAxis = (scale: (index: number) => number) => {
+      const lookup = categoryReference(categories, scale);
+      return (value: number | string) => lookup(typeof value === 'number' ? value - categoryOffset : value);
+    };
+    return orientation === 'vertical'
+      ? { xToPx: categoryAxis(categoryScaleX), yToPx: numericReference(valueScaleY), xBandWidth: plotWidth / Math.max(categories.length, 1), plotWidth, plotHeight }
+      : { xToPx: numericReference(valueScaleX), yToPx: categoryAxis(categoryScaleY), yBandWidth: plotHeight / Math.max(categories.length, 1), plotWidth, plotHeight };
+  }, [orientation, categories, categoryOffset, categoryScaleX, categoryScaleY, valueScaleX, valueScaleY, plotWidth, plotHeight]);
 
   const thresholdsConfig = useMemo(() => {
     return (thresholds ?? []).map((threshold, index) => ({
@@ -798,13 +843,13 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
         chartX: centerX,
         chartY: centerY,
         dataPoint: bar.datum,
-        dataX: bar.categoryIndex,
+        dataX: bar.categoryIndex + categoryOffset,
         dataY: bar.originalValue,
       };
       onDataPointPress?.(bar.datum, interactionEvent);
       onPress?.(interactionEvent);
     },
-    [disabled, onDataPointPress, onPress]
+    [disabled, onDataPointPress, onPress, categoryOffset]
   );
 
   // Bar-highlight (scale + hoveredIndex) driven from the hit-test engine's onPointer.
@@ -1001,6 +1046,26 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
     [allowLegendToggles, autoLegend, normalizedSeries]
   );
 
+  // Brush preview: every visible series over the full category list.
+  const brushSeries = useMemo(() => {
+    if (!withBrush) return [];
+    const all = resolvedSeries
+      .map((seriesItem, seriesIndex) => {
+        const byCategory = new Map(seriesItem.data.map((datum) => [datum.category, datum.value]));
+        return {
+          id: seriesItem.id,
+          name: seriesItem.name,
+          color: seriesItem.color
+            ?? (seriesCount === 1 ? barSwatch : undefined)
+            ?? getColorFromScheme(seriesIndex, theme.colors.accentPalette),
+          data: allCategories.map((category, index) => ({ x: index, y: byCategory.get(category) ?? 0 })),
+        };
+      })
+      .filter((item) => !hiddenSeries.has(item.id));
+    return pickBrushSeries(all, brushProps?.series);
+  }, [withBrush, resolvedSeries, seriesCount, barSwatch, theme.colors.accentPalette, allCategories, hiddenSeries, brushProps?.series]);
+  const brushTraveller = brushProps?.travellerWidth ?? 8;
+
   const valueAxisTickSize = yAxis?.tickLength ?? 4;
   const categoryAxisTickSize = xAxis?.tickLength ?? 4;
   const axisTickPadding = 4;
@@ -1155,6 +1220,7 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
             />
           </Defs>
         )}
+        <ReferenceAreas areas={referenceAreas} scales={referenceScales} />
         {thresholdsBack.length > 0 && renderThresholds(thresholdsBack)}
         <G>
           {bars.map((bar) => {
@@ -1183,6 +1249,8 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
 
 
         {thresholdsFront.length > 0 && renderThresholds(thresholdsFront)}
+        <ReferenceLines lines={referenceLines} scales={referenceScales} />
+        <ReferenceDots dots={referenceDots} scales={referenceScales} />
       </Svg>
 
       {/* Value labels sit above the tallest bar, outside the plot box, so they get a
@@ -1270,6 +1338,32 @@ export const BarChart: React.FC<BarChartProps> = React.memo((props) => {
           testID="bar-gesture-surface"
           style={{ position: 'absolute', left: 0, top: 0, width, height }}
           {...pointerHandlers}
+        />
+      )}
+
+      {/* Drawn after the gesture overlay so the strip receives its own drags. */}
+      {withBrush && plotWidth > 0 && allCategories.length > 0 && (
+        <ChartBrush
+          testID="bar-chart-brush"
+          style={{
+            position: 'absolute',
+            left: padding.left - brushTraveller / 2,
+            top: padding.top + plotHeight + axisBottom + CHART_BRUSH_GAP,
+          }}
+          w={plotWidth + brushTraveller}
+          h={brushHeight}
+          band
+          domain={brushDomain}
+          value={brush.range}
+          onChange={brush.setRange}
+          series={brushSeries}
+          previewType="bar"
+          step={brushProps?.step ?? 1}
+          travellerWidth={brushTraveller}
+          fill={brushProps?.fill}
+          stroke={brushProps?.stroke}
+          formatValue={brushProps?.formatValue ?? ((index) => allCategories[Math.round(index)] ?? String(index))}
+          disabled={disabled}
         />
       )}
 

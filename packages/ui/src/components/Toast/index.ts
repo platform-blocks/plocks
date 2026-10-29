@@ -24,8 +24,10 @@ export {
 } from './ToastProvider';
 
 export type {
+  ToastProviderProps,
   ToastOptions,
   ToastStackPosition,
+  ToastLayout,
   ToastQueueOptions,
   SeverityToastOptions,
   ToastMessage,

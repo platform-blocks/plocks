@@ -10,3 +10,16 @@ test('renders event titles and details in chronological DOM order', () => {
   expect(screen.getByText('Monday')).toBeTruthy();
   expect(screen.getByText('Implementation')).toBeTruthy();
 });
+
+test('opposite content renders across the line and alternate swaps the sides', () => {
+  renderWithPlocks(
+    <Timeline>
+      <Timeline.Item title="Plan" opposite="Monday">Scope</Timeline.Item>
+      <Timeline.Item title="Build" opposite="Tuesday" alternate>Implementation</Timeline.Item>
+    </Timeline>
+  );
+  const text = document.body.textContent ?? '';
+  expect(screen.getByText('Monday')).toBeTruthy();
+  expect(text.indexOf('Monday')).toBeLessThan(text.indexOf('Plan'));
+  expect(text.indexOf('Build')).toBeLessThan(text.indexOf('Tuesday'));
+});

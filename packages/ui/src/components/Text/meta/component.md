@@ -28,6 +28,7 @@ examples:
   ff: Font family (`ff`)
   tt: Text transform (`tt="uppercase"`, `"lowercase"`, `"capitalize"`)
   decoration: Font style and decoration (`fs="italic"`, `td="underline"`, `td="line-through"`)
+  stroke: Outlined text (`stroke`, `stroke={{ c, w }}`); true stroke on web, `textShadow` halo approximation on native
   textRole: Theme text role — `panelTitle`, `sectionLabel`, or one your theme adds (`theme.textRoles`); explicit props still win
 ---
 

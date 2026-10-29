@@ -1,12 +1,13 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { ViewStyle } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { factory, withStatics } from '../../core/factory/factory';
+import { useIsomorphicLayoutEffect } from '../../core/hooks/useIsomorphicLayoutEffect';
 import { useReducedMotion } from '../../core/motion/useReducedMotion';
-import { isNative, isWeb } from '../../core/platform/flags';
+import { hasDOM, isNative, isWeb } from '../../core/platform/flags';
 import { webProps } from '../../core/platform/webProps';
 import { useDirection } from '../../core/providers/DirectionProvider';
 import { isBreakpointAtLeast } from '../../core/responsive';
@@ -15,6 +16,7 @@ import { useTheme } from '../../core/theme/ThemeProvider';
 import { resolveSpacing } from '../../core/theme/tokens';
 import type { PlocksTheme, SizeToken } from '../../core/theme/types';
 import { getZIndex, type ZIndexLayer } from '../../core/theme/zIndices';
+import { useMergedRef } from '../../core/utils/mergeRefs';
 import { useStyleProps } from '../../core/utils/spacing';
 import {
   AppShellApiContext,
@@ -30,19 +32,22 @@ import { AppShellFooter } from './AppShellFooter';
 import { AppShellHeader } from './AppShellHeader';
 import { AppShellMain } from './AppShellMain';
 import { AppShellNavbar } from './AppShellNavbar';
+import { AppShellResizeHandles } from './AppShellResizeHandle';
 import { AppShellSection } from './AppShellSection';
 import { BottomAppBar } from './BottomAppBar';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { resolveResponsiveRaw, resolveResponsiveValue } from './hooks/useResponsiveValue';
 import { MobileMenu } from './MobileMenu';
 import { APP_SHELL_CSS_VARS, appShellVar, isMobileBreakpoint } from './shellCssVars';
-import { parseTimingFunction } from './shellUtils';
+import { parseTimingFunction, shellVarRef } from './shellUtils';
 import { StatusBarManager } from './StatusBarManager';
 import type {
   AppShellApi,
   AppShellContextValue,
   AppShellLayoutValue,
   AppShellProps,
+  AppShellResizeSection,
+  AppShellResizeSizes,
   Breakpoint,
   ResponsiveSize,
 } from './types';
@@ -57,8 +62,20 @@ export { AppShellBottomNav } from './AppShellBottomNav';
 export { AppShellMain } from './AppShellMain';
 export { AppShellSection } from './AppShellSection';
 export { useAppShell, useAppShellApi, useAppShellLayout, useNavbarHover } from './AppShellContext';
+export { useAppShellResize } from './hooks/useAppShellResize';
 
 const ROOT: ViewStyle = { flex: 1 };
+
+const NO_LIVE_SIZES: AppShellResizeSizes = Object.freeze({}) as AppShellResizeSizes;
+const noSubscription = () => () => {};
+
+/** The shell-root custom property each resizable section's live size is written to (web). */
+const RESIZE_VARS: Record<AppShellResizeSection, string> = {
+  navbar: APP_SHELL_CSS_VARS.navbarWidth,
+  aside: APP_SHELL_CSS_VARS.asideWidth,
+  header: APP_SHELL_CSS_VARS.headerHeight,
+  footer: APP_SHELL_CSS_VARS.footerHeight,
+};
 const SAFE_AREA: ViewStyle = { flex: 1 };
 
 const renderContent = (content: React.ReactNode | (() => React.ReactNode)): React.ReactNode =>
@@ -116,6 +133,7 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
     hideTableOfContentsOnMobile = true,
     tableOfContentsWidth = 280,
     tableOfContentsWithBorder = true,
+    resize,
   } = props;
 
   const resolvedCenterContent = centerContent ?? Boolean(maxContentWidth);
@@ -127,8 +145,32 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
   const reducedMotion = useReducedMotion();
   const { dir } = useDirection();
 
-  // Reduced motion: every shell transition becomes instant.
-  const transitionDuration = reducedMotion ? 0 : transitionDurationProp;
+  // Resizing (see useAppShellResize). The hook's committed sizes arrive as
+  // props; the size *during* a drag lives in its store. On web the store
+  // writes it straight into CSS variables on the shell root (below), so the
+  // shell only re-renders when a drag starts and ends. On native there is no
+  // such channel, so the shell subscribes to the live size and re-renders
+  // itself per frame — the page passed as `children` keeps its element
+  // identity and is skipped, as is the component that owns the hook.
+  const resizeStore = resize?.store;
+  const subscribeResize = resizeStore ? resizeStore.subscribe : noSubscription;
+  const activeResize = useSyncExternalStore(
+    subscribeResize,
+    () => resizeStore?.getActive() ?? null,
+    () => null
+  );
+  const liveSizes = useSyncExternalStore(
+    subscribeResize,
+    () => (!isWeb && resizeStore ? resizeStore.getLive() : NO_LIVE_SIZES),
+    () => NO_LIVE_SIZES
+  );
+  const resizeSize = (section: AppShellResizeSection): number | undefined =>
+    liveSizes[section] ?? resize?.sizes[section];
+  const rootRef = useRef<View>(null);
+  const mergedRootRef = useMergedRef<View>(rootRef, ref);
+
+  // Reduced motion — and an active resize drag — make every shell transition instant.
+  const transitionDuration = reducedMotion || activeResize ? 0 : transitionDurationProp;
   const easing = useMemo(() => parseTimingFunction(transitionTimingFunction), [transitionTimingFunction]);
   const cssTimingFunction = transitionTimingFunction ?? 'ease-in-out';
 
@@ -141,12 +183,27 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
   const footerConfig = (layoutSections?.footer ?? true) ? footer : undefined;
   const bottomNavConfig = (layoutSections?.bottomNav ?? true) ? bottomNav : undefined;
 
-  const headerCollapsed = !!headerConfig?.collapsed;
-  const footerCollapsed = !!footerConfig?.collapsed;
+  // The header and footer resize everywhere (they are never overlays).
+  const headerResizable = !!(resize?.sections.header && headerConfig && !headerConfig.collapsed);
+  // (autoLayout renders no footer on mobile, so there is nothing to resize there.)
+  const footerResizable = !!(
+    resize?.sections.footer &&
+    footerConfig &&
+    !footerConfig.collapsed &&
+    !(autoLayout && isMobile)
+  );
+  const headerCollapsed = !!headerConfig?.collapsed || (headerResizable && !!resize?.collapsed.header);
+  const footerCollapsed = !!footerConfig?.collapsed || (footerResizable && !!resize?.collapsed.footer);
 
   // Calculate resolved dimensions
-  const headerHeight = headerConfig && !headerCollapsed ? resolveResponsiveValue(headerConfig.height, breakpoint) : 0;
-  const footerHeight = footerConfig && !footerCollapsed ? resolveResponsiveValue(footerConfig.height, breakpoint) : 0;
+  const headerExpandedHeight = headerConfig
+    ? (headerResizable ? resizeSize('header') : undefined) ?? resolveResponsiveValue(headerConfig.height, breakpoint)
+    : 0;
+  const footerExpandedHeight = footerConfig
+    ? (footerResizable ? resizeSize('footer') : undefined) ?? resolveResponsiveValue(footerConfig.height, breakpoint)
+    : 0;
+  const headerHeight = headerConfig && !headerCollapsed ? headerExpandedHeight : 0;
+  const footerHeight = footerConfig && !footerCollapsed ? footerExpandedHeight : 0;
   const bottomNavShown = !bottomNavConfig?.collapsed && (isMobile || bottomNavConfig?.showOnlyMobile === false);
   const bottomNavHeight = bottomNavConfig && bottomNavShown ? resolveResponsiveValue(bottomNavConfig.height, breakpoint) : 0;
 
@@ -187,8 +244,12 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
   const closeNavbar = useCallback(() => setNavbarOpen(() => false), [setNavbarOpen]);
   const toggleNavbar = useCallback(() => setNavbarOpen((open) => !open), [setNavbarOpen]);
 
-  // Calculate navbar state (desktop inline vs mobile drawer)
-  const fullNavbarWidth = navbarConfig ? resolveResponsiveValue(navbarConfig.width, breakpoint) : 0;
+  // Calculate navbar state (desktop inline vs mobile drawer). Resizing is off
+  // while the navbar is a drawer: the drawer keeps its configured width.
+  const navbarResizable = !!(resize?.sections.navbar && navbarConfig && !navbarIsDrawer);
+  const fullNavbarWidth = navbarConfig
+    ? (navbarResizable ? resizeSize('navbar') : undefined) ?? resolveResponsiveValue(navbarConfig.width, breakpoint)
+    : 0;
   const navbarWidthRaw = navbarConfig ? resolveResponsiveRaw(navbarConfig.width, breakpoint) : undefined;
   const railWidth = navbarConfig?.collapsedWidth ?? 72;
   const isNavbarCollapsed = navbarConfig
@@ -213,14 +274,20 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
   const navbarExpandOnHover = navbarConfig?.expandOnHover ?? true;
   const navbarPushOnHover = Boolean(navbarConfig && !navbarIsDrawer && navbarExpandOnHover && navbarConfig.expandOnHoverPush);
 
-  // Calculate aside state
+  // Calculate aside state. Like the navbar, it only resizes while inline
+  // (from `aside.breakpoint` up, never on native).
   const asideIsMobile = isNative || !isBreakpointAtLeast(breakpoint, asideConfig?.breakpoint ?? 'md');
-  const isAsideCollapsed = asideConfig
+  const asideCollapsedByConfig = asideConfig
     ? asideIsMobile
       ? asideConfig.collapsed?.mobile ?? true
       : asideConfig.collapsed?.desktop ?? false
     : true;
-  const asideWidth = asideConfig && !isAsideCollapsed ? resolveResponsiveValue(asideConfig.width, breakpoint) : 0;
+  const asideResizable = !!(resize?.sections.aside && !asideIsMobile && !asideCollapsedByConfig);
+  const isAsideCollapsed = asideCollapsedByConfig || (asideResizable && !!resize?.collapsed.aside);
+  const asideExpandedWidth = asideConfig
+    ? (asideResizable ? resizeSize('aside') : undefined) ?? resolveResponsiveValue(asideConfig.width, breakpoint)
+    : 0;
+  const asideWidth = asideConfig && !isAsideCollapsed ? asideExpandedWidth : 0;
 
   // Geometry the browser resolves rather than the breakpoint hook. Only on web,
   // and only when the app asked for it — see `shellCssVars.ts` for why a
@@ -240,10 +307,84 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
   const contentTop = headerOffset ? headerHeight : 0;
   const contentBottom = bottomNavShown && bottomNavHeight > 0 ? bottomNavHeight : isMobile ? 0 : footerOffset ? footerHeight : 0;
 
-  const headerHeightStyle = cssGeometry ? appShellVar(APP_SHELL_CSS_VARS.headerHeight, headerHeightBase) : headerHeight;
-  const navbarWidthStyle = cssGeometry ? appShellVar(APP_SHELL_CSS_VARS.navbarWidth, 0) : navbarWidth;
-  const contentBottomStyle = cssGeometry ? appShellVar(APP_SHELL_CSS_VARS.contentBottom, contentBottomBase) : contentBottom;
+  // Web resizing: resizable sections' geometry becomes `var()` references to
+  // properties on the shell root, falling back to the committed px — so the
+  // markup is right before any effect runs, and a drag can move the
+  // properties without a render.
+  const resizeVars = isWeb && !!resize;
+  // The footer is what sets the content's bottom edge (no bottom nav in its
+  // place, desktop, `footer.offset` on) — the same either/or as `contentBottom`.
+  const footerDrivesContentBottom =
+    footerResizable && !(bottomNavShown && bottomNavHeight > 0) && !isMobile && footerOffset;
+  const geometryVar = (resizable: boolean, name: string, value: number): number | string =>
+    resizeVars && resizable ? shellVarRef(name, value) : value;
+
+  const headerHeightStyle = cssGeometry
+    ? appShellVar(APP_SHELL_CSS_VARS.headerHeight, headerHeightBase)
+    : geometryVar(headerResizable, APP_SHELL_CSS_VARS.headerHeight, headerHeight);
+  const navbarWidthStyle = cssGeometry
+    ? appShellVar(APP_SHELL_CSS_VARS.navbarWidth, 0)
+    : geometryVar(navbarResizable, APP_SHELL_CSS_VARS.navbarWidth, navbarWidth);
+  const contentBottomStyle = cssGeometry
+    ? appShellVar(APP_SHELL_CSS_VARS.contentBottom, contentBottomBase)
+    : geometryVar(footerDrivesContentBottom, APP_SHELL_CSS_VARS.contentBottom, contentBottom);
+  const asideWidthStyle = geometryVar(asideResizable, APP_SHELL_CSS_VARS.asideWidth, asideWidth);
+  const footerHeightStyle = geometryVar(footerResizable, APP_SHELL_CSS_VARS.footerHeight, footerHeight);
   const contentTopStyle = headerOffset ? headerHeightStyle : 0;
+
+  // The committed values, on the shell root (not `:root`): what the `var()`s
+  // above read between drags. Under `cssGeometry` these override the
+  // stylesheet's media-query values for the resizable sections only.
+  useIsomorphicLayoutEffect(() => {
+    if (!resizeVars || !hasDOM) return;
+    const root = rootRef.current as unknown as HTMLElement | null;
+    if (!root?.style) return;
+    const values: [string, number | null][] = [
+      [APP_SHELL_CSS_VARS.navbarWidth, navbarResizable ? navbarWidth : null],
+      [APP_SHELL_CSS_VARS.asideWidth, asideResizable ? asideWidth : null],
+      [APP_SHELL_CSS_VARS.headerHeight, headerResizable ? headerHeight : null],
+      [APP_SHELL_CSS_VARS.footerHeight, footerResizable ? footerHeight : null],
+      [APP_SHELL_CSS_VARS.contentBottom, footerDrivesContentBottom ? contentBottom : null],
+    ];
+    for (const [name, value] of values) {
+      if (value === null) root.style.removeProperty(name);
+      else root.style.setProperty(name, `${value}px`);
+    }
+    return () => {
+      for (const [name] of values) root.style.removeProperty(name);
+    };
+  }, [
+    resizeVars,
+    navbarResizable,
+    navbarWidth,
+    asideResizable,
+    asideWidth,
+    headerResizable,
+    headerHeight,
+    footerResizable,
+    footerHeight,
+    footerDrivesContentBottom,
+    contentBottom,
+  ]);
+
+  // The live values: the store calls this on every drag frame.
+  const footerDrivesContentBottomRef = useRef(footerDrivesContentBottom);
+  footerDrivesContentBottomRef.current = footerDrivesContentBottom;
+  useIsomorphicLayoutEffect(() => {
+    if (!resizeStore || !resizeVars || !hasDOM) return;
+    const writer = (section: AppShellResizeSection, size: number) => {
+      const root = rootRef.current as unknown as HTMLElement | null;
+      if (!root?.style) return;
+      root.style.setProperty(RESIZE_VARS[section], `${size}px`);
+      if (section === 'footer' && footerDrivesContentBottomRef.current) {
+        root.style.setProperty(APP_SHELL_CSS_VARS.contentBottom, `${size}px`);
+      }
+    };
+    resizeStore.writer = writer;
+    return () => {
+      if (resizeStore.writer === writer) resizeStore.writer = null;
+    };
+  }, [resizeStore, resizeVars]);
 
   const mainPadding = resolveMainPadding(theme, padding, breakpoint);
 
@@ -258,6 +399,8 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
       headerHeightStyle,
       navbarWidthStyle,
       contentBottomStyle,
+      asideWidthStyle,
+      footerHeightStyle,
       isNavbarCollapsed,
       isNavbarRail: !navbarIsDrawer && hasNavbar && !navbarOpen,
       isAsideCollapsed,
@@ -284,6 +427,8 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
       headerHeightStyle,
       navbarWidthStyle,
       contentBottomStyle,
+      asideWidthStyle,
+      footerHeightStyle,
       isNavbarCollapsed,
       navbarIsDrawer,
       hasNavbar,
@@ -324,6 +469,34 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
   const zBottomNav = layerFor(bottomNav?.zIndex, 'sticky');
   const zToc = layerFor(undefined, 'sticky');
 
+  const resizableKey = `${navbarResizable}:${asideResizable}:${headerResizable}:${footerResizable}`;
+  const resizable = useMemo(
+    () => ({ navbar: navbarResizable, aside: asideResizable, header: headerResizable, footer: footerResizable }),
+    // Keyed on the flags' values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resizableKey]
+  );
+  const resizeCollapsedKey = `${!navbarOpen}:${!!resize?.collapsed.aside}:${!!resize?.collapsed.header}:${!!resize?.collapsed.footer}`;
+  const resizeCollapsed = useMemo(
+    () => ({
+      navbar: !navbarOpen,
+      aside: !!resize?.collapsed.aside,
+      header: !!resize?.collapsed.header,
+      footer: !!resize?.collapsed.footer,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resizeCollapsedKey]
+  );
+  const resizeExpandedSize = useMemo(
+    () => ({
+      navbar: fullNavbarWidth,
+      aside: asideExpandedWidth,
+      header: headerExpandedHeight,
+      footer: footerExpandedHeight,
+    }),
+    [fullNavbarWidth, asideExpandedWidth, headerExpandedHeight, footerExpandedHeight]
+  );
+
   const internalValue = useMemo<AppShellInternalValue>(
     () => ({
       layout,
@@ -348,6 +521,11 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
       mainPadding,
       easing,
       cssTimingFunction,
+      resize,
+      resizable,
+      resizeCollapsed,
+      resizeExpandedSize,
+      resizeVars,
     }),
     [
       layout,
@@ -370,6 +548,11 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
       mainPadding,
       easing,
       cssTimingFunction,
+      resize,
+      resizable,
+      resizeCollapsed,
+      resizeExpandedSize,
+      resizeVars,
     ]
   );
 
@@ -400,7 +583,7 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
           <AppShellInternalContext.Provider value={internalValue}>
             <NavbarHoverProvider>
               <StatusBarManager {...statusBar}>
-                <View ref={ref} style={containerStyle} testID={testID} {...directionProps}>
+                <View ref={mergedRootRef} style={containerStyle} testID={testID} {...directionProps}>
                   {autoLayout ? (
                     <>
                       {/* Header */}
@@ -435,6 +618,7 @@ function AppShellBase(props: AppShellProps, ref: React.Ref<View>) {
                   ) : (
                     children
                   )}
+                  {resize && <AppShellResizeHandles />}
                 </View>
                 {/* Mobile Menu Modal - only render if configured and on mobile */}
                 {shouldUseMobileMenu && (

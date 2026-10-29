@@ -193,6 +193,8 @@ export const TickLayers: React.FC<TickLayersProps> = ({
   }, [derivedTickLayers, displayValue, valueToAngle]);
 
   const hasTickLayers = derivedTickLayers.length > 0;
+  const tickWidthFor = (config: KnobTickLayer, thickness: number) =>
+    config.width ?? Math.max(2, Math.round(thickness * 0.25));
 
   const markRadius = Math.max(0, ringRadius);
   const markDotSize = Math.max(4, Math.round(size * 0.05));
@@ -215,13 +217,20 @@ export const TickLayers: React.FC<TickLayersProps> = ({
             radiusOffset
           );
           const tickLength = layerData.config.length ?? Math.max(6, Math.round(ringThickness * 0.9));
-          const tickWidth = layerData.config.width ?? Math.max(2, Math.round(ringThickness * 0.25));
+          const tickWidth = tickWidthFor(layerData.config, ringThickness);
           const colorInput = layerData.config.color;
           const inactiveColorInput = layerData.config.inactiveColor;
           const labelConfig = layerData.config.label;
           const labelPosition = labelConfig?.position ?? 'outer';
           const labelOffset = labelConfig?.offset ?? 12;
           const activeMode = layerData.config.activeMode ?? 'fill';
+          const tickCap = layerData.config.cap ?? 'round';
+          const glow = disabled ? undefined : layerData.config.glow;
+          const glowIntensity = glow?.intensity ?? 0.5;
+          // A halo is faked with wider, fainter copies under the lit tick: react-native-svg
+          // has no portable blur, and a View shadow cannot follow an SVG stroke.
+          const glowSpread = glow?.blur ?? tickWidthFor(layerData.config, ringThickness) * 2.5;
+          const GLOW_STEPS = [1, 0.6, 0.3];
           const nearestTickIndex = nearestTickIndexByLayer[layerData.id] ?? -1;
           const isTickActive = (tick: DerivedTickItem, tickIndex: number) =>
             activeMode === 'nearest'
@@ -262,8 +271,9 @@ export const TickLayers: React.FC<TickLayersProps> = ({
               : position === 'outer'
                 ? baseRadius + tickLength
                 : baseRadius + tickLength / 2;
-          // Round caps overhang the endpoint by half the stroke width.
-          const lineReach = Math.max(lineStartRadius, lineEndRadius) + tickWidth / 2;
+          // Round caps (and any glow) overhang the endpoint.
+          const lineReach =
+            Math.max(lineStartRadius, lineEndRadius) + tickWidth / 2 + (glow ? glowSpread / 2 : 0);
           const linePad = Math.max(0, Math.ceil(lineReach - layoutState.radius));
           const lineCx = layoutState.cx + linePad;
           const lineCy = layoutState.cy + linePad;
@@ -280,17 +290,35 @@ export const TickLayers: React.FC<TickLayersProps> = ({
                   {layerData.ticks.map((tick, tickIndex) => {
                     const start = polarToCartesian(lineCx, lineCy, lineStartRadius, tick.angle);
                     const end = polarToCartesian(lineCx, lineCy, lineEndRadius, tick.angle);
+                    const isActive = isTickActive(tick, tickIndex);
+                    const color = resolveTickColor(tick, tickIndex, isActive);
                     return (
-                      <Line
-                        key={`${layerData.id}-${tickIndex}-line`}
-                        x1={start.x}
-                        y1={start.y}
-                        x2={end.x}
-                        y2={end.y}
-                        stroke={resolveTickColor(tick, tickIndex, isTickActive(tick, tickIndex))}
-                        strokeWidth={tickWidth}
-                        strokeLinecap="round"
-                      />
+                      <React.Fragment key={`${layerData.id}-${tickIndex}-line`}>
+                        {glow && isActive
+                          ? GLOW_STEPS.map((spread) => (
+                              <Line
+                                key={`glow-${spread}`}
+                                x1={start.x}
+                                y1={start.y}
+                                x2={end.x}
+                                y2={end.y}
+                                stroke={glow.color ?? color}
+                                strokeOpacity={(glowIntensity * (1.2 - spread)) / GLOW_STEPS.length}
+                                strokeWidth={tickWidth + glowSpread * spread}
+                                strokeLinecap="round"
+                              />
+                            ))
+                          : null}
+                        <Line
+                          x1={start.x}
+                          y1={start.y}
+                          x2={end.x}
+                          y2={end.y}
+                          stroke={color}
+                          strokeWidth={tickWidth}
+                          strokeLinecap={tickCap}
+                        />
+                      </React.Fragment>
                     );
                   })}
                 </Svg>
@@ -362,22 +390,48 @@ export const TickLayers: React.FC<TickLayersProps> = ({
                   ) : null;
                 } else {
                   const dotSize = Math.max(4, tickWidth);
+                  const haloNodes =
+                    glow && isActive
+                      ? GLOW_STEPS.map((spread) => {
+                          const haloSize = dotSize + glowSpread * spread;
+                          return (
+                            <View
+                              key={`${tickKey}-glow-${spread}`}
+                              pointerEvents="none"
+                              style={[
+                                styles.tickDot,
+                                {
+                                  width: haloSize,
+                                  height: haloSize,
+                                  borderRadius: haloSize / 2,
+                                  backgroundColor: glow.color ?? color,
+                                  opacity: (glowIntensity * (1.2 - spread)) / GLOW_STEPS.length,
+                                  left: coords.x - haloSize / 2,
+                                  top: coords.y - haloSize / 2,
+                                },
+                              ]}
+                            />
+                          );
+                        })
+                      : null;
                   tickNode = (
-                    <View
-                      key={`${tickKey}-dot`}
-                      pointerEvents="none"
-                      style={[
-                        styles.tickDot,
-                        {
-                          width: dotSize,
-                          height: dotSize,
-                          borderRadius: dotSize / 2,
-                          backgroundColor: color,
-                          left: coords.x - dotSize / 2,
-                          top: coords.y - dotSize / 2,
-                        },
-                      ]}
-                    />
+                    <React.Fragment key={`${tickKey}-dot`}>
+                      {haloNodes}
+                      <View
+                        pointerEvents="none"
+                        style={[
+                          styles.tickDot,
+                          {
+                            width: dotSize,
+                            height: dotSize,
+                            borderRadius: dotSize / 2,
+                            backgroundColor: color,
+                            left: coords.x - dotSize / 2,
+                            top: coords.y - dotSize / 2,
+                          },
+                        ]}
+                      />
+                    </React.Fragment>
                   );
                 }
 

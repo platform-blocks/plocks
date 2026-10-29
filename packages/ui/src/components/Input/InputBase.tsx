@@ -24,7 +24,7 @@ import { useDisclaimer, extractDisclaimerProps } from '../_internal/Disclaimer/d
 import { Field, FieldBoundary, useFieldContext, type FieldRenderProps } from '../_internal/Field/Field';
 import { getFieldFrameStyles } from '../_internal/Field/fieldFrameStyles';
 import { getInputRootStyles } from './styles';
-import type { TextInputBaseProps } from './types';
+import type { TextInputBaseProps, TextInputFocusEvent } from './types';
 
 export type { TextInputBaseProps } from './types';
 
@@ -39,7 +39,8 @@ const PLOCKS_INPUT_DATASET = { plocksInput: 'true' } as const;
  * from the `Field` frame (ids, `aria-labelledby` / `aria-describedby`,
  * `aria-invalid`, error announcement), the bordered frame from
  * `getFieldFrameStyles` (2px focus ring from `theme.states.focusRing`, visible
- * in the error state too). Input, NumberInput, PhoneInput and Search render it.
+ * in the error state too; `variant="unstyled"` draws neither frame nor ring).
+ * Input, NumberInput, PhoneInput and Search render it.
  *
  * `ref` (and `inputRef`) point at the underlying `TextInput`.
  *
@@ -67,6 +68,7 @@ export const TextInputBase = factory<{
     label,
     description,
     error,
+    success,
     helperText,
     disabled = false,
     readOnly = false,
@@ -107,7 +109,14 @@ export const TextInputBase = factory<{
   const outerField = useFieldContext();
   // `true` marks the field invalid without a message, so it counts as an error too.
   const hasOwnError = hasContent(error);
-  const headless = !!outerField && !hasContent(label) && !hasContent(description) && !hasContent(helperText) && !hasOwnError;
+  const hasOwnSuccess = hasContent(success);
+  const headless =
+    !!outerField &&
+    !hasContent(label) &&
+    !hasContent(description) &&
+    !hasContent(helperText) &&
+    !hasOwnError &&
+    !hasOwnSuccess;
 
   const [currentValue, setCurrentValue] = useControllableState<string>({
     value: value == null ? undefined : String(value),
@@ -144,6 +153,8 @@ export const TextInputBase = factory<{
     secureTextEntry: secureTextEntryProp,
     onSubmitEditing: textInputOnSubmitEditing,
     editable: editableProp,
+    onFocus: textInputOnFocus,
+    onBlur: textInputOnBlur,
     ...restTextInputProps
   } = textInputProps ?? {};
 
@@ -155,15 +166,25 @@ export const TextInputBase = factory<{
 
   const handleChangeText = useCallback((text: string) => setCurrentValue(text), [setCurrentValue]);
 
-  const handleFocus = useCallback(() => {
-    setFocused(true);
-    onFocus?.();
-  }, [onFocus]);
+  // `textInputProps.onFocus` / `onBlur` get the native event and run alongside
+  // the field's own focus tracking, never instead of it.
+  const handleFocus = useCallback(
+    (event: TextInputFocusEvent) => {
+      setFocused(true);
+      textInputOnFocus?.(event);
+      onFocus?.();
+    },
+    [textInputOnFocus, onFocus]
+  );
 
-  const handleBlur = useCallback(() => {
-    setFocused(false);
-    onBlur?.();
-  }, [onBlur]);
+  const handleBlur = useCallback(
+    (event: TextInputFocusEvent) => {
+      setFocused(false);
+      textInputOnBlur?.(event);
+      onBlur?.();
+    },
+    [textInputOnBlur, onBlur]
+  );
 
   const handleSubmitEditing = useCallback(
     (event: NativeSyntheticEvent<TextInputSubmitEditingEventData>) => {
@@ -204,8 +225,17 @@ export const TextInputBase = factory<{
     style,
   ];
 
-  const renderControl = (field: Pick<FieldRenderProps, 'controlProps' | 'invalid'>) => {
-    const frame = getFieldFrameStyles(theme, size, variant, radius, field.invalid, isFocused, fieldDisabled);
+  const renderControl = (field: Pick<FieldRenderProps, 'controlProps' | 'invalid' | 'success'>) => {
+    const frame = getFieldFrameStyles(
+      theme,
+      size,
+      variant,
+      radius,
+      field.invalid,
+      isFocused,
+      fieldDisabled,
+      field.success
+    );
     const secure = secureTextEntry ?? secureTextEntryProp ?? false;
     const editable = !fieldDisabled && !fieldReadOnly && editableProp !== false;
     const selectionColor =
@@ -213,7 +243,7 @@ export const TextInputBase = factory<{
 
     return (
       <View style={frame.frame}>
-        {isFocused && !fieldDisabled ? <View style={frame.focusRing} /> : null}
+        {isFocused && !fieldDisabled && variant !== 'unstyled' ? <View style={frame.focusRing} /> : null}
         {startSection ? (
           <FieldBoundary>
             <View {...mergeSlotProps({ style: frame.startSection }, startSectionProps)}>{startSection}</View>
@@ -269,6 +299,7 @@ export const TextInputBase = factory<{
         {renderControl({
           controlProps: outerField.controlProps,
           invalid: outerField.invalid,
+          success: outerField.success,
         })}
         {disclaimerNode}
       </View>
@@ -281,6 +312,7 @@ export const TextInputBase = factory<{
       label={label}
       description={description}
       error={error}
+      success={success}
       helperText={helperText}
       required={required}
       withAsterisk={withAsterisk}

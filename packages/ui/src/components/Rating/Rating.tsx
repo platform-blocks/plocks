@@ -88,6 +88,7 @@ function RatingBase(props: RatingProps, ref: React.Ref<View>) {
     error,
     description,
     helperText,
+    success,
     showTooltip = false,
     getTooltipLabel,
     icon,
@@ -476,6 +477,7 @@ function RatingBase(props: RatingProps, ref: React.Ref<View>) {
       description={description}
       error={error}
       helperText={helperText}
+      success={success}
       required={required}
       withAsterisk={withAsterisk}
       disabled={disabled}

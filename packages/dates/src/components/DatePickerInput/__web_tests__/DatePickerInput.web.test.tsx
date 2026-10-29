@@ -78,4 +78,16 @@ describe('DatePickerInput (react-native-web DOM)', () => {
     const clear = screen.getByRole('button', { name: 'Clear' });
     expect(button.contains(clear)).toBe(false);
   });
+
+  it('forwards withNativeLevelSelect to the calendar in the dialog', async () => {
+    render(<DatePickerInput label="Due" withNativeLevelSelect calendarProps={calendarProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Due' }));
+    await flush();
+    const dialog = screen.getByRole('dialog');
+    const month = within(dialog).getByRole('combobox', { name: 'Month' }) as HTMLSelectElement;
+    act(() => {
+      fireEvent.change(month, { target: { value: '8' } });
+    });
+    expect(within(dialog).getByRole('grid', { name: 'September 2026' })).toBeTruthy();
+  });
 });

@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { render, configure } from '@testing-library/react-native';
 
 import { DEFAULT_THEME } from '../../../core/theme/defaultTheme';
+import { resolveVariantRoles } from '../../../core/theme/variantRoles';
 import { Radio, RadioGroup, getRadioPalette, getRadioSize } from '../Radio';
 import { Icon } from '../../Icon';
 
@@ -37,6 +38,29 @@ describe('Radio - rendering', () => {
     expect(palette.holeColor).toBe(DEFAULT_THEME.backgrounds.surface);
     expect(palette.dotColor).toMatch(/^#[0-9a-f]{6}$/i);
     expect(palette.ringColor).toBe(DEFAULT_THEME.text.muted);
+  });
+
+  it('tints a light radio with the shared light fill and draws the dot in the accent', () => {
+    const roles = resolveVariantRoles(DEFAULT_THEME, { variant: 'light', color: 'success' });
+    const palette = getRadioPalette(DEFAULT_THEME, { disabled: false, error: false, color: 'success', variant: 'light' });
+
+    expect(roles.fill).toMatch(/^rgba\(/);
+    expect(palette.fillColor).toBe(roles.fill);
+    expect(palette.dotColor).toBe(roles.text);
+    // The resting ring and the hole are unchanged: only the selected state differs.
+    expect(palette.ringColor).toBe(DEFAULT_THEME.text.muted);
+    expect(palette.holeColor).toBe(DEFAULT_THEME.backgrounds.surface);
+  });
+
+  it('tints a light radio with the error palette when invalid, and draws a disabled one like a filled one', () => {
+    const errorRoles = resolveVariantRoles(DEFAULT_THEME, { variant: 'light', color: 'error' });
+    const invalid = getRadioPalette(DEFAULT_THEME, { disabled: false, error: true, variant: 'light' });
+    expect(invalid.fillColor).toBe(errorRoles.fill);
+    expect(invalid.ringColor).toBe(DEFAULT_THEME.colors.error[5]);
+
+    expect(getRadioPalette(DEFAULT_THEME, { disabled: true, error: false, variant: 'light' })).toEqual(
+      getRadioPalette(DEFAULT_THEME, { disabled: true, error: false })
+    );
   });
 
   it('switches to the error color when invalid and to neutral chrome when disabled', () => {

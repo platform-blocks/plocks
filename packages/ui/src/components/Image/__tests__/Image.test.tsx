@@ -88,6 +88,12 @@ describe('Image', () => {
     expect(image.opacity).toBeUndefined();
   });
 
+  it('fills a root sized by width and aspectRatio', () => {
+    const { getByTestId } = render(<Image src={SRC} w="100%" aspectRatio={2 / 3} testID="img" />);
+    expect(StyleSheet.flatten(getByTestId('img').props.style)).toMatchObject({ width: '100%', aspectRatio: 2 / 3 });
+    expect(StyleSheet.flatten(getByTestId('img-image', HIDDEN).props.style)).toMatchObject({ width: '100%', height: '100%' });
+  });
+
   it('applies spacing props to the root', () => {
     const { getByTestId } = render(<Image src={SRC} mt="md" testID="img" />);
     const root = StyleSheet.flatten(getByTestId('img').props.style);

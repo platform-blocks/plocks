@@ -6,6 +6,14 @@ import { Checkbox } from '../Checkbox';
 
 const render = (ui: React.ReactElement) => rtlRender(<PlocksProvider>{ui}</PlocksProvider>);
 
+/** The drawn box inside a checkbox control, and the fill layer that rises inside it. */
+const boxOf = (checkbox: HTMLElement) => checkbox.firstElementChild as HTMLElement;
+const fillOf = (checkbox: HTMLElement) => boxOf(checkbox).firstElementChild as HTMLElement;
+const alphaOf = (color: string) => {
+  const match = /^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/.exec(color);
+  return match ? parseFloat(match[1]) : 1;
+};
+
 describe('Checkbox (react-native-web DOM)', () => {
   it('exposes role, checked state and the label as its name', () => {
     render(<Checkbox id="terms" label="Accept terms" />);
@@ -59,6 +67,28 @@ describe('Checkbox (react-native-web DOM)', () => {
   it('describes the control with its helper text', () => {
     render(<Checkbox id="promo" label="Promotions" description="Monthly" helperText="Unsubscribe any time" />);
     expect(screen.getByRole('checkbox').getAttribute('aria-describedby')).toBe('promo-description promo-helper');
+  });
+
+  it('tints a checked light box instead of filling it with the accent', () => {
+    render(
+      <>
+        <Checkbox label="Filled" defaultChecked transitionDuration={0} />
+        <Checkbox label="Light" variant="light" defaultChecked transitionDuration={0} />
+      </>
+    );
+    const filled = screen.getByRole('checkbox', { name: 'Filled' });
+    const light = screen.getByRole('checkbox', { name: 'Light' });
+
+    // The default is a solid accent fill.
+    expect(alphaOf(fillOf(filled).style.backgroundColor)).toBe(1);
+    expect(boxOf(filled).style.borderTopColor).toBe(fillOf(filled).style.backgroundColor);
+
+    // Light: a translucent wash, with the border taking the same tint.
+    const tint = fillOf(light).style.backgroundColor;
+    expect(tint).toMatch(/^rgba\(/);
+    expect(alphaOf(tint)).toBeLessThan(1);
+    expect(boxOf(light).style.borderTopColor).toBe(tint);
+    expect(light.getAttribute('aria-checked')).toBe('true');
   });
 
   it('is disabled for assistive technology and pointer alike', () => {

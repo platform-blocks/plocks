@@ -7,9 +7,11 @@ import type {
   ChartGrid,
   ChartInteractionCallbacks,
   ChartLegend,
+  ChartReferenceMarksProps,
   ChartTooltip,
 } from '../../types/base';
 import type { ChartFill } from '../../core/ChartFill';
+import type { ChartBrushChartProps } from '../ChartBrush/types';
 
 export interface LineChartSeries {
   /** Unique identifier for the series */
@@ -53,7 +55,9 @@ export interface LineChartSeries {
 
 export interface LineChartProps
   extends BaseChartProps,
-    ChartInteractionCallbacks<ChartDataPoint> {
+    ChartInteractionCallbacks<ChartDataPoint>,
+    ChartReferenceMarksProps,
+    ChartBrushChartProps {
   /** Data points (single series) or array of series (multiseries) */
   data?: ChartDataPoint[];
   /** Multiple data series */
@@ -131,7 +135,10 @@ export interface LineChartProps
   xScaleType?: 'linear' | 'log' | 'time';
   /** Y axis scale type */
   yScaleType?: 'linear' | 'log' | 'time';
-  /** Enable shift+drag brush to zoom (web) */
+  /**
+   * Enable shift+drag box zoom (web). With `withBrush` the zoomed x range moves the
+   * brush window too (both drive the same x domain).
+   */
   enableBrushZoom?: boolean;
   /** Optional chart annotations/markers */
   annotations?: ChartAnnotation[];

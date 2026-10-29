@@ -27,7 +27,9 @@ import {
   type CalendarFocusContextValue,
   type CalendarFocusRequest,
 } from './CalendarFocusContext';
+import { getMonthOptions, getYearOptions, clampMonth } from './levelSelect';
 import { Month } from './Month';
+import { NativeSelect } from './NativeSelect';
 import type { CalendarLevel, CalendarProps } from './types';
 import { collectDates, dateUtils, getCalendarWidth, monthDiff, shiftMonths, stepUpSize } from './utils';
 
@@ -58,6 +60,7 @@ const getCalendarStyles = createThemedStyles((theme: PlocksTheme) => {
       paddingHorizontal: px(resolveSpacing(theme, 'xs')),
     },
     navButton: { padding: px(resolveSpacing(theme, 'md')), borderRadius: resolveRadius(theme, 'lg') },
+    levelSelects: { flexDirection: 'row', alignItems: 'center', gap: px(resolveSpacing(theme, 'xs')) },
     levelButton: {
       paddingHorizontal: px(resolveSpacing(theme, 'lg')),
       paddingVertical: px(resolveSpacing(theme, 'sm')),
@@ -77,6 +80,8 @@ export const Calendar = factory<{ props: CalendarProps; ref: View }>((incomingPr
     level,
     defaultLevel = 'month',
     onLevelChange,
+    withNativeLevelSelect = false,
+    yearsSelectRange,
 
     // Date management
     date: controlledDate,
@@ -225,11 +230,13 @@ export const Calendar = factory<{ props: CalendarProps; ref: View }>((incomingPr
   // After a month / year is picked the picked tile unmounts; keep keyboard
   // focus in the calendar by moving it to the header button (web).
   const headerButtonRef = useRef<View>(null);
+  // The first level select, when they replace the header button.
+  const levelSelectRef = useRef<unknown>(null);
   const focusHeaderOnLevelChange = useRef(false);
   useEffect(() => {
     if (!focusHeaderOnLevelChange.current) return;
     focusHeaderOnLevelChange.current = false;
-    if (isWeb) focusNode(headerButtonRef.current);
+    if (isWeb) focusNode(headerButtonRef.current ?? levelSelectRef.current);
   }, [currentLevel]);
 
   const pickLevel = (next: CalendarLevel) => {
@@ -241,6 +248,14 @@ export const Calendar = factory<{ props: CalendarProps; ref: View }>((incomingPr
     if (isStatic) return;
     setFocusRequest(null);
     setCurrentDate(shiftMonths(currentDate, direction * LEVEL_STEP[currentLevel]));
+  };
+
+  // Level selects: jump to a month / year, as the arrows would step to it.
+  const jumpTo = (year: number, month: number) => {
+    if (isStatic) return;
+    setFocusRequest(null);
+    const target = clampMonth(year, month, minDate, maxDate);
+    setCurrentDate(shiftMonths(currentDate, monthDiff(currentDate, target)));
   };
 
   const handleHeaderClick = () => {
@@ -356,6 +371,9 @@ export const Calendar = factory<{ props: CalendarProps; ref: View }>((incomingPr
   const navLabels = NAV_LABELS[currentLevel] ?? NAV_LABELS.month;
   const levelHint = LEVEL_HINTS[currentLevel];
   const headerDisabled = isStatic || currentLevel === 'decade';
+  // Native has no select element (`NativeSelect` is null there): keep the button.
+  const LevelSelect = NativeSelect;
+  const showLevelSelects = withNativeLevelSelect && currentLevel !== 'decade';
 
   return (
     <View ref={ref} style={[rootStyle, spacingStyles, style]} testID={testID}>
@@ -371,24 +389,47 @@ export const Calendar = factory<{ props: CalendarProps; ref: View }>((incomingPr
             <Icon name="chevron-left" size={iconSize} color={theme.text.secondary} />
           </Pressable>
 
-          <Pressable
-            ref={headerButtonRef}
-            onPress={handleHeaderClick}
-            disabled={headerDisabled}
-            {...a11yProps({
-              role: 'button',
-              // Web has no hint attribute, so the action rides along in the name.
-              label: isWeb && levelHint && !headerDisabled ? `${headerText}, ${levelHint}` : headerText,
-              hint: headerDisabled ? undefined : levelHint,
-              disabled: headerDisabled,
-              live: 'polite',
-            })}
-            style={({ pressed }) => [styles.levelButton, pressed && !headerDisabled && styles.pressed]}
-          >
-            <Text size={headerTextSize} fw="semibold" style={styles.headerText}>
-              {headerText}
-            </Text>
-          </Pressable>
+          {showLevelSelects && LevelSelect ? (
+            <View style={styles.levelSelects}>
+              {currentLevel === 'month' ? (
+                <LevelSelect
+                  label="Month"
+                  value={currentDate.getMonth()}
+                  options={getMonthOptions(currentDate.getFullYear(), monthNames, minDate, maxDate)}
+                  onChange={(month) => jumpTo(currentDate.getFullYear(), month)}
+                  disabled={isStatic}
+                  nodeRef={levelSelectRef}
+                />
+              ) : null}
+              <LevelSelect
+                label="Year"
+                value={currentDate.getFullYear()}
+                options={getYearOptions(currentDate.getFullYear(), yearsSelectRange, minDate, maxDate)}
+                onChange={(year) => jumpTo(year, currentDate.getMonth())}
+                disabled={isStatic}
+                nodeRef={currentLevel === 'month' ? undefined : levelSelectRef}
+              />
+            </View>
+          ) : (
+            <Pressable
+              ref={headerButtonRef}
+              onPress={handleHeaderClick}
+              disabled={headerDisabled}
+              {...a11yProps({
+                role: 'button',
+                // Web has no hint attribute, so the action rides along in the name.
+                label: isWeb && levelHint && !headerDisabled ? `${headerText}, ${levelHint}` : headerText,
+                hint: headerDisabled ? undefined : levelHint,
+                disabled: headerDisabled,
+                live: 'polite',
+              })}
+              style={({ pressed }) => [styles.levelButton, pressed && !headerDisabled && styles.pressed]}
+            >
+              <Text size={headerTextSize} fw="semibold" style={styles.headerText}>
+                {headerText}
+              </Text>
+            </Pressable>
+          )}
 
           <Pressable
             onPress={() => shiftView(1)}

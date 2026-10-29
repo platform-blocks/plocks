@@ -3,6 +3,7 @@ import { CandlestickChart } from '@plocks/charts';
 import { MRR_SERIES, MrrCandle, annotations } from './data';
 
 const formatMonth = (value: number) => new Date(value).toLocaleDateString('en-US', {
+  timeZone: 'UTC',
   month: 'short',
   year: 'numeric',
 });

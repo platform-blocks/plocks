@@ -14,6 +14,7 @@ import {
   Wheel,
 } from '@plocks/ui';
 // NOTE: Using direct relative imports to avoid barrel (index.ts) circular dependency
+import { TimePresets } from './TimePresets';
 import type { TimePickerProps, TimePickerValue } from './types';
 
 const pad = (n: number) => n.toString().padStart(2, '0');
@@ -47,7 +48,7 @@ const MERIDIEM_ITEMS = [
  * Inline time selection: one wheel per column (hour, minute, optional second
  * and AM/PM). Each wheel is an adjustable control named by its column; the
  * visible column captions are hidden from assistive technology so they aren't
- * read twice.
+ * read twice. `presets` add quick-pick buttons under the columns.
  */
 export const TimePicker = factory<{ props: TimePickerProps; ref: View }>(
   function TimePicker(props, ref) {
@@ -63,6 +64,7 @@ export const TimePicker = factory<{ props: TimePickerProps; ref: View }>(
       columnWidth = 88,
       columnHeight = 200,
       disabled = false,
+      presets,
       accessibilityLabel = 'Time',
       style,
       testID,
@@ -233,6 +235,17 @@ export const TimePicker = factory<{ props: TimePickerProps; ref: View }>(
             </View>
           )}
         </View>
+
+        {presets ? (
+          <TimePresets
+            presets={presets}
+            format={format}
+            withSeconds={withSeconds}
+            value={current}
+            onSelect={(time) => commit(buildTimeValue(format, withSeconds, time))}
+            disabled={disabled}
+          />
+        ) : null}
       </View>
     );
   },

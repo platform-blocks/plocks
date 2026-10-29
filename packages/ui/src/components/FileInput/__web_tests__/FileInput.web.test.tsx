@@ -35,8 +35,8 @@ describe('FileInput (react-native-web DOM)', () => {
 
   it('opens the browser file dialog and lists the chosen files', async () => {
     const click = answerNextFileDialog([new File(['hello'], 'notes.txt', { type: 'text/plain' })]);
-    const onFilesChange = jest.fn();
-    render(<FileInput label="Attachment" accept={['.txt']} onFilesChange={onFilesChange} />);
+    const onChange = jest.fn();
+    render(<FileInput label="Attachment" accept={['.txt']} onChange={onChange} />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Attachment Choose File' }));
@@ -49,7 +49,7 @@ describe('FileInput (react-native-web DOM)', () => {
     expect(document.querySelector('[data-plocks-file-picker]')).toBeNull();
     expect(screen.getByText('notes.txt')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Remove notes.txt' })).toBeTruthy();
-    expect(onFilesChange).toHaveBeenCalledWith([expect.objectContaining({ name: 'notes.txt', status: 'pending' })]);
+    expect(onChange).toHaveBeenCalledWith([expect.objectContaining({ name: 'notes.txt', status: 'pending' })]);
   });
 
   it('accepts files dropped on the drop zone', async () => {

@@ -154,6 +154,21 @@ describe('Text (web)', () => {
     expect(screen.getByText(/greeting\.hello|fallback/)).toBeTruthy();
   });
 
+  it('draws `stroke` with -webkit-text-stroke and keeps a transparent fill', () => {
+    render(
+      <>
+        <Text c="transparent" stroke={{ c: '#ff0000', w: 2 }}>1</Text>
+        <Text stroke="#00ff00">Thin</Text>
+      </>
+    );
+    const outlined = screen.getByText('1');
+    expect(outlined.style.getPropertyValue('-webkit-text-stroke') || (outlined.style as unknown as Record<string, string>).webkitTextStroke).toMatch(/^2px/);
+    expect(outlined.style.color).toBe('transparent');
+    expect(outlined.style.textShadow).toBe('');
+    const thin = screen.getByText('Thin');
+    expect(thin.style.getPropertyValue('-webkit-text-stroke') || (thin.style as unknown as Record<string, string>).webkitTextStroke).toMatch(/^1px/);
+  });
+
   it('forwards its ref to the DOM element', () => {
     const ref = React.createRef<unknown>();
     render(<Text ref={ref as React.Ref<never>}>Ref target</Text>);

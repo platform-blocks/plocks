@@ -94,8 +94,21 @@ export interface FileInputProps extends Omit<FieldBaseProps, 'variant'> {
   /** Upload progress callback (from `helpers.onProgress` or the built-in uploader) */
   onProgress?: (fileId: string, progress: number) => void;
 
-  /** Called with the full list when files are added or removed */
-  onFilesChange?: (files: FileInputFile[]) => void;
+  /**
+   * Selected files (controlled). The list, its `maxFiles` count and the file
+   * list UI follow this prop; store what `onChange` hands you to move it.
+   * Removing a file from it outside the component frees its `maxFiles` slot.
+   */
+  value?: FileInputFile[];
+
+  /** Initially selected files while uncontrolled. */
+  defaultValue?: FileInputFile[];
+
+  /**
+   * Called with the full list whenever it changes: files added or removed, and
+   * upload status / progress updates, so a controlled list stays complete.
+   */
+  onChange?: (files: FileInputFile[]) => void;
 
   /** File remove handler */
   onFileRemove?: (fileId: string) => void;

@@ -53,6 +53,8 @@ type UseKnobValueLabelsOptions = {
   theme: PlocksTheme;
   labelColor: string;
   activeMark?: KnobMark | null;
+  /** Where the variant wants the readout when the caller does not say — off the body for hardware. */
+  variantPosition?: KnobValueLabelPosition;
 };
 
 export const useKnobValueLabels = ({
@@ -68,6 +70,7 @@ export const useKnobValueLabels = ({
   theme,
   labelColor,
   activeMark,
+  variantPosition,
 }: UseKnobValueLabelsOptions) => {
   const defaultLabelFormatterMemo = useMemo(
     () => formatLabel ?? panningValueFormatter ?? defaultKnobLabelFormatter,
@@ -87,9 +90,9 @@ export const useKnobValueLabels = ({
       case 'dual':
         return { position: 'center', secondary: { position: 'bottom' } };
       default:
-        return { position: 'center' };
+        return { position: variantPosition ?? 'center' };
     }
-  }, [resolvedBehavior]);
+  }, [resolvedBehavior, variantPosition]);
 
   const resolvedValueLabelConfig = useMemo<KnobValueLabelConfig | null>(() => {
     if (!withLabel || valueLabelProp === false) return null;

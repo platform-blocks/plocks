@@ -7,6 +7,13 @@ import type { ChoiceLabelPosition } from './ChoiceField';
 export type CheckboxLabelPosition = ChoiceLabelPosition;
 
 /**
+ * How a checked box is drawn.
+ * - `filled` — solid accent fill with the mark on it (default)
+ * - `light` — a light accent tint (the same one a light Chip or Badge uses) with the mark in the accent
+ */
+export type CheckboxVariant = 'filled' | 'light';
+
+/**
  * Props for `Checkbox`.
  *
  * `style`, spacing and layout props apply to the root (control + label +
@@ -25,6 +32,13 @@ export interface CheckboxProps extends Omit<FieldBaseProps, 'variant' | 'keyboar
 
   /** Indicator color: a palette token (`'success'`), `'primary.6'` shade syntax, or any CSS color. */
   color?: ThemeColor;
+
+  /**
+   * How the box is drawn once checked (or indeterminate). `filled` fills it
+   * with the accent and draws the mark on it; `light` tints it and draws the
+   * mark in the accent. Disabled boxes look the same in both. Default `'filled'`.
+   */
+  variant?: CheckboxVariant;
 
   /** Icon shown when checked. */
   icon?: React.ReactNode;

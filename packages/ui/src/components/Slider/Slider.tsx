@@ -199,6 +199,7 @@ export const Slider = factory<{ props: SliderProps; ref: View }>((props, ref) =>
     description,
     error,
     helperText,
+    success,
     required = false,
     withAsterisk,
     labelProps,
@@ -426,6 +427,7 @@ export const Slider = factory<{ props: SliderProps; ref: View }>((props, ref) =>
       description={description}
       error={error}
       helperText={helperText}
+      success={success}
       required={required}
       withAsterisk={withAsterisk}
       disabled={disabled}
@@ -486,6 +488,7 @@ export const RangeSlider = factory<{ props: RangeSliderProps; ref: View }>((prop
     description,
     error,
     helperText,
+    success,
     required = false,
     withAsterisk,
     labelProps,
@@ -812,6 +815,7 @@ export const RangeSlider = factory<{ props: RangeSliderProps; ref: View }>((prop
       description={description}
       error={error}
       helperText={helperText}
+      success={success}
       required={required}
       withAsterisk={withAsterisk}
       disabled={disabled}

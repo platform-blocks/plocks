@@ -49,6 +49,19 @@ export const insetTransition = (durationMs: number, timingFunction: string): Vie
 /** A geometry value (px number or a `var()` / `calc()` string) typed for a style. */
 export const asDimension = (value: number | string): DimensionValue => value as DimensionValue;
 
+/**
+ * A geometry value plus `offset` px: numbers add, `var()` strings become a
+ * `calc()` (unchanged for a 0 offset).
+ */
+export const offsetGeometry = (value: number | string, offset: number): number | string => {
+  if (typeof value === 'number') return value + offset;
+  if (offset === 0) return value;
+  return `calc(${value} ${offset < 0 ? '-' : '+'} ${Math.abs(offset)}px)`;
+};
+
+/** A `var()` reference to one of the shell's custom properties, falling back to the resolved px. */
+export const shellVarRef = (name: string, fallback: number): string => `var(${name}, ${fallback}px)`;
+
 const FULL_WIDTH_KEYWORDS = new Set(['screen', 'full', '100%', '100vw']);
 
 /** Whether a width string is relative to the viewport (`'100%'`, `'80vw'`, `'full'`). */

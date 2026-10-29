@@ -22,7 +22,13 @@ export interface FieldBaseProps<S = ViewStyle> extends BaseProps<S>, LayoutProps
   description?: React.ReactNode;
   /** Error message. Marks the field invalid and is announced to assistive technology. */
   error?: React.ReactNode;
-  /** Helper text rendered under the control when there is no error. */
+  /**
+   * Success state: the frame border takes the theme's success color and a
+   * node/string renders as a success message in place of the helper text.
+   * `error` wins while both are set.
+   */
+  success?: boolean | React.ReactNode;
+  /** Helper text rendered under the control when there is no error or success message. */
   helperText?: React.ReactNode;
   /** Marks the field required (announced; shows an asterisk unless `withAsterisk` is false). */
   required?: boolean;

@@ -8,4 +8,4 @@ status: stable
 hidden: false
 ---
 
-Combina `color` con una variante que lleve color (`filled`, `light`, `subtle`, `outline`, `gradient`) para alinear cada acción con su intención. La variante por defecto es neutra e ignora `color`.
+Combina `color` con una variante que lleve color (`filled`, `light`, `subtle`, `outline`, `gradient`) para alinear cada acción con su intención. Sin `variant`, `color` por sí solo da un botón `filled` cuyo texto contrasta automáticamente. Un `variant="default"` explícito sigue siendo neutro e ignora `color`.

@@ -6,6 +6,7 @@ import type {
   ChartGrid,
   ChartInteractionCallbacks,
   ChartLegend,
+  ChartReferenceMarksProps,
   ChartTooltip,
 } from '../../types/base';
 
@@ -57,11 +58,17 @@ export interface ScatterSeries {
   pointSize?: number;
   /** Point color override for the series */
   pointColor?: string;
+  /**
+   * Value axis this series is scaled against. `'right'` plots it on the
+   * secondary axis (`yAxisRight`) with its own domain. Defaults to `'left'`.
+   */
+  yAxis?: 'left' | 'right';
 }
 
 export interface ScatterChartProps
   extends BaseChartProps,
-    ChartInteractionCallbacks<ChartDataPoint> {
+    ChartInteractionCallbacks<ChartDataPoint>,
+    ChartReferenceMarksProps {
   /** Data points */
   data: ChartDataPoint[];
   /** Optional multi-series data (overrides top-level data if provided) */
@@ -100,6 +107,14 @@ export interface ScatterChartProps
   xAxis?: ChartAxis;
   /** Y-axis configuration */
   yAxis?: ChartAxis;
+  /**
+   * Secondary (right-hand) value axis. Passing it shows the axis; `show: false`
+   * hides it while right-bound series keep their own scale. Series opt in with
+   * `yAxis: 'right'`; when none do, the axis mirrors the left domain.
+   */
+  yAxisRight?: ChartAxis;
+  /** Explicit domain for the right axis (defaults to the right-bound series' data, padded like the left axis) */
+  yDomainRight?: [number, number];
   /** Grid configuration */
   grid?: ChartGrid;
   /** Legend configuration */

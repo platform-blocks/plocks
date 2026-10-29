@@ -245,6 +245,92 @@ describe('ToastProvider lifecycle', () => {
   });
 });
 
+describe('ToastProvider auto-close progress', () => {
+  // The line is decorative and hidden from assistive tech, so queries opt in.
+  const HIDDEN = { includeHiddenElements: true } as const;
+
+  it('renders the progress line only when asked and only for a timed toast', () => {
+    renderWithProvider(
+      <>
+        <Trigger options={{ title: 'Plain', autoHide: 1000, testID: 'plain' }} label="plain" />
+        <Trigger options={{ title: 'Lined', autoHide: 1000, withAutoCloseProgress: true, testID: 'lined' }} label="lined" />
+        <Trigger options={{ title: 'Stays', persistent: true, withAutoCloseProgress: true, testID: 'stays' }} label="stays" />
+      </>
+    );
+
+    press('plain');
+    press('lined');
+    press('stays');
+    expect(screen.queryByTestId('plain-progress', HIDDEN)).toBeNull();
+    expect(screen.getByTestId('lined-progress', HIDDEN)).toBeTruthy();
+    expect(screen.queryByTestId('stays-progress', HIDDEN)).toBeNull();
+  });
+
+  it('takes the provider default unless the toast decides for itself', () => {
+    renderWithProvider(
+      <>
+        <Trigger options={{ title: 'Default', autoHide: 1000, testID: 'default' }} label="default" />
+        <Trigger options={{ title: 'Opt out', autoHide: 1000, withAutoCloseProgress: false, testID: 'optout' }} label="optout" />
+      </>,
+      { withAutoCloseProgress: true }
+    );
+
+    press('default');
+    press('optout');
+    expect(screen.getByTestId('default-progress', HIDDEN)).toBeTruthy();
+    expect(screen.queryByTestId('optout-progress', HIDDEN)).toBeNull();
+  });
+});
+
+describe('ToastProvider stacked layout', () => {
+  const slotStyle = (testID: string) => {
+    const style = screen.getByTestId(`${testID}-slot`).props.style;
+    return Object.assign({}, ...(Array.isArray(style) ? style.flat(Infinity) : [style]).filter(Boolean));
+  };
+
+  it('tucks older toasts behind the newest and expands on press', () => {
+    renderWithProvider(
+      <>
+        <Trigger options={{ title: 'Old', persistent: true, testID: 'old' }} label="old" />
+        <Trigger options={{ title: 'New', persistent: true, testID: 'new' }} label="new" />
+      </>,
+      { layout: 'stacked' }
+    );
+
+    press('old');
+    // A lone toast is just a toast.
+    expect(slotStyle('old').overflow).toBeUndefined();
+
+    press('new');
+    expect(screen.getByText('Old')).toBeTruthy();
+    expect(screen.getByText('New')).toBeTruthy();
+    // The older toast is clipped to the front one's height and sits behind it.
+    expect(slotStyle('old').overflow).toBe('hidden');
+    expect(slotStyle('old').height).toEqual(expect.any(Number));
+    expect(slotStyle('new').overflow).toBeUndefined();
+
+    // Pressing the deck (anywhere no toast control claims) opens the list...
+    act(() => { fireEvent.press(screen.getByTestId('old-slot')); });
+    expect(slotStyle('old').overflow).toBeUndefined();
+
+    // ...and pressing again puts it away.
+    act(() => { fireEvent.press(screen.getByTestId('old-slot')); });
+    expect(slotStyle('old').overflow).toBe('hidden');
+  });
+
+  it('lists every toast when the layout is the default', () => {
+    renderWithProvider(
+      <>
+        <Trigger options={{ title: 'Old', persistent: true, testID: 'old' }} label="old" />
+        <Trigger options={{ title: 'New', persistent: true, testID: 'new' }} label="new" />
+      </>
+    );
+    press('old');
+    press('new');
+    expect(slotStyle('old').overflow).toBeUndefined();
+  });
+});
+
 describe('ToastProvider queue API', () => {
   function GroupTrigger() {
     const toast = useToast();
@@ -373,5 +459,62 @@ describe('useOptionalToast', () => {
     expect(optional).not.toBeNull();
     expect(optional).toBe(api);
     expect(optional).not.toBe(toasts);
+  });
+});
+
+describe('nested ToastProviders', () => {
+  it('lets the inner provider own its subtree: one toast, one stack', () => {
+    let outerApi: ReturnType<typeof useOptionalToast> | undefined;
+    let innerApi: ReturnType<typeof useOptionalToast> | undefined;
+    function OuterProbe() {
+      outerApi = useOptionalToast();
+      return null;
+    }
+    function InnerProbe() {
+      innerApi = useOptionalToast();
+      return null;
+    }
+    render(
+      <ToastProvider>
+        <OuterProbe />
+        <ToastProvider defaultPosition="bottom-center">
+          <InnerProbe />
+          <Trigger options={{ title: 'Once', persistent: true }} />
+        </ToastProvider>
+      </ToastProvider>
+    );
+    expect(innerApi).not.toBe(outerApi);
+
+    press('show');
+    expect(screen.getAllByText('Once')).toHaveLength(1);
+  });
+
+  it('routes the global `toasts` API to the innermost provider, and back when it unmounts', () => {
+    function Shell({ inner }: { inner: boolean }) {
+      return (
+        <ToastProvider>
+          {inner ? <ToastProvider><Probe /></ToastProvider> : <Probe />}
+        </ToastProvider>
+      );
+    }
+    let api: ReturnType<typeof useOptionalToast> | undefined;
+    function Probe() {
+      api = useOptionalToast();
+      return null;
+    }
+    const view = render(<Shell inner />);
+    const innerApi = api!;
+    const showInner = jest.spyOn(innerApi, 'show');
+    act(() => { toasts.show({ title: 'Global', persistent: true }); });
+    expect(showInner).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('Global')).toHaveLength(1);
+
+    view.rerender(<Shell inner={false} />);
+    const outerApi = api!;
+    expect(outerApi).not.toBe(innerApi);
+    const showOuter = jest.spyOn(outerApi, 'show');
+    act(() => { toasts.show({ title: 'Again', persistent: true }); });
+    expect(showOuter).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('Again')).toHaveLength(1);
   });
 });

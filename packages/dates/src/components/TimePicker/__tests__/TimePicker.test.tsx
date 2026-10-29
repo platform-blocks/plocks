@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { TimePicker } from '../TimePicker';
 
@@ -104,5 +104,60 @@ describe('TimePicker - inline panel', () => {
     fireEvent.press(getByText('30'));
 
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  describe('presets', () => {
+    const pressedState = (node: { props: Record<string, unknown> }) =>
+      (node.props.accessibilityState as { checked?: boolean } | undefined)?.checked;
+
+    it('renders each preset as a button that sets the whole value', () => {
+      const onChange = jest.fn();
+      render(<TimePicker defaultValue={{ hours: 13, minutes: 0 }} onChange={onChange} presets={['09:00', '12:30', 'nope', '25:00']} />);
+
+      expect(screen.getByLabelText('Presets')).toBeTruthy();
+      // Invalid strings are skipped.
+      expect(screen.getAllByRole('button')).toHaveLength(2);
+      fireEvent.press(screen.getByRole('button', { name: '12:30' }));
+      expect(onChange).toHaveBeenLastCalledWith({ hours: 12, minutes: 30 });
+    });
+
+    it('marks the preset matching the value as pressed', () => {
+      render(<TimePicker value={{ hours: 9, minutes: 0 }} presets={['09:00', '10:00']} />);
+      expect(pressedState(screen.getByRole('button', { name: '09:00' }))).toBe(true);
+      expect(pressedState(screen.getByRole('button', { name: '10:00' }))).toBe(false);
+    });
+
+    it('labels presets in the panel format and keeps seconds only with withSeconds', () => {
+      const onChange = jest.fn();
+      const { rerender } = render(<TimePicker format={12} onChange={onChange} presets={['13:30:15']} />);
+      fireEvent.press(screen.getByRole('button', { name: '01:30 PM' }));
+      expect(onChange).toHaveBeenLastCalledWith({ hours: 13, minutes: 30 });
+
+      rerender(<TimePicker withSeconds onChange={onChange} presets={['13:30:15']} />);
+      fireEvent.press(screen.getByRole('button', { name: '13:30:15' }));
+      expect(onChange).toHaveBeenLastCalledWith({ hours: 13, minutes: 30, seconds: 15 });
+    });
+
+    it('groups presets under their labels', () => {
+      render(
+        <TimePicker
+          presets={[
+            { label: 'Morning', values: ['08:00', '09:00'] },
+            { label: 'Evening', values: ['18:00'] },
+          ]}
+        />
+      );
+      const morning = screen.getByLabelText('Morning');
+      expect(morning.props.role).toBe('group');
+      expect(screen.getByLabelText('Evening')).toBeTruthy();
+      expect(screen.getAllByRole('button')).toHaveLength(3);
+    });
+
+    it('does not pick a preset while disabled', () => {
+      const onChange = jest.fn();
+      render(<TimePicker disabled onChange={onChange} presets={['09:00']} />);
+      fireEvent.press(screen.getByRole('button', { name: '09:00' }));
+      expect(onChange).not.toHaveBeenCalled();
+    });
   });
 });

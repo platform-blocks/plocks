@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View, type ViewStyle } from 'react-native';
 import Animated, {
   cancelAnimation,
@@ -20,6 +20,7 @@ import { isWeb, webProps } from '../../core/platform';
 import { useTheme } from '../../core/theme/ThemeProvider';
 import { resolveAccentColor } from '../../core/theme/resolveColors';
 import { getControlSize, onColor, resolveRadius } from '../../core/theme/tokens';
+import { CORE_COLORS, resolveVariantRoles } from '../../core/theme/variantRoles';
 import type { SizeValue } from '../../core/theme/types';
 import type { PlocksTheme } from '../../core/theme/types';
 import { getLayoutStyles } from '../../core/utils/layout';
@@ -186,6 +187,7 @@ export const Checkbox = factory<{ props: CheckboxProps; ref: View }>((props, ref
     onChange,
     indeterminate = false,
     color,
+    variant = 'filled',
     size = 'md',
     radius,
     label,
@@ -193,6 +195,7 @@ export const Checkbox = factory<{ props: CheckboxProps; ref: View }>((props, ref
     description,
     error,
     helperText,
+    success,
     disabled = false,
     readOnly = false,
     required = false,
@@ -257,14 +260,32 @@ export const Checkbox = factory<{ props: CheckboxProps; ref: View }>((props, ref
   const boxSize = getCheckboxBoxSize(theme, size);
   const boxRadius = radius !== undefined ? resolveRadius(theme, radius) : Math.round(boxSize / 6);
   const accent = resolveAccentColor(theme, color) ?? theme.colors.primary[5];
-  const fillColor = disabled ? theme.text.disabled : accent;
-  const glyphColor = disabled ? theme.backgrounds.surface : onColor(theme, accent, 3);
+  // The light tint and its mark color come from the shared variant system, so a
+  // light checkbox matches a light Chip / Badge of the same color on both
+  // schemes. Palette tokens go through by name (their text shades come from the
+  // palette); shade syntax and raw colors go through as the resolved accent.
+  const light = useMemo(
+    () =>
+      variant === 'light' && !disabled
+        ? resolveVariantRoles(theme, {
+            variant: 'light',
+            color: color == null || (CORE_COLORS as readonly string[]).includes(color) ? color : accent,
+          })
+        : null,
+    [variant, disabled, theme, color, accent]
+  );
+  const fillColor = disabled ? theme.text.disabled : light ? light.fill : accent;
+  const glyphColor = disabled ? theme.backgrounds.surface : light ? light.text : onColor(theme, accent, 3);
   const borderColor = disabled
     ? theme.backgrounds.borderStrong
     : invalid
       ? theme.colors.error[5]
       : active
-        ? accent
+        ? // A light box has no edge of its own: the border takes the tint so the
+          // whole box reads as one wash, the way a light Chip does.
+          light
+          ? light.fill
+          : accent
         : // A control boundary needs 3:1 against the surface; `text.muted` has it, `border` doesn't.
           theme.text.muted;
   const backgroundColor = disabled ? theme.backgrounds.disabled : theme.backgrounds.surface;
@@ -308,6 +329,7 @@ export const Checkbox = factory<{ props: CheckboxProps; ref: View }>((props, ref
       description={description}
       error={error}
       helperText={helperText}
+      success={success}
       required={required}
       withAsterisk={withAsterisk}
       disabled={disabled}

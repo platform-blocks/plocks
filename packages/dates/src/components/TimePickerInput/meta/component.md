@@ -14,6 +14,8 @@ props:
   allowInput: Allow typing a time directly into the field (commits once the text is a complete time; an incomplete entry reverts on blur). Without it the field is a button that opens the panel
   autoClose: Close the panel as soon as the last column is picked
   panelWidth: Width of the sheet holding the panel
+  presets: "Preset times as quick-pick buttons in the panel — 24-hour 'HH:mm' / 'HH:mm:ss' strings, or { label, values }[] groups. Picking one sets the value; the matching preset is aria-pressed"
+  closeDropdownOnPresetSelect: "Close the panel when a preset is picked (default false)"
   pickerButtonLabel: Accessible label of the clock button that opens the panel (default "Choose time")
   required: Mark the field required (announced, asterisk)
   label: Label rendered above the field (ReactNode, default "Time")

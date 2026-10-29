@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type RefObject } from 'react';
+import type { ScrollView, View } from 'react-native';
 
 import { useLatestCallback } from '../../core/hooks/useLatestCallback';
 import { hasDOM } from '../../core/platform/flags';
@@ -9,8 +10,16 @@ export interface ScrollSpyOptions {
   selector?: string;
   /** Margin around the root element */
   rootMargin?: string;
-  /** Container to search for headings */
+  /** Container to search for headings. Defaults to `scrollHost`, then the document. */
   container?: string | HTMLElement;
+  /**
+   * The scrolling element the headings live in (web): the IntersectionObserver
+   * root and the scroll listener target, so headings inside a nested scroll
+   * container are measured against it rather than the viewport. An element or
+   * a ref object; on web a React Native `View` / `ScrollView` ref is the DOM
+   * element, so a `ScrollArea` ref works. Omit for a page that scrolls as a whole.
+   */
+  scrollHost?: HTMLElement | RefObject<HTMLElement | View | ScrollView | null>;
   /**
    * Function to get heading depth, defaults to h1=1, h2=2, etc. Accessors may
    * be inline functions: the latest one is used on the next collection, and a
@@ -59,8 +68,13 @@ const defaultGetValue = (el: Element): string => (el.textContent || '').trim();
 const asHTMLElement = (node: unknown): HTMLElement | null =>
   hasDOM && node instanceof HTMLElement ? node : null;
 
-const resolveContainer = (container: ScrollSpyOptions['container']): ParentNode => {
-  if (!container) return document;
+const resolveHost = (scrollHost: ScrollSpyOptions['scrollHost']): HTMLElement | null => {
+  if (!scrollHost) return null;
+  return asHTMLElement('current' in scrollHost ? scrollHost.current : scrollHost);
+};
+
+const resolveContainer = (container: ScrollSpyOptions['container'], fallback: ParentNode): ParentNode => {
+  if (!container) return fallback;
   if (typeof container !== 'string') return container;
   // A comma-separated list is tried in order; the first match wins.
   for (const selector of container.split(',').map((s) => s.trim())) {
@@ -72,7 +86,7 @@ const resolveContainer = (container: ScrollSpyOptions['container']): ParentNode 
       // Invalid selector: try the next one.
     }
   }
-  return document;
+  return fallback;
 };
 
 const sameItems = (a: TocItem[], b: TocItem[]): boolean =>
@@ -91,6 +105,11 @@ const sameItems = (a: TocItem[], b: TocItem[]): boolean =>
  *
  * @example
  * const { items, activeId } = useScrollSpy({ container: 'main' });
+ *
+ * // Headings inside a nested scroll container:
+ * const hostRef = useRef<ScrollView>(null);
+ * const { items, activeId } = useScrollSpy({ scrollHost: hostRef });
+ * <ScrollArea ref={hostRef}>…</ScrollArea>
  */
 export function useScrollSpy(options?: ScrollSpyOptions, initialData: TocItem[] = []): UseScrollSpyReturn {
   const [items, setItems] = useState<TocItem[]>(initialData);
@@ -102,6 +121,7 @@ export function useScrollSpy(options?: ScrollSpyOptions, initialData: TocItem[] 
 
   const selector = options?.selector || DEFAULT_SELECTOR;
   const container = options?.container;
+  const scrollHost = options?.scrollHost;
   const rootMargin = options?.rootMargin || DEFAULT_ROOT_MARGIN;
   const disableAutoUpdate = !!options?.disableAutoUpdate;
   const getDepth = useLatestCallback(options?.getDepth);
@@ -130,7 +150,8 @@ export function useScrollSpy(options?: ScrollSpyOptions, initialData: TocItem[] 
     // Web: DOM headings too.
     if (hasDOM) {
       const valueOf = (el: Element) => getValue(el) ?? defaultGetValue(el);
-      const domItems: TocItem[] = Array.from(resolveContainer(container).querySelectorAll(selector)).map((el) => ({
+      const scope = resolveContainer(container, resolveHost(scrollHost) ?? document);
+      const domItems: TocItem[] = Array.from(scope.querySelectorAll(selector)).map((el) => ({
         id: getId(el) ?? (el.getAttribute('id') || valueOf(el).toLowerCase().replace(/\s+/g, '-')),
         value: valueOf(el),
         depth: getDepth(el) ?? defaultGetDepth(el),
@@ -157,13 +178,13 @@ export function useScrollSpy(options?: ScrollSpyOptions, initialData: TocItem[] 
         if (el && !el.id) el.id = item.id;
       });
     }
-  }, [titles, container, selector, getDepth, getValue, getId]);
+  }, [titles, container, scrollHost, selector, getDepth, getValue, getId]);
 
-  // A new container: the active heading and visibility belong to the old one.
+  // A new container or host: the active heading and visibility belong to the old one.
   useEffect(() => {
     setActiveId(null);
     visibilityMap.current.clear();
-  }, [container]);
+  }, [container, scrollHost]);
 
   // Collect now, and again shortly after in case the headings render after this effect.
   useEffect(() => {
@@ -172,43 +193,70 @@ export function useScrollSpy(options?: ScrollSpyOptions, initialData: TocItem[] 
     return () => clearTimeout(timeoutId);
   }, [collectHeadings]);
 
-  // Track the heading nearest the top of the viewport (web).
+  // Track the heading nearest the top of the scroll host / viewport (web).
   useEffect(() => {
     if (!hasDOM || typeof IntersectionObserver === 'undefined') return undefined;
     if (!items.length) return undefined;
     const visible = visibilityMap.current;
+    const host = resolveHost(scrollHost);
+    // Heading offsets are relative to the host's top edge (0 for the viewport).
+    const originTop = () => (host ? host.getBoundingClientRect().top : 0);
+
+    // Prefer the visible heading closest below the top edge; otherwise the
+    // one that scrolled past it most recently.
+    const pickActive = () => {
+      let candidate: { id: string; top: number } | null = null;
+      for (const [id, top] of Array.from(visible.entries())) {
+        if (candidate == null) candidate = { id, top };
+        else if (top >= 0 && (candidate.top < 0 || top < candidate.top)) candidate = { id, top };
+        else if (top < 0 && candidate.top < 0 && top > candidate.top) candidate = { id, top };
+      }
+      // setState bails out when the id is unchanged.
+      if (candidate) setActiveId(candidate.id);
+    };
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (disableAutoUpdate) return;
-
+        const origin = originTop();
         entries.forEach((entry) => {
           const id = (entry.target as HTMLElement).id;
           if (!id) return;
-          if (entry.isIntersecting) visible.set(id, entry.boundingClientRect.top);
+          if (entry.isIntersecting) visible.set(id, entry.boundingClientRect.top - origin);
           else visible.delete(id);
         });
-
-        // Prefer the visible heading closest below the top edge; otherwise the
-        // one that scrolled past it most recently.
-        let candidate: { id: string; top: number } | null = null;
-        for (const [id, top] of Array.from(visible.entries())) {
-          if (candidate == null) candidate = { id, top };
-          else if (top >= 0 && (candidate.top < 0 || top < candidate.top)) candidate = { id, top };
-          else if (top < 0 && candidate.top < 0 && top > candidate.top) candidate = { id, top };
-        }
-        // setState bails out when the id is unchanged.
-        if (candidate) setActiveId(candidate.id);
+        pickActive();
       },
-      { rootMargin, threshold: [0, 1] }
+      { root: host, rootMargin, threshold: [0, 1] }
     );
 
+    const nodes = new Map<string, HTMLElement>();
     items.forEach((item) => {
       const el = item.getNode?.();
-      if (el) observer.observe(el);
+      if (!el) return;
+      nodes.set(item.id, el);
+      observer.observe(el);
     });
-    return () => observer.disconnect();
-  }, [items, rootMargin, disableAutoUpdate]);
+
+    // The observer only reports threshold crossings; refresh the offsets of the
+    // headings in view as the host scrolls so the nearest one stays active.
+    const onScroll = () => {
+      if (disableAutoUpdate || visible.size === 0) return;
+      const origin = originTop();
+      visible.forEach((_top, id) => {
+        const el = nodes.get(id);
+        if (el) visible.set(id, el.getBoundingClientRect().top - origin);
+      });
+      pickActive();
+    };
+    const scrollTarget: EventTarget = host ?? window;
+    scrollTarget.addEventListener('scroll', onScroll, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      scrollTarget.removeEventListener('scroll', onScroll);
+    };
+  }, [items, rootMargin, disableAutoUpdate, scrollHost]);
 
   return useMemo(
     () => ({ items, activeId, setActiveId, reinitialize: collectHeadings }),

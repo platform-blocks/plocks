@@ -5,6 +5,7 @@ import { Text } from '../../Text';
 import { Button } from '../../Button';
 import { Flex } from '../../Flex';
 import type { DialogAutoFocus } from '../types';
+import type { SpacingValue } from '../../../core/types/base';
 
 export interface UseSimpleDialogOptions {
   title?: string;
@@ -13,6 +14,8 @@ export interface UseSimpleDialogOptions {
   backdropClosable?: boolean;
   width?: number;
   height?: number;
+  /** Body padding (see `DialogProps.p`); `0` for edge-to-edge content. */
+  p?: SpacingValue;
   /** Moves focus into the dialog once it has finished opening. See {@link DialogAutoFocus}. */
   autoFocus?: DialogAutoFocus;
   /** Trap Tab focus inside the dialog and restore it on close (web only, default true). */

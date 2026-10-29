@@ -32,4 +32,15 @@ describe('MonthPickerInput (react-native-web DOM)', () => {
     expect((onChange.mock.calls[0][0] as Date).getMonth()).toBe(3);
     expect(button.textContent).toContain('April 2026');
   });
+
+  it('forwards withNativeLevelSelect to the month grid', async () => {
+    render(<MonthPickerInput label="Billing month" defaultValue={new Date(2026, 0, 1)} withNativeLevelSelect />);
+    fireEvent.click(screen.getByRole('button', { name: 'Billing month' }));
+    await flush();
+    const dialog = screen.getByRole('dialog', { name: 'Select month' });
+    act(() => {
+      fireEvent.change(within(dialog).getByRole('combobox', { name: 'Year' }), { target: { value: '2024' } });
+    });
+    expect(within(dialog).getByRole('grid', { name: '2024' })).toBeTruthy();
+  });
 });

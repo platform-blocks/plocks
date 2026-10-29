@@ -1,0 +1,2 @@
+# Playwright screenshot baselines are stored in Git LFS.
+apps/docs/tests/**/*-snapshots/*.png filter=lfs diff=lfs merge=lfs -text

@@ -94,7 +94,7 @@ export function Demo() {
         >
           <Knob.Ring thickness={12} color={ink} trailColor={ink} backgroundColor={face} />
           {/* Chapter ring just inside the minute marks */}
-          <Knob.Fill
+          <Knob.Body
             color={face}
             radiusOffset={-18}
             borderWidth={1}

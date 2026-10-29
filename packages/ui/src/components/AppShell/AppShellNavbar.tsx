@@ -64,8 +64,6 @@ export const AppShellNavbar = factory<{ props: AppShellNavbarProps; ref: View }>
     const hoverHandlers = useNavbarHoverHandlers();
     const internal = useAppShellInternal();
     const {
-      headerHeight,
-      footerHeight,
       fullNavbarWidth,
       navbarOpen,
       closeNavbar,
@@ -78,6 +76,7 @@ export const AppShellNavbar = factory<{ props: AppShellNavbarProps; ref: View }>
       headerHeightStyle,
       navbarWidthStyle,
       contentBottomStyle,
+      footerHeightStyle,
     } = useAppShell();
 
     const withBorder = withBorderProp ?? internal?.withBorder ?? true;
@@ -158,6 +157,19 @@ export const AppShellNavbar = factory<{ props: AppShellNavbarProps; ref: View }>
     const drawerWidth = resolveDrawerWidth(navbarWidthRaw, viewportWidth, DEFAULT_DRAWER_WIDTH);
 
     const widthAnimatedStyles = useAnimatedStyle(() => ({ width: widthValue.value }), [widthValue]);
+    // Web resizing: the rail's width is the shell-root variable a drag writes
+    // to (see AppShell), so the rail follows the pointer without a render. A
+    // CSS transition stands in for the animated width when it opens/closes;
+    // the shell zeroes `transitionDuration` while a drag is in progress.
+    const resizeWidthStyle: ViewStyle[] | null =
+      !cssGeometry && internal?.resizeVars && internal.resizable.navbar
+        ? [
+            { width: asDimension(hoverExpands && hovering ? targetExpandedWidth : navbarWidthStyle) },
+            transitionDuration > 0
+              ? webStyle({ transition: `width ${transitionDuration}ms ${internal.cssTimingFunction}` })
+              : {},
+          ]
+        : null;
     const closedOffset = flipHorizontal(-drawerWidth, layoutRTL);
     const drawerAnimatedStyles = useAnimatedStyle(
       () => ({ transform: [{ translateX: interpolate(progress.value, [0, 1], [closedOffset, 0]) }] }),
@@ -194,8 +206,9 @@ export const AppShellNavbar = factory<{ props: AppShellNavbarProps; ref: View }>
           style={[
             {
               position: 'absolute',
-              top: alt ? 0 : asDimension(cssGeometry ? headerHeightStyle : headerHeight),
-              bottom: alt ? 0 : asDimension(cssGeometry ? contentBottomStyle : footerHeight),
+              // Plain px, or `var()`s under cssGeometry / web resizing.
+              top: alt ? 0 : asDimension(headerHeightStyle),
+              bottom: alt ? 0 : asDimension(cssGeometry ? contentBottomStyle : footerHeightStyle),
               start: 0,
               overflow: 'hidden',
               backgroundColor: chrome.background,
@@ -203,7 +216,7 @@ export const AppShellNavbar = factory<{ props: AppShellNavbarProps; ref: View }>
               borderEndWidth: withBorder ? 1 : 0,
               borderEndColor: chrome.border,
             },
-            cssGeometry ? { width: asDimension(navbarWidthStyle) } : widthAnimatedStyles,
+            cssGeometry ? { width: asDimension(navbarWidthStyle) } : resizeWidthStyle ?? widthAnimatedStyles,
             spacingStyles,
             style,
           ]}

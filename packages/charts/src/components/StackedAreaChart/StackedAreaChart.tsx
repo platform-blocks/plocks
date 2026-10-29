@@ -12,7 +12,8 @@ import Animated, {
 import { LineChartSeries } from '../LineChart/types';
 import { StackedAreaChartProps } from './types';
 import { ChartDataPoint } from '../../types';
-import { ChartContainer, ChartTitle, ChartLegend , withChartBandPadding } from '../../ChartBase';
+import { ChartContainer, ChartTitle, ChartLegend , withChartBandPadding, measureChartBrushBand, CHART_BRUSH_GAP, CHART_BRUSH_HEIGHT } from '../../ChartBase';
+import { ChartBrush, inferBrushStep, pickBrushSeries, sliceToBrushWindow, useChartBrushRange } from '../ChartBrush/ChartBrush';
 import { resolveCartesianPadding, domainTickLabels } from '../../core/axisLayout';
 import { useChartInteractionContext, usePointer, useActiveTarget } from '../../interaction/ChartInteractionContext';
 import { useChartPointer } from '../../interaction/useChartPointer';
@@ -32,6 +33,7 @@ import {
 import { ChartGrid } from '../../core/ChartGrid';
 import { ChartGradientDef, isChartGradient, useChartFillId, type ChartGradient } from '../../core/ChartFill';
 import { Axis } from '../../core/Axis';
+import { ReferenceAreas, ReferenceDots, ReferenceLines, numericReference, type ReferenceMarkScales } from '../../core/ReferenceMarks';
 import type { Scale } from '../../utils/scales';
 
 
@@ -242,7 +244,7 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
     legend,
     smooth = true,
     opacity = 0.55,
-  stackMode = 'absolute',
+    stackMode = 'absolute',
     xScaleType = 'linear',
     yScaleType = 'linear',
     animationDuration = 800,
@@ -261,8 +263,19 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
     invertPinchZoom,
     disabled = false,
     stackOrder = 'normal',
+    referenceLines,
+    referenceAreas,
+    referenceDots,
+    withBrush = false,
+    brushProps,
+    brushRange,
+    onBrushChange,
     ...rest
   } = props;
+  const isStream = stackMode === 'stream';
+  // A streamgraph's y values are offsets around a moving centerline, so the y axis
+  // and its gridlines carry no meaning — hidden unless `yAxis.show` opts back in.
+  const showYAxis = isStream ? yAxis?.show === true : yAxis?.show !== false;
   const theme = useChartTheme();
   const fillIdPrefix = useChartFillId('stacked-area-fill');
 
@@ -286,7 +299,32 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
   const stackedData = useStackedData(series, stackOrder, interaction, theme.colors.accentPalette);
   const { layers: rawLayers, totals, xValues } = stackedData;
 
-  const layers = useMemo(() => {
+  // Brush: the selected x window is the domain the plot draws.
+  const fullXDomain: [number, number] = useMemo(() => [xValues[0] ?? 0, xValues[xValues.length - 1] ?? 1], [xValues]);
+  const brush = useChartBrushRange({
+    domain: fullXDomain,
+    value: brushRange,
+    start: withBrush ? brushProps?.start : undefined,
+    end: withBrush ? brushProps?.end : undefined,
+    onChange: [onBrushChange, brushProps?.onChange],
+  });
+  const xWindowed = (withBrush || brushRange !== undefined) && brush.active;
+  const xDomain: [number, number] = xWindowed ? brush.range : fullXDomain;
+
+  const stackedLayers = useMemo(() => {
+    if (stackMode === 'stream') {
+      // Silhouette offset: shift every x's stack down by half its total so the
+      // stack is centered on y = 0 (d3's stackOffsetSilhouette). The absolute*
+      // fields keep the un-offset values for tooltips.
+      return rawLayers.map((layer) => ({
+        ...layer,
+        points: layer.points.map((point, idx) => {
+          const offset = -(totals[idx] ?? 0) / 2;
+          return { ...point, y0: point.absoluteY0 + offset, y1: point.absoluteY1 + offset };
+        }),
+      }));
+    }
+
     if (stackMode !== 'percentage') {
       return rawLayers;
     }
@@ -316,9 +354,26 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
     });
   }, [rawLayers, totals, stackMode]);
 
-  const yMax = useMemo(() => (stackMode === 'percentage' ? 1 : Math.max(1, ...totals)), [stackMode, totals]);
-  const xDomain: [number, number] = useMemo(() => [xValues[0] ?? 0, xValues[xValues.length - 1] ?? 1], [xValues]);
-  const yDomain: [number, number] = useMemo(() => [0, yMax], [yMax]);
+  // Only the brushed window (plus a neighbor each side) is drawn, and y refits to it.
+  const layers = useMemo(() => (
+    xWindowed
+      ? stackedLayers.map((layer) => ({ ...layer, points: sliceToBrushWindow(layer.points, (p) => p.x, xDomain) }))
+      : stackedLayers
+  ), [stackedLayers, xWindowed, xDomain]);
+  const windowTotals = useMemo(
+    () => (xWindowed ? totals.filter((_, idx) => xValues[idx] >= xDomain[0] && xValues[idx] <= xDomain[1]) : totals),
+    [xWindowed, totals, xValues, xDomain]
+  );
+
+  const yDomain: [number, number] = useMemo(() => {
+    if (stackMode === 'percentage') return [0, 1];
+    if (stackMode === 'stream') {
+      // Symmetric around 0 so the centerline is the plot's mid-height.
+      const half = (Math.max(0, ...windowTotals) || 1) / 2;
+      return [-half, half];
+    }
+    return [0, Math.max(1, ...windowTotals)];
+  }, [stackMode, windowTotals]);
 
   // Margins measured from the labels that will be drawn, rather than a fixed
   // reserve that was a third of the width on a narrow chart.
@@ -330,7 +385,7 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
         ?? (xScaleType === 'time' ? (value: number) => new Date(value).toLocaleDateString() : undefined), theme.numberFormat),
       yTitle: yAxis?.title,
       xTitle: xAxis?.title,
-      showYAxis: yAxis?.show !== false,
+      showYAxis,
       showXAxis: xAxis?.show !== false,
       showYTickLabels: yAxis?.showLabels !== false,
       showXTickLabels: xAxis?.showLabels !== false,
@@ -338,13 +393,15 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
       containerHeight: height,
     }),
     [yDomain, xDomain, yAxis?.labelFormatter, xAxis?.labelFormatter, yAxis?.title, xAxis?.title,
-     yAxis?.show, xAxis?.show, yAxis?.showLabels, xAxis?.showLabels, yScaleType, xScaleType, width, height, theme.numberFormat]
+     showYAxis, xAxis?.show, yAxis?.showLabels, xAxis?.showLabels, yScaleType, xScaleType, width, height, theme.numberFormat]
   );
   // Grown so the plot clears the title and legend overlays.
   const legendLabels = useMemo(
     () => layers.map((l) => ({ label: l.name || String(l.id) })),
     [layers]
   );
+  const brushHeight = brushProps?.height ?? CHART_BRUSH_HEIGHT;
+  const brushBand = measureChartBrushBand(withBrush, brushHeight);
   const padding = useMemo(
     () =>
       withChartBandPadding(basePadding, {
@@ -354,8 +411,9 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
         legendPosition: legend?.position,
         legendFontSize: legend?.fontSize,
         containerWidth: width,
+        bottomAllowance: brushBand,
       }),
-    [basePadding, title, subtitle, legend?.show, legend?.position, legend?.fontSize, legendLabels, width]
+    [basePadding, title, subtitle, legend?.show, legend?.position, legend?.fontSize, legendLabels, width, brushBand]
   );
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
@@ -379,6 +437,15 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
 
   // Generate area paths using custom hook
   const areaPaths = useStackedAreaPaths(layers, scaleX, scaleY, smooth);
+
+  // Reference marks use the drawn scales: stack totals in `absolute`, the 0–1
+  // stack fraction in `percentage`, centered offsets (0 = centerline) in `stream`.
+  const referenceScales = useMemo<ReferenceMarkScales>(() => ({
+    xToPx: numericReference(scaleX),
+    yToPx: numericReference(scaleY),
+    plotWidth,
+    plotHeight,
+  }), [scaleX, scaleY, plotWidth, plotHeight]);
 
   // Animation
   const animationProgress = useSharedValue(disabled ? 1 : 0);
@@ -415,18 +482,20 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
     name: layer.name || `Series ${index + 1}`,
     color: layer.color,
     visible: layer.visible !== false,
-    marks: layer.points.map((p, i): Mark => ({
+    // Neighbors kept for line continuity sit outside the plot; they are not targets.
+    marks: layer.points.flatMap((p, i): Mark[] => (scaleX(p.x) < -0.5 || scaleX(p.x) > plotWidth + 0.5) ? [] : [{
       id: i,
       pixel: { x: scaleX(p.x) + padding.left, y: scaleY(p.y1) + padding.top },
-      value: p.absoluteY1 - p.absoluteY0,
+      // The series' own value at this x, never the stacked/offset coordinates.
+      value: p.raw?.y ?? p.absoluteY1 - p.absoluteY0,
       datum: p,
       dataX: p.x,
       dataY: p.y1,
       formattedValue: stackMode === 'percentage'
         ? `${((p.y1 - p.y0) * 100).toFixed(1)}%`
-        : String(p.absoluteY1 - p.absoluteY0),
-    })),
-  })), [layers, scaleX, scaleY, padding.left, padding.top, stackMode]);
+        : String(p.raw?.y ?? p.absoluteY1 - p.absoluteY0),
+    }]),
+  })), [layers, scaleX, scaleY, padding.left, padding.top, stackMode, plotWidth]);
 
   const tester = useMemo(() => new PointSeriesHitTester(hitSeries), [hitSeries]);
 
@@ -482,6 +551,22 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
   const axisTickPadding = 4;
   const resolvedTextColor = theme.colors.textSecondary;
 
+  const brushSeries = useMemo(() => {
+    if (!withBrush) return [];
+    const visible = stackedLayers.map((layer) => ({
+      id: layer.id,
+      name: layer.name,
+      color: layer.color,
+      data: layer.points.map((p) => ({ x: p.x, y: p.raw?.y ?? p.absoluteY1 - p.absoluteY0 })),
+    }));
+    return pickBrushSeries(visible, brushProps?.series);
+  }, [withBrush, stackedLayers, brushProps?.series]);
+  const brushStep = useMemo(
+    () => brushProps?.step ?? (withBrush ? inferBrushStep(xValues, fullXDomain) : 1),
+    [brushProps?.step, withBrush, xValues, fullXDomain]
+  );
+  const brushTraveller = brushProps?.travellerWidth ?? 8;
+
   const legendItems = layers.map(l => ({ 
     label: l.name || String(l.id), 
     color: l.color, 
@@ -519,7 +604,7 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
           plotWidth={plotWidth}
           plotHeight={plotHeight}
           xTicks={normXTicks}
-          yTicks={normYTicks}
+          yTicks={showYAxis || !isStream ? normYTicks : []}
           padding={padding}
           useSVG={true}
         />
@@ -543,7 +628,9 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
             ) : null)}
           </Defs>
         )}
-        
+
+        <ReferenceAreas areas={referenceAreas} scales={referenceScales} />
+
         <G>
           {areaPaths.map((area, index) => {
             const visible = layers.find(l => l.id === area.id)?.visible !== false;
@@ -561,6 +648,9 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
             );
           })}
         </G>
+
+        <ReferenceLines lines={referenceLines} scales={referenceScales} />
+        <ReferenceDots dots={referenceDots} scales={referenceScales} />
       </Svg>
 
       {/* Crosshair — a vertical guide tracking the cursor x across the plot. Snaps to the
@@ -615,7 +705,7 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
         />
       )}
 
-      {yAxis?.show !== false && plotHeight > 0 && (
+      {showYAxis && plotHeight > 0 && (
         <Axis
           scale={axisScaleY}
           orientation="left"
@@ -687,6 +777,35 @@ export const StackedAreaChart: React.FC<StackedAreaChartProps> = (props) => {
           testID="stacked-area-gesture-surface"
           style={{ position: 'absolute', left: 0, top: 0, width, height }}
           {...pointerHandlers}
+        />
+      )}
+
+      {/* Drawn after the gesture overlay so the strip receives its own drags. */}
+      {withBrush && plotWidth > 0 && (
+        <ChartBrush
+          testID="stacked-area-brush"
+          style={{
+            position: 'absolute',
+            left: padding.left - brushTraveller / 2,
+            top: padding.top + plotHeight + basePadding.bottom + CHART_BRUSH_GAP,
+          }}
+          w={plotWidth + brushTraveller}
+          h={brushHeight}
+          domain={fullXDomain}
+          value={brush.range}
+          onChange={brush.setRange}
+          series={brushSeries}
+          previewType="area"
+          step={brushStep}
+          travellerWidth={brushTraveller}
+          fill={brushProps?.fill}
+          stroke={brushProps?.stroke}
+          formatValue={brushProps?.formatValue ?? ((value) => {
+            if (xAxis?.labelFormatter) return xAxis.labelFormatter(value);
+            if (xScaleType === 'time') return new Date(value).toLocaleDateString();
+            return xTickFormat(value);
+          })}
+          disabled={disabled}
         />
       )}
     </ChartContainer>

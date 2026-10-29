@@ -43,7 +43,7 @@ export function App() {
 | `AppShell.Main` | `main` (`<main>`) | `maw` (content column width), `centerContent`, optional table of contents column. |
 | `AppShell.Footer` | `contentinfo` (`<footer>`) | Between navbar and aside. |
 | `AppShell.BottomNav` | `navigation` when labelled | Mobile bottom container. |
-| `AppShell.BottomAppBar` | `navigation` | Items with icons, labels, badges; active item is `aria-current="page"`. |
+| `AppShell.BottomAppBar` | `navigation` | Items with icons, labels, badges; active item is `aria-current="page"`. `activeColor` / `inactiveColor` / `indicator` / `borderColor` / `badgeColor` match an app palette; `icon` may be `({ active, color }) => node`. Also exported standalone as `BottomAppBar`. |
 | `AppShell.Section` | — | `grow` / `withScrollArea` inside navbar or aside. |
 | `AppShell.MobileMenu` | `dialog` (modal) | Native menu used with `mobileMenu`; `opened` / `onClose`. |
 
@@ -79,6 +79,51 @@ on the start side and the aside on the end side in both directions. On web
 AppShell passes the `DirectionProvider` direction to react-native-web as `dir`;
 on native, `I18nManager` flips the layout.
 
+## Resizable sections
+
+`useAppShellResize` makes sections resizable; pass its result as `resize`.
+The navbar and aside resize horizontally, the header and footer vertically.
+
+```tsx
+const resize = useAppShellResize({
+  navbar: { min: 200, max: 400, collapseThreshold: 120, onCollapse: () => {} },
+  aside: true,                          // defaults: 160–480 px
+  footer: { label: 'Resize status bar' },
+  storageKey: 'app-shell-sizes',        // optional, via usePersistedState
+});
+
+<AppShell navbar={{ width: 260 }} aside={{ width: 240 }} footer={{ height: 40 }} resize={resize}>…</AppShell>
+```
+
+- Section options: `min`, `max`, `defaultSize`, `collapseThreshold`,
+  `onCollapse`, `label` (the handle's accessible name; default
+  "Resize navigation" / "aside" / "header" / "footer"). Hook options: `step`
+  (10), `shiftStep` (50), `storageKey`, `onSizeChange(section, size)` (every
+  frame/key), `onResizeEnd(section, size)`.
+- Returns `sizes`, `collapsed` (aside/header/footer), `setSize(section, px)`,
+  `setCollapsed(section, bool)` and `reset(section?)`.
+- Each handle is a `separator` with `aria-orientation` and
+  `aria-valuenow/min/max`. Keys: arrows step 10 px (Shift 50), Home/End jump to
+  min/max, Enter (or a double-click) resets. Native screen readers get
+  increment/decrement actions. In RTL the navbar is on the right, so the
+  horizontal drag and arrow keys flip.
+- Dragging below `collapseThreshold` collapses the section and calls
+  `onCollapse`: the navbar to its rail (`navbar.collapsedWidth`, the same
+  state as `closeNavbar()`), the others to nothing — their handle stays on the
+  edge. Dragging back out expands it.
+- **Mobile:** resizing is off where the navbar is a drawer (below
+  `navbar.breakpoint`, always on native) and where the aside is not inline
+  (below `aside.breakpoint`, native); those sections keep their configured
+  widths. The header and footer resize everywhere.
+- **Live updates.** Web: resizable sections' geometry is a `var()` on
+  custom properties set on the *shell root* (`--plocks-shell-navbar-w`,
+  `-aside-w`, `-header-h`, `-footer-h`, `-content-bottom`), not `:root`; a
+  drag writes them directly, so nothing re-renders per frame. Portalled
+  content can't see them — use `useAppShellLayout()` there. Native: the shell
+  subscribes to the drag's live size and re-renders its sections each frame;
+  the page passed as children and the component owning the hook do not. The
+  hook's `sizes` (and so its owner) update once, on release.
+
 ## Motion
 
 `transitionDuration` (default 200 ms) and `transitionTimingFunction` drive the
@@ -109,6 +154,7 @@ app chrome that has to sit flush against the shell's.
 - `useAppShellApi()` — `openNavbar`, `closeNavbar`, `toggleNavbar` (stable; no re-render on layout changes).
 - `useAppShellLayout()` — section sizes only.
 - `useNavbarHover()` — whether the pointer is over the desktop rail.
+- `useAppShellResize(options)` — resizable sections; pass the result as `resize`.
 - `useBreakpoint()` — the current breakpoint name.
 - `resolveResponsiveValue(value, breakpoint)` — a `ResponsiveSize` in px.
 

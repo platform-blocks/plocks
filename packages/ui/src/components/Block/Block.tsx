@@ -22,10 +22,13 @@ const BLOCK_STYLE_PROP_KEYS: Array<keyof BlockStyleProps> = [
   'borderLeftColor',
   'borderTopLeftRadius',
   'borderTopRightRadius',
+  'borderBottomLeftRadius',
+  'borderBottomRightRadius',
   'borderStyle',
   'overflow',
   'aspectRatio',
   'touchAction',
+  'translateX',
   'translateY',
   'rotate',
   'shadow',
@@ -123,6 +126,7 @@ export const Block = factory<{ props: BlockProps; ref: View }>((props, ref) => {
     onLongPress,
     onPressIn,
     onPressOut,
+    pressedStyle,
     disabled,
     ...restProps
   } = otherProps;
@@ -161,8 +165,11 @@ export const Block = factory<{ props: BlockProps; ref: View }>((props, ref) => {
 
   // HTML tag names render a View on every platform (react-native-web decides the element from `role`).
   if (component === View && (onPress || onLongPress || onPressIn || onPressOut)) {
+    // A pressable Block is a button unless the caller gave it a role.
+    const pressableA11y = mappedRole || accessibilityRole ? a11y : { role: 'button' as const };
     return (
-      <Pressable ref={ref} style={finalStyle} {...a11y} {...forwardedProps}
+      <Pressable ref={ref} style={pressedStyle ? ({ pressed }) => [finalStyle, pressed && pressedStyle] : finalStyle}
+        {...pressableA11y} {...forwardedProps}
         onPress={onPress} onLongPress={onLongPress} onPressIn={onPressIn}
         onPressOut={onPressOut} disabled={disabled}>
         {children}

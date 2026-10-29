@@ -125,10 +125,14 @@ export const Image = factory<{ props: ImageProps; ref: View }>((props, ref) => {
   const needsClip =
     (borderRadius !== undefined || callerBox?.borderRadius !== undefined) && callerBox?.overflow === undefined;
 
+  // A width plus `aspectRatio` gives the root a definite height; the image fills
+  // it, or web falls back to a bundled asset's intrinsic height and overflows.
+  const ratioSized = aspectRatio !== undefined && (finalWidth !== undefined || boxWidth !== undefined);
+
   // Shared by the image and its loading/fallback boxes (valid as View and Image style).
   const imageBoxStyle = {
     width: finalWidth ?? (boxWidth !== undefined ? '100%' : undefined),
-    height: finalHeight ?? (boxHeight !== undefined ? '100%' : undefined),
+    height: finalHeight ?? (boxHeight !== undefined || ratioSized ? '100%' : undefined),
     aspectRatio,
     borderWidth,
     borderColor: borderColor || theme.backgrounds.border,

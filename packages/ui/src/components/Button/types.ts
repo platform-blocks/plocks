@@ -61,8 +61,9 @@ export interface ButtonProps
    *
    * `default` is a neutral button — a recessed fill with a visible border and
    * body text — so an unstyled `<Button>` never claims the accent color. A solid
-   * primary fill is opt-in via `filled`.
-   * @default 'default'
+   * primary fill is opt-in via `filled`. Passing a `color` without a `variant`
+   * gives a `filled` button in that color, with readable text picked for it.
+   * @default 'default' ('filled' when `color` is set)
    */
   variant?: ButtonVariant;
   /**
@@ -70,7 +71,7 @@ export interface ButtonProps
    * `error`, …), `'primary.6'` shade syntax, or any raw CSS/hex color. Applies to
    * the color-bearing variants (`filled`, `light`, `subtle`, `outline`, `gradient`)
    * and to the text of `ghost`/`link`. Defaults to `primary`. `secondary` stays
-   * neutral by design.
+   * neutral by design. With no `variant`, a `color` makes the button `filled`.
    */
   color?: ColorProp;
   /** Button size: a size token, or a number (the control height in px). */
@@ -83,10 +84,16 @@ export interface ButtonProps
   loadingTitle?: string;
   /**
    * Whether button should fill the full width of its parent container. Buttons
-   * size to their content by default; `fullWidth`, an explicit `w`, or a flex
+   * size to their content by default; `fullWidth`, an explicit `w`, `flex`, or a flex
    * value in `style` makes them fill instead.
    */
   fullWidth?: boolean;
+  /**
+   * Flex factor of the button inside a flex row or column, such as `flex={1}`
+   * for buttons that share a row equally. Sizes the button's outer wrapper, so
+   * the visible button fills the space it gets.
+   */
+  flex?: number;
   /** Explicit text color override (else derived automatically from variant & color) */
   textColor?: ColorProp;
   /**

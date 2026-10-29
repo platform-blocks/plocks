@@ -1,26 +1,5 @@
 [
   {
-    "slug": "baseball-live",
-    "codeFiles": [
-      "App.tsx",
-      "components/CountDisplay.tsx",
-      "components/FieldDiamond.tsx",
-      "components/FixtureCard.tsx",
-      "components/Panel.tsx",
-      "components/Scoreboard.tsx",
-      "components/TeamMark.tsx",
-      "data.ts",
-      "game/engine.ts",
-      "game/types.ts",
-      "screens/GamecastScreen.tsx",
-      "screens/ScoresScreen.tsx",
-      "screens/StandingsScreen.tsx",
-      "theme.ts"
-    ],
-    "assets": [],
-    "dependencies": []
-  },
-  {
     "slug": "calculator",
     "codeFiles": [
       "App.tsx"
@@ -36,6 +15,7 @@
     ],
     "assets": [],
     "dependencies": [
+      "@plocks/emoji-picker@0.1.0",
       "@react-native-async-storage/async-storage"
     ]
   },
@@ -56,32 +36,6 @@
     ]
   },
   {
-    "slug": "daymark",
-    "codeFiles": [
-      "App.tsx"
-    ],
-    "assets": [],
-    "dependencies": [
-      "@plocks/charts@0.1.0",
-      "@react-native-async-storage/async-storage"
-    ]
-  },
-  {
-    "slug": "dicom-viewer",
-    "codeFiles": [
-      "App.tsx",
-      "components/ScanViewport.tsx",
-      "dicom.ts",
-      "study.ts",
-      "theme.ts"
-    ],
-    "assets": [],
-    "dependencies": [
-      "expo-document-picker",
-      "expo-file-system"
-    ]
-  },
-  {
     "slug": "e-reader",
     "codeFiles": [
       "App.tsx",
@@ -94,16 +48,6 @@
     ]
   },
   {
-    "slug": "fieldhouse",
-    "codeFiles": [
-      "App.tsx"
-    ],
-    "assets": [],
-    "dependencies": [
-      "@react-native-async-storage/async-storage"
-    ]
-  },
-  {
     "slug": "fish-dating",
     "codeFiles": [
       "App.tsx"
@@ -112,22 +56,6 @@
     "dependencies": [
       "@react-native-async-storage/async-storage"
     ]
-  },
-  {
-    "slug": "flight-tracker",
-    "codeFiles": [
-      "App.tsx"
-    ],
-    "assets": [],
-    "dependencies": []
-  },
-  {
-    "slug": "flutterflight",
-    "codeFiles": [
-      "App.tsx"
-    ],
-    "assets": [],
-    "dependencies": []
   },
   {
     "slug": "frameleaf",
@@ -143,7 +71,8 @@
     ],
     "dependencies": [
       "@plocks/carousel@0.1.0",
-      "@react-native-async-storage/async-storage"
+      "@react-native-async-storage/async-storage",
+      "expo-clipboard"
     ]
   },
   {
@@ -153,6 +82,7 @@
     ],
     "assets": [],
     "dependencies": [
+      "@plocks/emoji-picker@0.1.0",
       "@react-native-async-storage/async-storage"
     ]
   },
@@ -176,7 +106,8 @@
       "assets/pins/workspace.webp"
     ],
     "dependencies": [
-      "@react-native-async-storage/async-storage"
+      "@react-native-async-storage/async-storage",
+      "expo-clipboard"
     ]
   },
   {
@@ -186,27 +117,6 @@
     ],
     "assets": [],
     "dependencies": []
-  },
-  {
-    "slug": "loopshop",
-    "codeFiles": [
-      "App.tsx"
-    ],
-    "assets": [],
-    "dependencies": [
-      "@plocks/carousel@0.1.0",
-      "@react-native-async-storage/async-storage"
-    ]
-  },
-  {
-    "slug": "mosaic-chat",
-    "codeFiles": [
-      "App.tsx"
-    ],
-    "assets": [],
-    "dependencies": [
-      "@react-native-async-storage/async-storage"
-    ]
   },
   {
     "slug": "music",
@@ -223,7 +133,6 @@
       "assets/audio/soft-focus.mp3"
     ],
     "dependencies": [
-      "@plocks/carousel@0.1.0",
       "@react-native-async-storage/async-storage",
       "expo-audio"
     ]
@@ -231,7 +140,17 @@
   {
     "slug": "nightfall",
     "codeFiles": [
-      "App.tsx"
+      "App.tsx",
+      "data.ts",
+      "screens/HomeScreen.tsx",
+      "screens/MyScreen.tsx",
+      "screens/NewHotScreen.tsx",
+      "screens/PlayerScreen.tsx",
+      "screens/ProfilePicker.tsx",
+      "screens/SearchScreen.tsx",
+      "screens/TitleScreen.tsx",
+      "store.tsx",
+      "ui.tsx"
     ],
     "assets": [
       "assets/demo-clip.mp4",
@@ -254,16 +173,9 @@
     ],
     "assets": [],
     "dependencies": [
-      "@react-native-async-storage/async-storage"
+      "@react-native-async-storage/async-storage",
+      "expo-document-picker"
     ]
-  },
-  {
-    "slug": "signal-news",
-    "codeFiles": [
-      "App.tsx"
-    ],
-    "assets": [],
-    "dependencies": []
   },
   {
     "slug": "solitaire",
@@ -272,23 +184,26 @@
       "game.ts"
     ],
     "assets": [],
-    "dependencies": []
-  },
-  {
-    "slug": "springstep",
-    "codeFiles": [
-      "App.tsx"
-    ],
-    "assets": [],
-    "dependencies": []
+    "dependencies": [
+      "expo-haptics"
+    ]
   },
   {
     "slug": "sproutfolio",
     "codeFiles": [
-      "App.tsx"
+      "App.tsx",
+      "components/AssetLogo.tsx",
+      "components/common.tsx",
+      "components/PriceChart.tsx",
+      "components/TradePanel.tsx",
+      "data.ts",
+      "screens/AssetScreen.tsx",
+      "screens/TabScreens.tsx",
+      "theme.ts"
     ],
     "assets": [],
     "dependencies": [
+      "@plocks/brands@0.1.0",
       "@plocks/charts@0.1.0",
       "@react-native-async-storage/async-storage"
     ]
@@ -296,17 +211,31 @@
   {
     "slug": "threadit",
     "codeFiles": [
-      "App.tsx"
+      "App.tsx",
+      "data.ts"
     ],
     "assets": [],
     "dependencies": [
-      "@react-native-async-storage/async-storage"
+      "@react-native-async-storage/async-storage",
+      "expo-clipboard"
     ]
   },
   {
     "slug": "townlist",
     "codeFiles": [
-      "App.tsx"
+      "App.tsx",
+      "components.tsx",
+      "data.ts",
+      "screens/Categories.tsx",
+      "screens/Cities.tsx",
+      "screens/Home.tsx",
+      "screens/ListingView.tsx",
+      "screens/Messages.tsx",
+      "screens/Post.tsx",
+      "screens/Results.tsx",
+      "screens/Saved.tsx",
+      "store.tsx",
+      "theme.ts"
     ],
     "assets": [
       "assets/listings/apartment.webp",
@@ -319,7 +248,8 @@
       "assets/listings/studio.webp"
     ],
     "dependencies": [
-      "@react-native-async-storage/async-storage"
+      "@react-native-async-storage/async-storage",
+      "expo-clipboard"
     ]
   },
   {
@@ -333,9 +263,7 @@
       "assets/scene-desert.webp",
       "assets/scene-lake.webp"
     ],
-    "dependencies": [
-      "expo-linear-gradient"
-    ]
+    "dependencies": []
   },
   {
     "slug": "wordtrail",

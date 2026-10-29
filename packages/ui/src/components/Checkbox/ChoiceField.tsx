@@ -35,6 +35,11 @@ export interface ChoiceFieldProps extends DisclaimerSupport {
   description?: React.ReactNode;
   /** Error message; `true` marks the control invalid without rendering a message. */
   error?: React.ReactNode;
+  /**
+   * Success state. A node/string renders in the success color in place of the
+   * helper text and describes the control the same way; `error` wins.
+   */
+  success?: boolean | React.ReactNode;
   helperText?: React.ReactNode;
   required?: boolean;
   withAsterisk?: boolean;
@@ -117,6 +122,7 @@ export function ChoiceField({
   label,
   description,
   error,
+  success,
   helperText,
   required = false,
   withAsterisk,
@@ -140,12 +146,16 @@ export function ChoiceField({
   disclaimerProps,
   children,
 }: ChoiceFieldProps) {
+  // An error wins over success. A success message takes the helper slot (and
+  // the helper id), so the control is described by it exactly like helper text.
+  const hasError = hasContent(error) || error === true;
+  const showSuccessMessage = !hasError && !!success && hasContent(success);
   const { controlProps, ids, invalid, showError, showHelper, errorProps, helperProps } = useFieldA11y({
     id,
     label,
     description,
     error,
-    helperText,
+    helperText: showSuccessMessage ? success : helperText,
     required,
     disabled,
     readOnly,
@@ -168,6 +178,7 @@ export function ChoiceField({
         footerStacked: { alignSelf: stackedAlign } as ViewStyle,
         error: { color: theme.colors.error[5], fontSize: footerFontSize, fontFamily: theme.fontFamily } as TextStyle,
         helper: { color: theme.text.muted, fontSize: footerFontSize, fontFamily: theme.fontFamily } as TextStyle,
+        success: { color: theme.colors.success[5], fontSize: footerFontSize, fontFamily: theme.fontFamily } as TextStyle,
       };
     },
     [size, align, stackedAlign, gap]
@@ -242,7 +253,7 @@ export function ChoiceField({
     </View>
   ) : showHelper ? (
     <View id={helperProps.id} style={footerStyle}>
-      <RNText style={styles.helper}>{helperText}</RNText>
+      <RNText style={showSuccessMessage ? styles.success : styles.helper}>{showSuccessMessage ? success : helperText}</RNText>
     </View>
   ) : null;
 

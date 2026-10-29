@@ -30,6 +30,7 @@ export type { AppShellCssConfig, AppShellCssOptions, AppShellCssVar } from './sh
 // Hooks
 export { useBreakpoint } from './hooks/useBreakpoint';
 export { useNavbarHover } from './AppShell';
+export { useAppShellResize } from './hooks/useAppShellResize';
 export { resolveResponsiveValue } from './hooks/useResponsiveValue';
 
 // Declarative layout blueprints
@@ -87,6 +88,13 @@ export type {
   AppShellBottomNavProps,
   BottomAppBarProps,
   BottomAppBarItem,
+  BottomAppBarIcon,
   MobileMenuProps,
   StatusBarManagerProps,
+  AppShellResizeSection,
+  AppShellResizeCollapsible,
+  AppShellResizeSizes,
+  AppShellResizeSectionOptions,
+  UseAppShellResizeOptions,
+  UseAppShellResizeReturn,
 } from './types';

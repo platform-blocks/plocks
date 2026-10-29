@@ -5,10 +5,12 @@ import type {
   ChartGrid,
   ChartInteractionCallbacks,
   ChartLegend,
+  ChartReferenceMarksProps,
   ChartTooltip,
 } from '../../types/base';
 import type { ChartFill } from '../../core/ChartFill';
 import type { ColorScaleConfig } from '../../utils/colorScale';
+import type { ChartBrushChartProps } from '../ChartBrush/types';
 
 export interface BarChartDataPoint {
   /** Unique identifier */
@@ -84,7 +86,9 @@ export type BarColorScale = ColorScaleConfig | ((context: BarColorScaleContext) 
 
 export interface BarChartProps
   extends BaseChartProps,
-    ChartInteractionCallbacks<BarChartDataPoint> {
+    ChartInteractionCallbacks<BarChartDataPoint>,
+    ChartReferenceMarksProps,
+    ChartBrushChartProps {
   /** Data points */
   data: BarChartDataPoint[];
   /** Optional multi-series data */

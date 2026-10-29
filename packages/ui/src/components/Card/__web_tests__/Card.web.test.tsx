@@ -47,7 +47,16 @@ describe('Card (web)', () => {
     expect(radio.getAttribute('aria-checked')).toBe('true');
   });
 
-  it('uses an explicit role and forwards its ref', () => {
+  it('forwards aria-selected for a selectable card', () => {
+    render(
+      <Card onLongPress={() => {}} role="option" aria-selected aria-label="Pro plan">
+        <Text>Pro</Text>
+      </Card>
+    );
+    expect(screen.getByRole('option', { name: 'Pro plan' }).getAttribute('aria-selected')).toBe('true');
+  });
+
+    it('uses an explicit role and forwards its ref', () => {
     const ref = React.createRef<unknown>();
     render(
       <Card ref={ref as React.Ref<never>} role="article" aria-label="Post">

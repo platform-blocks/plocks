@@ -130,6 +130,35 @@ describe('Card - behavior', () => {
     expect(handlePress).toHaveBeenCalledTimes(1);
   });
 
+  it('is pressable with only a long-press or press-in handler', () => {
+    const handleLongPress = jest.fn();
+    const handlePressIn = jest.fn();
+    const { getByText } = render(
+      <Card onLongPress={handleLongPress} onPressIn={handlePressIn} delayLongPress={300}>
+        <Text>Hold me</Text>
+      </Card>
+    );
+
+    fireEvent(getByText('Hold me'), 'longPress');
+    fireEvent(getByText('Hold me'), 'pressIn');
+    expect(handleLongPress).toHaveBeenCalledTimes(1);
+    expect(handlePressIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces the variant press feedback with pressedStyle', () => {
+    const { UNSAFE_root } = render(
+      <Card variant="ghost" onPress={() => {}} pressedStyle={{ opacity: 0.7 }}>
+        <Text>Row</Text>
+      </Card>
+    );
+
+    const [pressable] = UNSAFE_root.findAll((node) => typeof node.props.style === 'function');
+    const pressed = StyleSheet.flatten(pressable.props.style({ pressed: true }));
+    expect(pressed.opacity).toBe(0.7);
+    // The ghost variant's own feedback (a subtle background) no longer applies.
+    expect(pressed.backgroundColor).toBe('transparent');
+  });
+
   it('renders gradient overlays using resolved palette tokens', () => {
     const { getByTestId } = render(
       <Card {...({ testID: 'gradient-card' } as any)} variant="gradient">

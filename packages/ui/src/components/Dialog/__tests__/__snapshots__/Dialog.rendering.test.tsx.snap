@@ -82,6 +82,7 @@ exports[`Dialog - rendering matches snapshot for bottom sheet dialog without clo
       <View
         accessibilityViewIsModal={true}
         aria-labelledby="dialog-title-_r_2_"
+        onLayout={[Function]}
         role="dialog"
         style={
           [
@@ -111,51 +112,6 @@ exports[`Dialog - rendering matches snapshot for bottom sheet dialog without clo
         }
       >
         <View
-          aria-hidden={true}
-          hitSlop={
-            {
-              "bottom": 16,
-              "left": 0,
-              "right": 0,
-              "top": 8,
-            }
-          }
-          onMoveShouldSetResponder={[Function]}
-          onMoveShouldSetResponderCapture={[Function]}
-          onResponderEnd={[Function]}
-          onResponderGrant={[Function]}
-          onResponderMove={[Function]}
-          onResponderReject={[Function]}
-          onResponderRelease={[Function]}
-          onResponderStart={[Function]}
-          onResponderTerminate={[Function]}
-          onResponderTerminationRequest={[Function]}
-          onStartShouldSetResponder={[Function]}
-          onStartShouldSetResponderCapture={[Function]}
-          style={
-            {
-              "alignItems": "center",
-              "justifyContent": "center",
-              "paddingBottom": 4,
-              "paddingHorizontal": 20,
-              "paddingTop": 12,
-            }
-          }
-        >
-          <View
-            style={
-              {
-                "alignSelf": "center",
-                "backgroundColor": undefined,
-                "borderRadius": 2,
-                "height": 4,
-                "opacity": 0.8,
-                "width": 40,
-              }
-            }
-          />
-        </View>
-        <View
           style={
             {
               "alignItems": "center",
@@ -175,25 +131,43 @@ exports[`Dialog - rendering matches snapshot for bottom sheet dialog without clo
             Actions
           </Text>
         </View>
-        <View
+        <RCTScrollView
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          onScroll={[Function]}
+          scrollEventThrottle={16}
           style={
-            [
-              {
-                "alignSelf": "stretch",
-                "backgroundColor": "#FFFFFF",
-                "padding": 20,
-                "paddingTop": 8,
-                "width": "100%",
-              },
-              {},
-              undefined,
-            ]
+            {
+              "flexShrink": 1,
+            }
           }
         >
-          <Text>
-            Choose an action
-          </Text>
-        </View>
+          <View>
+            <View
+              style={
+                [
+                  {
+                    "alignSelf": "stretch",
+                    "backgroundColor": "#FFFFFF",
+                    "width": "100%",
+                  },
+                  {
+                    "paddingBottom": 20,
+                    "paddingEnd": 20,
+                    "paddingStart": 20,
+                    "paddingTop": 8,
+                  },
+                  {},
+                  undefined,
+                ]
+              }
+            >
+              <Text>
+                Choose an action
+              </Text>
+            </View>
+          </View>
+        </RCTScrollView>
       </View>
     </View>
   </View>
@@ -396,9 +370,13 @@ exports[`Dialog - rendering matches snapshot for modal dialog with title and con
               {
                 "alignSelf": "stretch",
                 "backgroundColor": "#FFFFFF",
-                "padding": 20,
-                "paddingTop": 8,
                 "width": "100%",
+              },
+              {
+                "paddingBottom": 20,
+                "paddingEnd": 20,
+                "paddingStart": 20,
+                "paddingTop": 8,
               },
               {},
               undefined,

@@ -1,5 +1,10 @@
 const path = require('path');
 
+// Pin the zone so date tests behave the same on every machine. It must be set
+// here, before workers start: assigning process.env.TZ inside a test file only
+// changes Jest's sandboxed copy of process.env.
+process.env.TZ = 'America/Los_Angeles';
+
 module.exports = {
   displayName: 'web',
   rootDir: __dirname,

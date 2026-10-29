@@ -5,6 +5,7 @@ import type {
   CalendarValue,
   CalendarLevel,
 } from '../Calendar/types';
+import type { CalendarLevelSelectProps } from '../DatePicker/types';
 import type { PickerFieldBaseProps } from './PickerField';
 
 /**
@@ -12,7 +13,7 @@ import type { PickerFieldBaseProps } from './PickerField';
  * description, error, helperText, required, disabled, readOnly, size, radius,
  * variant, …) plus placeholder / clearable / sections.
  */
-export interface DatePickerInputProps extends PickerFieldBaseProps {
+export interface DatePickerInputProps extends PickerFieldBaseProps, CalendarLevelSelectProps {
   /** Selected value; type depends on `type` prop */
   value?: CalendarValue;
   /** Initial value for uncontrolled usage */

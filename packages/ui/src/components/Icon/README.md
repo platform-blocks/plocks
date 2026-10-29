@@ -16,6 +16,11 @@ import { Icon } from '@plocks/ui';
 <Icon name="chevron-down" size="md" color="#666" />
 <Icon name="search" size={20} />
 
+// Registry names follow Tabler's kebab-case names where one exists
+<Icon name="send" />
+<Icon name="thumb-up" variant="filled" />
+<Icon name="player-skip-forward" />
+
 // Filled variant (falls back to outlined when no filled glyph exists)
 <Icon name="star" variant="filled" />
 

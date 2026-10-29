@@ -1,10 +1,10 @@
 import React, { createRef } from 'react';
-import { AccessibilityInfo, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { pickFiles } from '../filePicker';
 import { FileInput, formatFileSize, validateFileAgainst } from '../FileInput';
-import type { DocumentPickerAssetLike } from '../types';
+import type { DocumentPickerAssetLike, FileInputFile } from '../types';
 
 jest.mock('../filePicker', () => ({
   pickFiles: jest.fn(),
@@ -20,6 +20,15 @@ const asset = (name: string, size: number, mimeType: string): DocumentPickerAsse
   name,
   size,
   mimeType,
+});
+
+const listed = (name: string): FileInputFile => ({
+  file: asset(name, 10, 'text/plain'),
+  id: name,
+  name,
+  size: 10,
+  type: 'text/plain',
+  status: 'pending',
 });
 
 describe('FileInput (native)', () => {
@@ -43,7 +52,7 @@ describe('FileInput (native)', () => {
   });
 
   it('adds picked files, validates them, and removes them', async () => {
-    const onFilesChange = jest.fn();
+    const onChange = jest.fn();
     const onFileRemove = jest.fn();
     mockedPick.mockResolvedValue([asset('cv.pdf', 1000, 'application/pdf'), asset('huge.pdf', 5_000_000, 'application/pdf')]);
 
@@ -53,7 +62,7 @@ describe('FileInput (native)', () => {
         multiple
         maxSize={1_000_000}
         accept={['application/pdf']}
-        onFilesChange={onFilesChange}
+        onChange={onChange}
         onFileRemove={onFileRemove}
       />
     );
@@ -65,7 +74,7 @@ describe('FileInput (native)', () => {
     expect(mockedPick).toHaveBeenCalledWith({ accept: ['application/pdf'], multiple: true });
     expect(screen.getByText('cv.pdf')).toBeTruthy();
     expect(screen.getByText('File size exceeds 1.0MB limit')).toBeTruthy();
-    expect(onFilesChange).toHaveBeenLastCalledWith([
+    expect(onChange).toHaveBeenLastCalledWith([
       expect.objectContaining({ name: 'cv.pdf', status: 'pending' }),
       expect.objectContaining({ name: 'huge.pdf', status: 'error' }),
     ]);
@@ -110,6 +119,71 @@ describe('FileInput (native)', () => {
     });
     expect(screen.getByText('Server down')).toBeTruthy();
     expect(screen.getByLabelText('Failed')).toBeTruthy();
+  });
+
+  it('starts from defaultValue while uncontrolled', () => {
+    render(<FileInput label="File" defaultValue={[listed('kept.txt')]} />);
+    expect(screen.getByText('kept.txt')).toBeTruthy();
+    expect(screen.getByText('1 file selected')).toBeTruthy();
+  });
+
+  it('renders the controlled value and only moves when the parent stores onChange', async () => {
+    const onChange = jest.fn();
+    mockedPick.mockResolvedValue([asset('new.txt', 10, 'text/plain')]);
+    const { rerender } = render(<FileInput label="Files" multiple value={[listed('a.txt')]} onChange={onChange} />);
+    expect(screen.getByText('a.txt')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Files, Choose Files' }));
+    });
+    expect(onChange).toHaveBeenLastCalledWith([
+      expect.objectContaining({ name: 'a.txt' }),
+      expect.objectContaining({ name: 'new.txt', status: 'pending' }),
+    ]);
+    // The parent did not store it, so the list stays as given.
+    rerender(<FileInput label="Files" multiple value={[listed('a.txt')]} onChange={onChange} />);
+    expect(screen.queryByText('new.txt')).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Remove a.txt' }));
+    expect(onChange).toHaveBeenLastCalledWith([]);
+    rerender(<FileInput label="Files" multiple value={[]} onChange={onChange} />);
+    expect(screen.queryByText('a.txt')).toBeNull();
+  });
+
+  it('frees maxFiles room when a controlled file is removed outside the input', async () => {
+    function Harness() {
+      const [files, setFiles] = React.useState<FileInputFile[]>([listed('one.txt'), listed('two.txt')]);
+      return (
+        <>
+          <FileInput label="Files" multiple maxFiles={2} value={files} onChange={setFiles} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Drop first" onPress={() => setFiles((old) => old.slice(1))} />
+        </>
+      );
+    }
+    mockedPick.mockResolvedValue([asset('three.txt', 10, 'text/plain')]);
+    render(<Harness />);
+    const pick = screen.getByRole('button', { name: 'Files, Choose Files' });
+
+    await act(async () => fireEvent.press(pick));
+    expect(screen.queryByText('three.txt')).toBeNull();
+
+    fireEvent.press(screen.getByRole('button', { name: 'Drop first' }));
+    await act(async () => fireEvent.press(pick));
+    expect(screen.getByText('two.txt')).toBeTruthy();
+    expect(screen.getByText('three.txt')).toBeTruthy();
+  });
+
+  it('reports upload status through onChange so a controlled list stays complete', async () => {
+    function Harness() {
+      const [files, setFiles] = React.useState<FileInputFile[]>([]);
+      return <FileInput label="Photo" value={files} onChange={setFiles} onUpload={async () => {}} />;
+    }
+    mockedPick.mockResolvedValue([asset('photo.png', 10, 'image/png')]);
+    render(<Harness />);
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Photo, Choose File' }));
+    });
+    expect(screen.getByLabelText('Uploaded')).toBeTruthy();
   });
 
   it('does not open the picker while disabled', async () => {

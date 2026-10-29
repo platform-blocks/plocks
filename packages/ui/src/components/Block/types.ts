@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { PressableProps, ViewProps, ViewStyle } from 'react-native';
+import type { PressableProps, StyleProp, ViewProps, ViewStyle } from 'react-native';
 
 import type { ShadowToken } from '../../core/theme/tokens';
 import type { BaseProps, RadiusValue } from '../../core/types/base';
@@ -29,12 +29,16 @@ export interface BlockStyleProps {
   borderLeftColor?: string;
   borderTopLeftRadius?: number;
   borderTopRightRadius?: number;
+  borderBottomLeftRadius?: number;
+  borderBottomRightRadius?: number;
   borderStyle?: ViewStyle['borderStyle'];
   overflow?: ViewStyle['overflow'];
   aspectRatio?: number;
   /** Web touch gesture handling; useful for drag surfaces. */
   touchAction?: 'auto' | 'none' | 'pan-x' | 'pan-y' | 'manipulation';
-  /** Small visual offset without affecting surrounding layout. */
+  /** Small horizontal visual offset without affecting surrounding layout. */
+  translateX?: number;
+  /** Small vertical visual offset without affecting surrounding layout. */
   translateY?: number;
   /** Rotation around the block center, such as `"45deg"`. */
   rotate?: string;
@@ -133,6 +137,10 @@ export interface BlockProps
   onLongPress?: PressableProps['onLongPress'];
   onPressIn?: PressableProps['onPressIn'];
   onPressOut?: PressableProps['onPressOut'];
+  /** Milliseconds before `onLongPress` fires. */
+  delayLongPress?: PressableProps['delayLongPress'];
+  /** Style while pressed. A pressable Block has no press feedback without it. */
+  pressedStyle?: StyleProp<ViewStyle>;
   /** Web pointer entry on the rendered root. */
   onMouseEnter?: () => void;
   /** Web pointer exit on the rendered root. */

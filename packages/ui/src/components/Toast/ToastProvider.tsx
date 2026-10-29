@@ -106,6 +106,11 @@ export type ToastStackPosition =
   | 'bottom-center';
 
 export type ToastStackDirection = 'up' | 'down';
+/**
+ * How a position's toasts are arranged: a full list, or a deck that shows only
+ * the newest toast until the stack is hovered or pressed.
+ */
+export type ToastLayout = 'default' | 'stacked';
 export type ToastQueuePriority = 'fifo' | 'lifo' | 'priority';
 
 export interface ToastQueueOptions {
@@ -198,11 +203,47 @@ export interface ToastContextValue {
 
 const ToastApiContext = createContext<ToastContextValue | undefined>(undefined);
 const ToastStateContext = createContext<ToastItem[] | undefined>(undefined);
+/** How many ToastProviders sit above (0 outside any). */
+const ToastDepthContext = createContext(0);
 
 let toastsApiRef: ToastContextValue | null = null;
 let toastsStateRef: ToastItem[] = [];
 const pendingToastOperations: Array<(api: ToastContextValue) => void> = [];
 let pendingToastIdCounter = 0;
+
+// ---- Provider registry ----
+// Several providers can be mounted at once — PlocksProvider's built-in one and
+// an app's own inside it. `useToast()` already reaches the nearest one through
+// context; the global `toasts` API (and `useActiveToasts()` outside a provider)
+// follows the innermost one, so an app-mounted provider wins over the built-in
+// one and a toast never lands in a second viewport.
+interface ToastRegistration {
+  api: ToastContextValue;
+  toasts: ToastItem[];
+  depth: number;
+  order: number;
+}
+
+const toastRegistrations: ToastRegistration[] = [];
+let toastRegistrationCounter = 0;
+
+function getActiveRegistration(): ToastRegistration | null {
+  let active: ToastRegistration | null = null;
+  for (const registration of toastRegistrations) {
+    if (!active || registration.depth > active.depth
+      || (registration.depth === active.depth && registration.order > active.order)) {
+      active = registration;
+    }
+  }
+  return active;
+}
+
+function syncGlobalToastApi() {
+  const active = getActiveRegistration();
+  toastsApiRef = active?.api ?? null;
+  toastsStateRef = active?.toasts ?? [];
+  flushPendingToastOperations();
+}
 
 // Filled: a toast is a brief, glanceable interruption, so the severity mark
 // needs to read as a solid shape rather than a hairline outline.
@@ -305,7 +346,7 @@ export const useActiveToasts = () => {
   return state ?? toastsStateRef;
 };
 
-interface ToastProviderProps {
+export interface ToastProviderProps {
   children: React.ReactNode;
   /** Default position for toasts */
   defaultPosition?: ToastStackPosition;
@@ -325,6 +366,19 @@ interface ToastProviderProps {
   offset?: ToastViewportOffset;
   /** Queue management options */
   queueOptions?: Partial<ToastQueueOptions>;
+  /**
+   * Draws the auto-close progress line on every toast that does not set
+   * `withAutoCloseProgress` itself.
+   * @default false
+   */
+  withAutoCloseProgress?: boolean;
+  /**
+   * `stacked` shows only the newest toast of a position in full, with older
+   * ones peeking out behind it, and expands to the full list while the pointer
+   * rests on the stack or after a press. `default` lists every toast.
+   * @default 'default'
+   */
+  layout?: ToastLayout;
 }
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({
@@ -335,9 +389,12 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
   defaultVariant,
   defaultSize,
   offset,
-  queueOptions
+  queueOptions,
+  withAutoCloseProgress = false,
+  layout = 'default',
 }) => {
   const [toasts, setToast] = useState<ToastItem[]>([]);
+  const depth = useContext(ToastDepthContext) + 1;
 
   // Subscribed rather than read once: a centred stack has to re-centre when the
   // window resizes, and a stack read from a stale width lands off-screen.
@@ -399,6 +456,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
       // whether the pointer is resting on the stack. Running a second timer here
       // used to double-fire the dismissal — and hid `persistent` toasts anyway.
       autoHide: options.autoHide ?? autoHide,
+      withAutoCloseProgress: options.withAutoCloseProgress ?? withAutoCloseProgress,
       timestamp: Date.now(),
       priority: options.priority || 0,
     };
@@ -415,7 +473,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
     });
 
     return id;
-  }, [defaultPosition, maxVisible, autoHide, defaultVariant, defaultSize]);
+  }, [defaultPosition, maxVisible, autoHide, defaultVariant, defaultSize, withAutoCloseProgress]);
 
   const startHiding = useCallback((matches: (toast: ToastItem) => boolean) => {
     setToast(prev => {
@@ -548,8 +606,35 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
     error
   }), [show, send, hide, hideAll, hideGroup, update, batch, promise, info, success, warning, error]);
 
+  // Register with the global API. Declared before the effects that refresh the
+  // registration, so it exists when they first run.
+  const registrationRef = useRef<ToastRegistration | null>(null);
   useEffect(() => {
-    toastsStateRef = toasts;
+    toastRegistrationCounter += 1;
+    const registration: ToastRegistration = {
+      api: contextValue,
+      toasts,
+      depth,
+      order: toastRegistrationCounter,
+    };
+    registrationRef.current = registration;
+    toastRegistrations.push(registration);
+    syncGlobalToastApi();
+    return () => {
+      const index = toastRegistrations.indexOf(registration);
+      if (index !== -1) toastRegistrations.splice(index, 1);
+      if (registrationRef.current === registration) registrationRef.current = null;
+      syncGlobalToastApi();
+    };
+    // The api and toast list are refreshed by the effects below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depth]);
+
+  useEffect(() => {
+    const registration = registrationRef.current;
+    if (!registration) return;
+    registration.toasts = toasts;
+    if (getActiveRegistration() === registration) toastsStateRef = toasts;
   }, [toasts]);
 
   // Arm the fallback removal for anything that has started leaving.
@@ -573,14 +658,10 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
   }, []);
 
   useEffect(() => {
-    toastsApiRef = contextValue;
-    flushPendingToastOperations();
-    return () => {
-      if (toastsApiRef === contextValue) {
-        toastsApiRef = null;
-        toastsStateRef = [];
-      }
-    };
+    const registration = registrationRef.current;
+    if (!registration || registration.api === contextValue) return;
+    registration.api = contextValue;
+    syncGlobalToastApi();
   }, [contextValue]);
 
   const getPositionStyle = (position: ToastStackPosition): ViewStyle => {
@@ -642,7 +723,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
   return (
     <ToastApiContext.Provider value={contextValue}>
       <ToastStateContext.Provider value={toasts}>
-        {children}
+        <ToastDepthContext.Provider value={depth}>{children}</ToastDepthContext.Provider>
       
       {/* One stack per occupied position; the stack owns layout and motion. */}
       {Object.entries(toastsByPosition).map(([position, positionToast]) => (
@@ -652,6 +733,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
           items={positionToast}
           containerStyle={getPositionStyle(position as ToastStackPosition)}
           spacing={spacing}
+          layout={layout}
           onClose={hide}
           onExited={remove}
         />
