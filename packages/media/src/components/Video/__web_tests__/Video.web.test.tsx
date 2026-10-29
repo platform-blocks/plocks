@@ -58,6 +58,57 @@ describe('Video (react-native-web DOM)', () => {
   });
 });
 
+describe('Video playback readout (react-native-web DOM)', () => {
+  function setMediaProp(video: HTMLVideoElement, key: 'currentTime' | 'duration', value: number) {
+    Object.defineProperty(video, key, { configurable: true, get: () => value, set: () => {} });
+  }
+
+  it('advances the elapsed-time readout with the playhead', () => {
+    render(<Video source={{ url: 'https://example.com/clip.mp4' }} />);
+    const video = document.querySelector('video') as HTMLVideoElement;
+    setMediaProp(video, 'duration', 100);
+    act(() => { fireEvent(video, new Event('loadedmetadata')); });
+    expect(screen.getByText('0:00 / 1:40')).toBeTruthy();
+
+    setMediaProp(video, 'currentTime', 12.4);
+    act(() => { fireEvent(video, new Event('timeupdate')); });
+    expect(screen.getByText('0:12 / 1:40')).toBeTruthy();
+    const slider = screen.getByRole('slider', { name: 'Seek' });
+    expect(slider.getAttribute('aria-valuetext')).toBe('0:12 of 1:40');
+  });
+
+  it('ticks the readout over as the playhead crosses a second, between timeupdate events', () => {
+    jest.useFakeTimers();
+    try {
+      render(<Video source={{ url: 'https://example.com/clip.mp4' }} />);
+      const video = document.querySelector('video') as HTMLVideoElement;
+      setMediaProp(video, 'duration', 8);
+      Object.defineProperty(video, 'paused', { configurable: true, get: () => false });
+      act(() => { fireEvent(video, new Event('loadedmetadata')); });
+      act(() => { fireEvent(video, new Event('play')); });
+      expect(screen.getByText('0:00 / 0:08')).toBeTruthy();
+
+      // No timeupdate: the frame loop alone picks up the new second.
+      setMediaProp(video, 'currentTime', 1.02);
+      act(() => { jest.advanceTimersByTime(50); });
+      expect(screen.getByText('0:01 / 0:08')).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('ignores a non-finite duration until the real one arrives', () => {
+    render(<Video source={{ url: 'https://example.com/clip.mp4' }} />);
+    const video = document.querySelector('video') as HTMLVideoElement;
+    setMediaProp(video, 'duration', Infinity);
+    act(() => { fireEvent(video, new Event('loadedmetadata')); });
+    expect(screen.getByText('0:00 / 0:00')).toBeTruthy();
+    setMediaProp(video, 'duration', 65);
+    act(() => { fireEvent(video, new Event('durationchange')); });
+    expect(screen.getByText('0:00 / 1:05')).toBeTruthy();
+  });
+});
+
 describe('VideoControls (react-native-web DOM)', () => {
   it('exposes a keyboard-operable seek slider with a spoken time', () => {
     const { onSeek } = renderControls();

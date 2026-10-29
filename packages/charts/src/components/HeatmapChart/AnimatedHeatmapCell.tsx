@@ -45,6 +45,7 @@ export interface AnimatedHeatmapCellProps {
   cornerRadius?: number;
   totalCells?: number; // Total number of cells for adaptive timing
   showText?: boolean; // Whether to show text inside cells
+  fontFamily?: string; // Theme font family for the cell label
 }
 
 export const AnimatedHeatmapCell: React.FC<AnimatedHeatmapCellProps> = React.memo(({
@@ -55,6 +56,7 @@ export const AnimatedHeatmapCell: React.FC<AnimatedHeatmapCellProps> = React.mem
   cornerRadius = 2,
   totalCells = 100,
   showText = true,
+  fontFamily,
 }) => {
   const opacity = useSharedValue(disabled ? 1 : 0);
   const scale = useSharedValue(disabled ? 1 : 0.3);
@@ -187,6 +189,7 @@ export const AnimatedHeatmapCell: React.FC<AnimatedHeatmapCellProps> = React.mem
           fill={textColor}
           textAnchor="middle"
           pointerEvents="none"
+          fontFamily={fontFamily}
           fontWeight={isHovered || fontSize <= 10 ? '600' : '500'} // Bolder text for small sizes
         >
           {label}

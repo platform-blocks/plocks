@@ -6,6 +6,7 @@ import { a11yProps } from '../../core/accessibility/a11yProps';
 import { useRovingFocus, type UseRovingFocusResult } from '../../core/accessibility/useRovingFocus';
 import { factory, withStatics } from '../../core/factory';
 import { webProps } from '../../core/platform';
+import { useResponsiveValue } from '../../core/responsive';
 import { resolveAccentColor } from '../../core/theme/resolveColors';
 import { resolveSurface } from '../../core/theme/surfaces';
 import { useTheme } from '../../core/theme/ThemeProvider';
@@ -95,6 +96,7 @@ const StepperStep = factory<{ props: StepperStepProps; ref: View }>((
     orientation,
     iconPosition,
     labelPosition,
+    compact,
     iconSize: contextIconSize,
     color: contextColor,
     completedIcon: contextCompletedIcon,
@@ -207,6 +209,8 @@ const StepperStep = factory<{ props: StepperStepProps; ref: View }>((
   };
 
   const renderStepBody = () => {
+    // Compact: the Stepper shows the active step's body once, below the row.
+    if (compact && !isVertical) return null;
     if (!label && !description) return null;
 
     const body = (
@@ -399,6 +403,7 @@ const StepperRoot = factory<{ props: StepperProps; ref: View }>((
     orientation = 'horizontal',
     iconPosition = 'left',
     labelPosition = 'bottom',
+    compact: compactProp = false,
     iconSize,
     size = 'md',
     color,
@@ -419,6 +424,7 @@ const StepperRoot = factory<{ props: StepperProps; ref: View }>((
   const resolvedIconSize = iconSize ?? metrics.iconSize;
   const resolvedColor = resolveAccentColor(theme, color) ?? theme.colors.primary[5];
   const isVertical = orientation === 'vertical';
+  const compact = !isVertical && !!useResponsiveValue(compactProp);
 
   // Collect the steps first so indices track step order, not raw child order
   // (conditional children and `Stepper.Completed` would otherwise skew them).
@@ -458,6 +464,7 @@ const StepperRoot = factory<{ props: StepperProps; ref: View }>((
       orientation,
       iconPosition,
       labelPosition,
+      compact,
       iconSize: resolvedIconSize,
       size,
       metrics,
@@ -472,6 +479,7 @@ const StepperRoot = factory<{ props: StepperProps; ref: View }>((
       orientation,
       iconPosition,
       labelPosition,
+      compact,
       resolvedIconSize,
       size,
       metrics,
@@ -494,6 +502,40 @@ const StepperRoot = factory<{ props: StepperProps; ref: View }>((
   };
 
   const currentStepContent = stepChildren[active]?.props.children ?? null;
+
+  // Compact: the active step's label / description, centered under the row
+  // (nothing once every step is complete).
+  const renderCompactCaption = () => {
+    const step = compact ? stepChildren[active] : undefined;
+    if (!step) return null;
+    const { label, description, labelProps, descriptionProps, color: stepColorProp } = step.props;
+    if (!label && !description) return null;
+    const stepColor = resolveAccentColor(theme, stepColorProp) ?? resolvedColor;
+    return (
+      <View style={{ alignItems: 'center', marginTop: Math.max(6, Math.round(metrics.spacing * 0.75)) }}>
+        {label && (
+          <Text
+            {...mergeSlotProps(
+              { fw: '600', style: { fontSize: metrics.fontSize, color: stepColor, textAlign: 'center', marginBottom: description ? 2 : 0 } },
+              labelProps
+            )}
+          >
+            {label}
+          </Text>
+        )}
+        {description && (
+          <Text
+            {...mergeSlotProps(
+              { style: { fontSize: metrics.descriptionFontSize, color: theme.text.secondary, textAlign: 'center' } },
+              descriptionProps
+            )}
+          >
+            {description}
+          </Text>
+        )}
+      </View>
+    );
+  };
 
   const renderContent = () => {
     const content = active >= stepChildren.length && completedContent ? completedContent : currentStepContent;
@@ -523,6 +565,7 @@ const StepperRoot = factory<{ props: StepperProps; ref: View }>((
             })
           )}
         </View>
+        {renderCompactCaption()}
         {renderContent()}
       </View>
     </StepperContext.Provider>

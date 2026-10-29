@@ -16,12 +16,19 @@ export const getTextAreaStyles = createThemedStyles((theme: PlocksTheme, size: S
     root: { marginBottom: inset } as ViewStyle,
     // Multi-line content and sections sit at the top of the box.
     frame: { alignItems: 'flex-start' } as ViewStyle,
+    // `flex`: the frame takes the root's remaining height and the control stretches with it.
+    frameFill: { flex: 1, alignItems: 'stretch', minHeight: 0 } as ViewStyle,
     input: {
+      // The shared field input is `flex: 1`, which on web is `flex-basis: 0%`
+      // and overrides `height` in the column control: the box collapsed to its
+      // `rows`. An `auto` basis lets `h` (or the rows height) size it.
+      flexBasis: 'auto',
       lineHeight: rowHeight,
       textAlignVertical: 'top',
       paddingTop: 0,
       paddingBottom: 0,
     } as TextStyle,
+    inputFill: { flexGrow: 1, flexShrink: 1, minHeight: 0 } as TextStyle,
     clearButton: { position: 'absolute', top: inset, end: inset, margin: 0 } as ViewStyle,
     counter: {
       color: theme.text.secondary,

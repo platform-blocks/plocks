@@ -552,6 +552,17 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
     };
   }, [windowLayers, xWindowed, xDomain, yDomainLeftProp, yDomainRightProp]);
 
+  const yTicksRight = useMemo(() => yAxisRight?.ticks ?? generateNiceTicks(yDomainRight[0], yDomainRight[1], 5), [yAxisRight?.ticks, yDomainRight]);
+  const yTickFormatRight = useMemo(() => createTickFormatter(yTicksRight, theme.numberFormat, String), [yTicksRight, theme.numberFormat]);
+  const rightTickFontSize = yAxisRight?.labelFontSize ?? 11;
+  // The right axis column is sized off the exact labels the axis draws (its nice
+  // ticks through the same formatter), at the same font size. Measuring the domain's
+  // min/mid/max at a fixed 11px under-reserved for suffixes like "30%".
+  const rightAxisLabelWidth = useMemo(() => {
+    if (!hasRightAxis || yAxisRight?.showLabels === false) return 0;
+    const labels = yTicksRight.map((tick) => String(yAxisRight?.labelFormatter ? yAxisRight.labelFormatter(tick) : yTickFormatRight(tick)));
+    return Math.ceil(measureWidestLabel(labels, rightTickFontSize));
+  }, [hasRightAxis, yAxisRight?.showLabels, yAxisRight?.labelFormatter, yTicksRight, yTickFormatRight, rightTickFontSize]);
   // Margins measured off the labels each axis will draw, rather than a flat 80px
   // gutter that a narrow chart could not afford.
   const axisPadding = useMemo(
@@ -567,16 +578,16 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
       containerWidth: width,
       containerHeight: height,
       // A right-hand value axis needs its own label column.
+      // Tick + gap (matching the axis' tickSize/tickPadding), the label column, and
+      // a few px of slack so a label the estimator reads a hair narrow still fits.
       rightAllowance: hasRightAxis
-        ? Math.ceil(measureWidestLabel(
-            domainTickLabels(yDomainRight, yAxisRight?.labelFormatter, theme.numberFormat, String),
-            11,
-          )) + 12 + (showRightAxisTitle && yAxisRight?.title ? 24 : 0)
+        ? (yAxisRight?.tickLength ?? 4) + 6 + rightAxisLabelWidth + 4
+          + (showRightAxisTitle && yAxisRight?.title ? 24 : 0)
         : 0,
     }),
-    [yDomainLeft, yDomainRight, xDomain, yAxis?.labelFormatter, xAxis?.labelFormatter, yAxisRight?.labelFormatter,
+    [yDomainLeft, xDomain, yAxis?.labelFormatter, xAxis?.labelFormatter,
      yAxis?.title, xAxis?.title, yAxis?.show, xAxis?.show, yAxis?.showLabels, xAxis?.showLabels, hasRightAxis, width, height,
-     theme.numberFormat, showRightAxisTitle, yAxisRight?.title]
+     theme.numberFormat, showRightAxisTitle, yAxisRight?.title, yAxisRight?.tickLength, rightAxisLabelWidth]
   );
   const brushHeight = brushProps?.height ?? CHART_BRUSH_HEIGHT;
   const brushBand = measureChartBrushBand(withBrush, brushHeight);
@@ -802,10 +813,8 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
 
   const xTicks = useMemo(() => xAxis?.ticks ?? generateNiceTicks(xDomain[0], xDomain[1], 6), [xAxis?.ticks, xDomain]);
   const yTicksLeft = useMemo(() => yAxis?.ticks ?? generateNiceTicks(yDomainLeft[0], yDomainLeft[1], 5), [yAxis?.ticks, yDomainLeft]);
-  const yTicksRight = useMemo(() => yAxisRight?.ticks ?? generateNiceTicks(yDomainRight[0], yDomainRight[1], 5), [yAxisRight?.ticks, yDomainRight]);
   const xTickFormat = useMemo(() => createTickFormatter(xTicks, theme.numberFormat, String), [xTicks, theme.numberFormat]);
   const yTickFormatLeft = useMemo(() => createTickFormatter(yTicksLeft, theme.numberFormat, String), [yTicksLeft, theme.numberFormat]);
-  const yTickFormatRight = useMemo(() => createTickFormatter(yTicksRight, theme.numberFormat, String), [yTicksRight, theme.numberFormat]);
 
   const normalizedXTicks = useMemo(() => {
     if (plotWidth <= 0) return [] as number[];

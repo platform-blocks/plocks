@@ -51,3 +51,42 @@ describe('Icon — external icon prop', () => {
     expect(toJSON()).toBeTruthy();
   });
 });
+
+describe('Icon — built-in registry', () => {
+  // Glyphs apps commonly reached for Tabler to get (chat, feeds, media, maps).
+  const names = [
+    'send',
+    'paperclip',
+    'thumb-up',
+    'thumb-down',
+    'flame',
+    'eye-off',
+    'map-pin',
+    'bell-ringing',
+    'player-skip-forward',
+    'player-skip-back',
+    'dots-vertical',
+    'mood-plus',
+    'users',
+    'circle-check',
+  ];
+
+  it.each(names)('ships `%s` in the default registry', name => {
+    const { tablerIcons } = require('../icons/tabler');
+    expect(tablerIcons[name]?.outlined).toBeTruthy();
+  });
+
+  it.each(names)('renders `%s` without a missing-icon fallback', name => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const { toJSON } = render(<Icon name={name} variant="filled" />);
+    expect(toJSON()).toBeTruthy();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('aliases kebab-case names onto existing glyphs', () => {
+    const { tablerIcons } = require('../icons/tabler');
+    expect(tablerIcons['eye-off'].outlined).toBe(tablerIcons.eyeOff.outlined);
+    expect(tablerIcons['map-pin'].outlined).toBe(tablerIcons.location.outlined);
+  });
+});

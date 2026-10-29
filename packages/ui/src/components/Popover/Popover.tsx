@@ -274,12 +274,15 @@ const PopoverBase = (props: PopoverProps, ref: React.Ref<View>) => {
     onPositionChange?.(floating.placement);
   }, [isOpen, positioningResult, floating.placement, onPositionChange]);
 
-  // Same sizing as before the move to useFloating: an explicit `w`, the
-  // anchor width for 'target', otherwise the measured content width.
-  const computedFinalWidth = positioningResult?.finalWidth && positioningResult.finalWidth > 0
+  // An explicit `w`, or the anchor width for 'target'. Otherwise no width at
+  // all: the dropdown sizes to its content, bounded by the viewport (the
+  // positioner's `maxWidth`) and `maw`. Feeding the measured width back as a
+  // fixed width locked the dropdown at the positioner's pre-measure guess
+  // (200px), squeezing wider fixed-width content such as a 352px picker.
+  const targetWidth = w === 'target' && positioningResult?.finalWidth && positioningResult.finalWidth > 0
     ? positioningResult.finalWidth
     : undefined;
-  const widthOverride = typeof w === 'number' ? w : computedFinalWidth;
+  const widthOverride = typeof w === 'number' ? w : targetWidth;
 
   const computedMaxHeight = positioningResult?.maxHeight;
   const resolvedMaxHeight = typeof maxH === 'number'

@@ -149,9 +149,13 @@ exports[`Dialog - rendering matches snapshot for bottom sheet dialog without clo
                   {
                     "alignSelf": "stretch",
                     "backgroundColor": "#FFFFFF",
-                    "padding": 20,
-                    "paddingTop": 8,
                     "width": "100%",
+                  },
+                  {
+                    "paddingBottom": 20,
+                    "paddingEnd": 20,
+                    "paddingStart": 20,
+                    "paddingTop": 8,
                   },
                   {},
                   undefined,
@@ -366,9 +370,13 @@ exports[`Dialog - rendering matches snapshot for modal dialog with title and con
               {
                 "alignSelf": "stretch",
                 "backgroundColor": "#FFFFFF",
-                "padding": 20,
-                "paddingTop": 8,
                 "width": "100%",
+              },
+              {
+                "paddingBottom": 20,
+                "paddingEnd": 20,
+                "paddingStart": 20,
+                "paddingTop": 8,
               },
               {},
               undefined,

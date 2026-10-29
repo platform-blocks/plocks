@@ -413,7 +413,7 @@ const CHART_HIDDEN_PROPS = [
   'colorOptions', 'quadrants', 'labels', 'labelTextStyle', 'track', 'ticks', 'needle',
   'centerLabel', 'centerSubLabel', 'ranges', 'statsMarkers', 'valueBands', 'radialGrid',
   'defaultSliceStyle', 'padding', 'chartPadding', 'layout', 'connectors', 'cellSize',
-  'domain', 'xDomain', 'yDomain', 'yDomainRight', 'rangeHighlights', 'hoverHighlight',
+  'domain', 'xDomain', 'yDomain', 'yDomainRight', 'domainPadding', 'rangeHighlights', 'hoverHighlight',
   'gradientLegend', 'accessibilityTable', 'movingAveragePeriods', 'movingAverageColors',
   'nodeRadiusRange', 'linkWidthRange', 'linkPalette', 'range',
   // Formatter / render callbacks
@@ -2598,7 +2598,7 @@ const PLAYGROUND_CONFIGS: Record<string, ComponentPlaygroundConfig> = {
     },
     pinnedProps: ['label', 'variant', 'multiple', 'showFileList', 'enableDragDrop', 'imagePreview', 'size', 'disabled', 'clearable', 'required'],
     hiddenProps: [
-      ...COMMON_EVENT_PROPS, ...INPUT_NOISE_PROPS, 'accept', 'maxSize', 'maxFiles', 'onUpload', 'onProgress', 'onFilesChange',
+      ...COMMON_EVENT_PROPS, ...INPUT_NOISE_PROPS, 'accept', 'maxSize', 'maxFiles', 'onUpload', 'onProgress', 'onChange', 'value', 'defaultValue',
       'onFileRemove', 'PreviewComponent', 'validateFile', 'uploadSettings', 'placeholder', 'error', 'helperText', 'description',
       'withAsterisk', 'onChangeText', 'onClear', 'm', 'mt', 'mr', 'mb', 'ml', 'mx', 'my', 'p', 'pt', 'pr', 'pb', 'pl', 'px', 'py',
     ],

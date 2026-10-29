@@ -109,6 +109,10 @@ import { Block } from '@plocks/ui';
 | `radius` | `number \| 'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl' \| 'full'` | Border radius |
 | `borderWidth` | `number` | Border width |
 | `borderColor` | `string` | Border color |
+| `borderTopLeftRadius`, `borderTopRightRadius` | `number` | Top corner radii (px) |
+| `borderBottomLeftRadius`, `borderBottomRightRadius` | `number` | Bottom corner radii (px) |
+| `translateX`, `translateY` | `number` | Visual offset (px) that doesn't move surrounding layout |
+| `rotate` | `string` | Rotation around the center, such as `'45deg'` |
 | `shadow` | `'none' \| 'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | Shadow depth |
 | `opacity` | `number` | Opacity (0-1) |
 
@@ -124,7 +128,7 @@ import { Block } from '@plocks/ui';
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `flex` | `boolean` | Enable flex container |
+| `flex` | `boolean \| number` | `true`/`false` toggles the flex container; a number sets the flex factor |
 | `grow` | `boolean \| number` | Flex grow |
 | `shrink` | `boolean \| number` | Flex shrink |
 | `basis` | `number \| string` | Flex basis |

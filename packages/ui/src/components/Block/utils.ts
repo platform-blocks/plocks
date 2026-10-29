@@ -66,9 +66,12 @@ export function getBlockStyles(props: BlockStyleProps, theme?: ThemeLike): ViewS
     borderLeftColor,
     borderTopLeftRadius,
     borderTopRightRadius,
+    borderBottomLeftRadius,
+    borderBottomRightRadius,
     borderStyle,
     overflow,
     aspectRatio,
+    translateX,
     translateY,
     rotate,
     shadow,
@@ -108,12 +111,18 @@ export function getBlockStyles(props: BlockStyleProps, theme?: ThemeLike): ViewS
     borderLeftColor,
     borderTopLeftRadius,
     borderTopRightRadius,
+    borderBottomLeftRadius,
+    borderBottomRightRadius,
     borderStyle,
     overflow,
     aspectRatio,
-    transform: translateY === undefined && rotate === undefined
+    transform: translateX === undefined && translateY === undefined && rotate === undefined
       ? undefined
-      : [...(translateY === undefined ? [] : [{ translateY }]), ...(rotate === undefined ? [] : [{ rotate }])],
+      : [
+          ...(translateX === undefined ? [] : [{ translateX }]),
+          ...(translateY === undefined ? [] : [{ translateY }]),
+          ...(rotate === undefined ? [] : [{ rotate }]),
+        ],
 
     // Shadow
     ...blockShadow(shadow, theme),

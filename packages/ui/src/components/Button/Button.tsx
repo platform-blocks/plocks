@@ -85,7 +85,7 @@ export const Button = factory<{ props: ButtonProps; ref: View }>((allProps, ref)
     onLayout,
     onFocus,
     onBlur,
-    variant = 'default',
+    variant: variantProp,
     size = 'md',
     disabled = false,
     loading = false,
@@ -99,6 +99,7 @@ export const Button = factory<{ props: ButtonProps; ref: View }>((allProps, ref)
     transitionDuration,
     radius,
     shadow,
+    flex,
     style,
     testID,
     accessibilityLabel: accessibilityLabelProp,
@@ -109,6 +110,9 @@ export const Button = factory<{ props: ButtonProps; ref: View }>((allProps, ref)
 
   const theme = useTheme();
   const reducedMotion = useReducedMotion();
+  // An accent `color` with no `variant` means a filled button in that color;
+  // without either the button stays neutral. An explicit `variant` always wins.
+  const variant = variantProp ?? (color != null ? 'filled' : 'default');
   const effectiveVariant = variant === 'gradient' && !hasLinearGradient ? 'filled' : variant;
 
   // Last width the button occupied with its real content, so the loading state
@@ -149,7 +153,11 @@ export const Button = factory<{ props: ButtonProps; ref: View }>((allProps, ref)
   const shadowStyle = resolveShadow(theme, shadow as ShadowToken | undefined);
 
   // `fullWidth` first, so an explicit `w` wins.
-  const rootStyles = { ...getLayoutStyles(layoutProps), ...resolveStyleProps(styleProps, theme) };
+  const rootStyles = {
+    ...getLayoutStyles(layoutProps),
+    ...resolveStyleProps(styleProps, theme),
+    ...(flex !== undefined ? { flex } : null),
+  };
   const {
     outer: outerLayoutStyles,
     pressableLayout: pressableLayoutStyles,

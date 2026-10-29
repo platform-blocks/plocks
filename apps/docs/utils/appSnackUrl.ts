@@ -9,7 +9,7 @@ interface AppSnackEntry {
 }
 
 /** Apps verified in Snack's Android preview with the published SDK 54 packages. */
-const READY_APP_SNACKS = new Set(['calculator', 'flutterflight']);
+const READY_APP_SNACKS = new Set(['calculator']);
 
 /** Native peers needed when Snack bundles the published plocks packages. */
 const APP_SNACK_NATIVE_DEPS = [

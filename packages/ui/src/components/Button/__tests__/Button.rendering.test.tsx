@@ -556,6 +556,49 @@ describe('Button Component - Rendering & Behavior', () => {
       const { toJSON } = render(<Button title="Both" fullWidth w={200} />);
       expect(wrapperStyle(toJSON()).width).toBe(200);
     });
+
+    it('fills with an accent `color` when no variant is given', () => {
+      const implicit = render(<Button title="Send" color="#5865F2" testID="implicit" />);
+      const explicit = render(<Button title="Send" color="#5865F2" variant="filled" testID="explicit" />);
+
+      const style = pressableStyle(implicit.getByTestId('implicit'));
+      expect(style).toEqual(pressableStyle(explicit.getByTestId('explicit')));
+      expect(style.backgroundColor).toBe('#5865F2');
+      // The label contrasts with the fill rather than using body text.
+      const labelColor = StyleSheet.flatten(implicit.getByText('Send').props.style).color;
+      expect(labelColor).toBe(StyleSheet.flatten(explicit.getByText('Send').props.style).color);
+      expect(labelColor).not.toBe(StyleSheet.flatten(render(<Button title="Plain" />).getByText('Plain').props.style).color);
+    });
+
+    it('fills with a palette `color` token when no variant is given', () => {
+      const implicit = render(<Button title="Go" color="success" testID="implicit" />);
+      const explicit = render(<Button title="Go" color="success" variant="filled" testID="explicit" />);
+      expect(pressableStyle(implicit.getByTestId('implicit'))).toEqual(
+        pressableStyle(explicit.getByTestId('explicit'))
+      );
+    });
+
+    it('lets an explicit variant win over the color-implied fill', () => {
+      const neutral = render(<Button title="N" testID="neutral" />);
+      const tinted = render(<Button title="N" color="#5865F2" variant="default" testID="tinted" />);
+      expect(pressableStyle(tinted.getByTestId('tinted'))).toEqual(
+        pressableStyle(neutral.getByTestId('neutral'))
+      );
+
+      const outline = render(<Button title="O" color="#5865F2" variant="outline" testID="outline" />);
+      const outlineStyle = pressableStyle(outline.getByTestId('outline'));
+      expect(outlineStyle.backgroundColor).not.toBe('#5865F2');
+      expect(outlineStyle.borderColor).not.toBe('transparent');
+    });
+
+    it('puts `flex` on the wrapper so buttons can share a row', () => {
+      const { getByTestId, toJSON } = render(<Button title="Half" flex={1} testID="button" />);
+      const wrapper = wrapperStyle(toJSON());
+
+      expect(wrapper.flex).toBe(1);
+      expect(wrapper.alignItems).toBe('stretch');
+      expect(pressableStyle(getByTestId('button')).flex).toBeUndefined();
+    });
   });
 
   // ============================================================================

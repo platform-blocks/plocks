@@ -6,9 +6,18 @@ source: ui/src/components/FileInput
 status: stable
 category: input
 props:
-  - name: onFilesChange
-    type: function
-    description: Callback when files are selected or removed
+  - name: value
+    type: FileInputFile[]
+    description: Selected files (controlled). The list and its `maxFiles` count follow this prop, so removing a file from it outside the input frees its slot
+  - name: defaultValue
+    type: FileInputFile[]
+    description: Initially selected files while uncontrolled
+  - name: onChange
+    type: "(files: FileInputFile[]) => void"
+    description: Called with the full list whenever it changes — files added or removed, and upload status / progress
+  - name: onFileRemove
+    type: "(fileId: string) => void"
+    description: Called with the id of a file removed from the list
   - name: multiple
     type: boolean
     description: Whether to allow multiple file selection
@@ -82,6 +91,7 @@ props:
     description: Built-in multipart uploader (one request per file) used when there is no onUpload
 examples:
   - basic
+  - controlled
   - fileTypes
   - imagePreview
   - upload

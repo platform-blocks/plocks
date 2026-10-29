@@ -320,6 +320,10 @@ export const YouTubePlayer = forwardRef<VideoPlayerHandle, YouTubePlayerProps>((
             durationRef.current = d.duration;
             emitDurationChange(d.duration);
           }
+          if (d.currentTime !== undefined && d.currentTime !== currentTimeRef.current) {
+            currentTimeRef.current = d.currentTime;
+            emitTimeUpdate(d.currentTime);
+          }
           emitLoad();
           break;
 
@@ -332,9 +336,17 @@ export const YouTubePlayer = forwardRef<VideoPlayerHandle, YouTubePlayerProps>((
 
           setIsPlaying(isNowPlaying);
 
-          // Update time/duration from additional data if available.
-          if (d.currentTime !== undefined) currentTimeRef.current = d.currentTime;
-          if (d.duration !== undefined) durationRef.current = d.duration;
+          // Play / pause / seek / end carry the playhead. Emit it: recording it in the
+          // ref alone left the readout on its old value, and the next poll within
+          // 0.1s of it was then dropped as "no change".
+          if (d.currentTime !== undefined && d.currentTime !== currentTimeRef.current) {
+            currentTimeRef.current = d.currentTime;
+            emitTimeUpdate(d.currentTime);
+          }
+          if (d.duration !== undefined && d.duration > 0 && d.duration !== durationRef.current) {
+            durationRef.current = d.duration;
+            emitDurationChange(d.duration);
+          }
 
           if (isNowPlaying) {
             emitPlay();

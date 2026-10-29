@@ -36,6 +36,7 @@ export function getFieldFocusRingColor(theme: PlocksTheme): string {
  * error state, where the border stays the error color — so focus never
  * reflows the field and never hides the error. `success` colors the border
  * with the theme's success color the same way; `invalid` wins over it.
+ * `unstyled` draws no frame and no ring (its `focusRing` is `display: 'none'`).
  *
  * @example
  * const styles = getFieldFrameStyles(theme, size, variant, radius, invalid, focused, disabled);
@@ -108,6 +109,8 @@ export const getFieldFrameStyles = createThemedStyles(
       borderColor: getFieldFocusRingColor(theme),
       borderRadius: borderRadius + borderWidth + FIELD_FOCUS_RING_WIDTH,
       pointerEvents: 'none',
+      // `unstyled` means no frame at all, so no ring either (for frames that render it regardless).
+      ...(unstyled ? { display: 'none' as const } : null),
     };
 
     const input: TextStyle = {

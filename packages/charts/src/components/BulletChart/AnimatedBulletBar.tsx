@@ -20,6 +20,23 @@ export interface AnimatedBulletBarProps {
   testID?: string;
 }
 
+/**
+ * The rect for one animation frame. The drawn length is clamped to the bar's
+ * extent: on web, a timing animation's first frame can land before its start
+ * time, and the ease-out curve then returns a large negative value, which an SVG
+ * rect rejects (and which would draw the bar past its baseline).
+ */
+export function bulletBarFrame(
+  drawn: number,
+  rect: { x: number; y: number; width: number; height: number },
+  horizontal: boolean
+) {
+  'worklet';
+  const { x, y, width, height } = rect;
+  const length = Math.min(Math.max(0, drawn), Math.max(0, horizontal ? width : height));
+  return horizontal ? { x, y, width: length, height } : { x, y: y + height - length, width, height: length };
+}
+
 /** The bullet's value bar, growing out from its baseline. */
 export const AnimatedBulletBar: React.FC<AnimatedBulletBarProps> = React.memo(
   ({ x, y, width, height, horizontal, fill, stroke, duration, disabled = false, testID }) => {
@@ -30,10 +47,8 @@ export const AnimatedBulletBar: React.FC<AnimatedBulletBarProps> = React.memo(
       drawn.value = disabled ? length : withTiming(length, { duration, easing: Easing.out(Easing.cubic) });
     }, [disabled, length, duration, drawn]);
 
-    const animatedProps = useAnimatedProps(() =>
-      horizontal
-        ? ({ x, y, width: drawn.value, height } as any)
-        : ({ x, y: y + height - drawn.value, width, height: drawn.value } as any)
+    const animatedProps = useAnimatedProps(
+      () => bulletBarFrame(drawn.value, { x, y, width, height }, horizontal) as any
     );
 
     const strokeProps = stroke ? { stroke, strokeWidth: 1.5 } : { stroke: 'none', strokeWidth: 0 };

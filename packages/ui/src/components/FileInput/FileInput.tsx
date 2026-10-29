@@ -6,6 +6,7 @@ import { getNodeText, useA11yId } from '../../core/accessibility/useA11yId';
 import { factory } from '../../core/factory/factory';
 import { createThemedStyles } from '../../core/hooks/useThemedStyles';
 import { useLatestCallback } from '../../core/hooks/useLatestCallback';
+import { useControllableState } from '../../hooks/useControllableState/useControllableState';
 import { isWeb } from '../../core/platform';
 import { webStyle } from '../../core/platform/webStyle';
 import { useTheme } from '../../core/theme/ThemeProvider';
@@ -23,6 +24,7 @@ import type { DocumentPickerAssetLike, FileInputFile, FileInputProps, FileInputS
 import { uploadFiles } from './upload';
 
 const EMPTY_ACCEPT: string[] = [];
+const EMPTY_FILES: FileInputFile[] = [];
 const DEFAULT_IMAGE_PREVIEW: NonNullable<FileInputProps['imagePreview']> = {
   enabled: true,
   maxWidth: 200,
@@ -210,7 +212,9 @@ export const FileInput = factory<{ props: FileInputProps; ref: View }>(
       maxFiles = 10,
       onUpload,
       onProgress,
-      onFilesChange,
+      value,
+      defaultValue,
+      onChange,
       onFileRemove,
       PreviewComponent,
       children,
@@ -241,8 +245,16 @@ export const FileInput = factory<{ props: FileInputProps; ref: View }>(
 
     const theme = useTheme();
     const renderDisclaimer = useDisclaimer(disclaimerData.disclaimer, disclaimerData.disclaimerProps);
-    const [files, setFiles] = useState<FileInputFile[]>([]);
+    const [files, setFiles] = useControllableState<FileInputFile[]>({
+      value,
+      defaultValue,
+      finalValue: EMPTY_FILES,
+      onChange,
+    });
+    // The list as of the latest render or update, so `maxFiles` room and async
+    // upload steps see it (a controlled `value` shrinking outside frees room).
     const filesRef = useRef<FileInputFile[]>(files);
+    filesRef.current = files;
     const [isDragOver, setIsDragOver] = useState(false);
     const dropZoneRef = useRef<View>(null);
     const buttonTextId = useA11yId(undefined, 'file-input-action');
@@ -250,13 +262,20 @@ export const FileInput = factory<{ props: FileInputProps; ref: View }>(
 
     const styles = getFileInputStyles(theme, size, radius, isDragOver);
 
-    /** Updates the list (ref first, so async steps see the latest). */
-    const updateFiles = useCallback((next: (previous: FileInputFile[]) => FileInputFile[]) => {
-      const updated = next(filesRef.current);
-      filesRef.current = updated;
-      setFiles(updated);
-      return updated;
-    }, []);
+    /**
+     * Updates the list (ref first, so async steps see the latest) and reports it
+     * through `onChange`; controlled, the `value` prop only moves when the
+     * parent stores what `onChange` hands it.
+     */
+    const updateFiles = useCallback(
+      (next: (previous: FileInputFile[]) => FileInputFile[]) => {
+        const updated = next(filesRef.current);
+        filesRef.current = updated;
+        setFiles(updated);
+        return updated;
+      },
+      [setFiles]
+    );
 
     const reportProgress = useCallback(
       (fileId: string, progress: number) => {
@@ -316,8 +335,7 @@ export const FileInput = factory<{ props: FileInputProps; ref: View }>(
           });
         }
 
-        const updated = updateFiles((previous) => (multiple ? [...previous, ...newFiles] : newFiles));
-        onFilesChange?.(updated);
+        updateFiles((previous) => (multiple ? [...previous, ...newFiles] : newFiles));
         announce(`${newFiles.length} file${newFiles.length === 1 ? '' : 's'} selected`);
 
         const validFiles = newFiles.filter((f) => !f.error);
@@ -325,16 +343,15 @@ export const FileInput = factory<{ props: FileInputProps; ref: View }>(
           await handleUpload(validFiles);
         }
       },
-      [multiple, maxFiles, maxSize, accept, validateFile, imagePreview, updateFiles, onFilesChange, onUpload, uploadSettings, handleUpload]
+      [multiple, maxFiles, maxSize, accept, validateFile, imagePreview, updateFiles, onUpload, uploadSettings, handleUpload]
     );
 
     const handleFileRemove = useCallback(
       (fileId: string) => {
-        const updated = updateFiles((previous) => previous.filter((f) => f.id !== fileId));
+        updateFiles((previous) => previous.filter((f) => f.id !== fileId));
         onFileRemove?.(fileId);
-        onFilesChange?.(updated);
       },
-      [updateFiles, onFileRemove, onFilesChange]
+      [updateFiles, onFileRemove]
     );
 
     const handleBrowseFiles = useCallback(async () => {

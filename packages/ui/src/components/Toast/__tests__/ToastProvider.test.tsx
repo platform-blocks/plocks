@@ -461,3 +461,60 @@ describe('useOptionalToast', () => {
     expect(optional).not.toBe(toasts);
   });
 });
+
+describe('nested ToastProviders', () => {
+  it('lets the inner provider own its subtree: one toast, one stack', () => {
+    let outerApi: ReturnType<typeof useOptionalToast> | undefined;
+    let innerApi: ReturnType<typeof useOptionalToast> | undefined;
+    function OuterProbe() {
+      outerApi = useOptionalToast();
+      return null;
+    }
+    function InnerProbe() {
+      innerApi = useOptionalToast();
+      return null;
+    }
+    render(
+      <ToastProvider>
+        <OuterProbe />
+        <ToastProvider defaultPosition="bottom-center">
+          <InnerProbe />
+          <Trigger options={{ title: 'Once', persistent: true }} />
+        </ToastProvider>
+      </ToastProvider>
+    );
+    expect(innerApi).not.toBe(outerApi);
+
+    press('show');
+    expect(screen.getAllByText('Once')).toHaveLength(1);
+  });
+
+  it('routes the global `toasts` API to the innermost provider, and back when it unmounts', () => {
+    function Shell({ inner }: { inner: boolean }) {
+      return (
+        <ToastProvider>
+          {inner ? <ToastProvider><Probe /></ToastProvider> : <Probe />}
+        </ToastProvider>
+      );
+    }
+    let api: ReturnType<typeof useOptionalToast> | undefined;
+    function Probe() {
+      api = useOptionalToast();
+      return null;
+    }
+    const view = render(<Shell inner />);
+    const innerApi = api!;
+    const showInner = jest.spyOn(innerApi, 'show');
+    act(() => { toasts.show({ title: 'Global', persistent: true }); });
+    expect(showInner).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('Global')).toHaveLength(1);
+
+    view.rerender(<Shell inner={false} />);
+    const outerApi = api!;
+    expect(outerApi).not.toBe(innerApi);
+    const showOuter = jest.spyOn(outerApi, 'show');
+    act(() => { toasts.show({ title: 'Again', persistent: true }); });
+    expect(showOuter).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('Again')).toHaveLength(1);
+  });
+});

@@ -60,4 +60,34 @@ describe('Block', () => {
     fireEvent(screen.getByText('hold'), 'longPress');
     expect(onLongPress).toHaveBeenCalledTimes(1);
   });
+
+  it('applies translateX alongside translateY and rotate', () => {
+    render(<Block testID="block" translateX={4} translateY={-2} rotate="45deg" />);
+    expect(StyleSheet.flatten(screen.getByTestId('block').props.style).transform).toEqual([
+      { translateX: 4 },
+      { translateY: -2 },
+      { rotate: '45deg' },
+    ]);
+  });
+
+  it('applies translateX on its own', () => {
+    render(<Block testID="block" translateX={8} />);
+    expect(StyleSheet.flatten(screen.getByTestId('block').props.style).transform).toEqual([{ translateX: 8 }]);
+  });
+
+  it('applies per-corner radii, including the bottom corners', () => {
+    render(
+      <Block testID="block" borderTopLeftRadius={1} borderTopRightRadius={2} borderBottomLeftRadius={3} borderBottomRightRadius={4} />
+    );
+    const style = screen.getByTestId('block').props.style;
+    expect(StyleSheet.flatten(style)).toMatchObject({
+      borderTopLeftRadius: 1,
+      borderTopRightRadius: 2,
+      borderBottomLeftRadius: 3,
+      borderBottomRightRadius: 4,
+    });
+    // Layout props are consumed, not forwarded as host props.
+    expect(screen.getByTestId('block').props.borderBottomLeftRadius).toBeUndefined();
+    expect(screen.getByTestId('block').props.translateX).toBeUndefined();
+  });
 });

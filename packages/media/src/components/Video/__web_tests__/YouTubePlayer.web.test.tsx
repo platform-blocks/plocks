@@ -39,6 +39,20 @@ describe('YouTube playback (react-native-web DOM)', () => {
     expect(onQualityChange).toHaveBeenCalledWith('hd720');
   });
 
+  it('updates the elapsed readout from the playhead a state change carries', () => {
+    render(<Video source={{ youtube: 'dQw4w9WgXcQ' }} />);
+    const iframe = document.querySelector('iframe') as HTMLIFrameElement;
+    postFromPlayer(iframe, { eventType: 'playerReady', data: { duration: 120, currentTime: 0 } });
+    expect(screen.getByText('0:00 / 2:00')).toBeTruthy();
+
+    // A seek while paused arrives as a state change, not a progress tick.
+    postFromPlayer(iframe, { eventType: 'playerStateChange', data: { state: 2, currentTime: 42.5, duration: 120 } });
+    expect(screen.getByText('0:42 / 2:00')).toBeTruthy();
+    // The next poll at the same position must not leave it behind.
+    postFromPlayer(iframe, { eventType: 'playerState', data: { currentTime: 42.55, duration: 120 } });
+    expect(screen.getByText('0:42 / 2:00')).toBeTruthy();
+  });
+
   it('ignores messages from other windows', () => {
     const onDurationChange = jest.fn();
     render(<Video source={{ youtube: 'dQw4w9WgXcQ' }} onDurationChange={onDurationChange} />);

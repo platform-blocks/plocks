@@ -445,6 +445,46 @@ describe('Text - Type Safety and Prop Validation', () => {
       const { getByText } = render(<Text ff="Arial">Custom Font</Text>);
       expect(getByText('Custom Font')).toBeTruthy();
     });
+
+    describe('stroke (native approximation)', () => {
+      const flat = (node: { props: Record<string, unknown> }) =>
+        require('react-native').StyleSheet.flatten(node.props.style);
+
+      it('draws a textShadow halo in the stroke color, 1px by default', () => {
+        const { getByText } = render(<Text stroke="#ff0000">Outlined</Text>);
+        expect(flat(getByText('Outlined'))).toMatchObject({
+          textShadowColor: '#ff0000',
+          textShadowOffset: { width: 0, height: 0 },
+          textShadowRadius: 1,
+        });
+      });
+
+      it('takes { c, w } and resolves theme colors', () => {
+        const { getByText } = render(<Text stroke={{ c: 'primary.5', w: 3 }}>Wide</Text>);
+        expect(flat(getByText('Wide'))).toMatchObject({ textShadowColor: '#1976d2', textShadowRadius: 3 });
+      });
+
+      it('defaults the stroke color to text.primary', () => {
+        const { getByText } = render(<Text stroke={{ w: 2 }}>Default</Text>);
+        expect(flat(getByText('Default'))).toMatchObject({ textShadowColor: '#000000', textShadowRadius: 2 });
+      });
+
+      it('fills transparent text with the stroke color so it stays visible', () => {
+        const { getByText } = render(<Text c="transparent" stroke="#ff0000">1</Text>);
+        expect(flat(getByText('1')).color).toBe('#ff0000');
+      });
+
+      it('keeps an opaque fill and adds nothing without stroke', () => {
+        const { getByText } = render(
+          <>
+            <Text c="#00ff00" stroke="#ff0000">Kept</Text>
+            <Text>Plain</Text>
+          </>
+        );
+        expect(flat(getByText('Kept')).color).toBe('#00ff00');
+        expect(flat(getByText('Plain')).textShadowColor).toBeUndefined();
+      });
+    });
   });
 
   describe('Interaction Props', () => {

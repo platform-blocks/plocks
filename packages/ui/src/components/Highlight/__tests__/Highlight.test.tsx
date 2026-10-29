@@ -36,6 +36,23 @@ describe('Highlight (native)', () => {
     expect(mark.color).toBe(DEFAULT_THEME.text.link);
   });
 
+  it('keeps the surrounding font and size on marked fragments', () => {
+    render(
+      <>
+        <Highlight highlight="serif" style={{ fontFamily: 'Georgia', fontSize: 21, lineHeight: 36 }}>
+          A serif paragraph
+        </Highlight>
+        <Highlight highlight="large" size={28} ff="Courier">
+          Something large
+        </Highlight>
+      </>
+    );
+    const fromStyle = flatStyle(screen.getByText('serif'));
+    expect(fromStyle).toMatchObject({ fontFamily: 'Georgia', fontSize: 21, lineHeight: 36 });
+    const fromProps = flatStyle(screen.getByText('large'));
+    expect(fromProps).toMatchObject({ fontFamily: 'Courier', fontSize: 28 });
+  });
+
   it('renders the text untouched when there is nothing to highlight', () => {
     render(<Highlight testID="plain">Nothing to mark</Highlight>);
     expect(screen.getByTestId('plain')).toHaveTextContent('Nothing to mark');

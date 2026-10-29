@@ -192,8 +192,9 @@ export const estimateChartTextWidth = (text: string, fontSize: number): number =
   for (let i = 0; i < text.length; i += 1) {
     const char = text[i];
     if (/[ilj.,:;'!|[\]()]/.test(char)) advances += 0.32;
-    else if (/[mwMW@]/.test(char)) advances += 0.86;
-    else if (/[A-Z0-9$%&]/.test(char)) advances += 0.63;
+    // '%' is nearly an em wide in most sans faces — as wide as 'm', not a digit.
+    else if (/[mwMW@%]/.test(char)) advances += 0.86;
+    else if (/[A-Z0-9$&]/.test(char)) advances += 0.63;
     else if (char === ' ') advances += 0.28;
     else advances += 0.53;
   }

@@ -31,6 +31,7 @@ export const EmojiPicker = factory<{ props: EmojiPickerProps; ref: View }>((prop
     maxRecent = 24,
     searchPlaceholder = 'Search emoji',
     emptyText = 'No emoji found',
+    withBorder = true,
     style,
     testID,
   } = props;
@@ -99,16 +100,19 @@ export const EmojiPicker = factory<{ props: EmojiPickerProps; ref: View }>((prop
         if (next > 0 && Math.abs(next - width) > 1) setWidth(next);
       }}
       style={[
-        { width: 352, maxWidth: '100%', height: 420, backgroundColor: theme.backgrounds.elevated, borderColor: theme.backgrounds.border, borderWidth: 1, borderRadius: theme.radii.lg, overflow: 'hidden' },
+        { width: 352, maxWidth: '100%', height: 420, overflow: 'hidden' },
+        // The frame; a host Popover / Dialog / sheet that draws its own drops it.
+        withBorder && { backgroundColor: theme.backgrounds.elevated, borderColor: theme.backgrounds.border, borderWidth: 1, borderRadius: theme.radii.lg },
         getLayoutStyles({ fullWidth: props.fullWidth }),
         styleProps,
         style,
       ]}
     >
       <View style={{ paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, gap: 10 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text c={theme.text.primary} fw="bold" size={15}>Emoji</Text>
-          {hasSkinTones && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 2, alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <Text c={theme.text.primary} fw="bold" size={15} style={{ flexShrink: 0 }}>Emoji</Text>
+          {/* Sized to its content (not stretched against the title); scrolls when the picker is narrow. */}
+          {hasSkinTones && <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 2, alignItems: 'center' }}>
             {TONE_EMOJIS.map((emoji, index) => {
               const selected = tone === index;
               return (

@@ -18,6 +18,7 @@ props:
   backdropClosable: Whether tapping the backdrop closes the dialog
   onClose: Called when the dialog requests close
   showHeader: Show the styled header bar
+  p: Body padding in every variant (default 20, 8 on top below a title or handle, 0 for fullscreen); `p={0}` for edge-to-edge content, `px` / `py` / `pt` / … for single edges
   titleProps: Override props applied to the title `<Text>` (style, fw, ff, size, c)
   autoFocus: Where focus lands on open (it always moves in) — the dialog itself by default, `true` for the first focusable field (web), or a ref to focus that element on any platform
   trapFocus: Keep Tab focus inside the dialog (web, default true); focus is always restored on close
@@ -28,6 +29,7 @@ examples:
   - bottomsheet
   - bottomsheet-scroll
   - title-customization
+  - padding
 ---
 
 The Dialog component presents content above the app, supporting focus trapping, scroll locking, and multiple presentation styles (modal, confirmation, bottom sheet).

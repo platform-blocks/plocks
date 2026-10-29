@@ -66,6 +66,14 @@ describe('Input (react-native-web DOM)', () => {
     expect(countViews()).toBe(before);
   });
 
+  it('draws no focus ring when unstyled', () => {
+    const { container } = render(<Input label="Name" variant="unstyled" />);
+    const countViews = () => container.querySelectorAll('div').length;
+    const before = countViews();
+    fireEvent.focus(screen.getByRole('textbox', { name: 'Name' }));
+    expect(countViews()).toBe(before);
+  });
+
   it('is named by an enclosing FormField label', () => {
     render(
       <FormField label="Company" description="Legal name">

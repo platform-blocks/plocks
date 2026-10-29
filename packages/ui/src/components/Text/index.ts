@@ -1,7 +1,8 @@
 export {
   Text,
   type TextProps,
-  type HTMLTextVariant
+  type HTMLTextVariant,
+  type TextStroke
 } from './Text';
 
 export {

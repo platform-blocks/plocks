@@ -97,6 +97,16 @@ export interface CandlestickChartProps
   clampToInitialDomain?: boolean;
   /** Invert pinch zoom direction */
   invertPinchZoom?: boolean;
+  /** Explicit override for the x-domain (timestamps for a time scale) */
+  xDomain?: [number, number];
+  /** Explicit override for the price (y) domain */
+  yDomain?: [number, number];
+  /**
+   * Pixel inset between the plot edges and the outermost data, so the first and last
+   * candles and the extreme wicks are not clipped. A number applies to both axes.
+   * Defaults to half a candle slot on x and 8px on y.
+   */
+  domainPadding?: number | { x?: number; y?: number };
   /** Scale type used for the x axis */
   xScaleType?: 'linear' | 'log' | 'time';
   /** Scale type used for the y axis */

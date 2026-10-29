@@ -128,4 +128,49 @@ describe('Stepper - behavior', () => {
 
     expect(getByText('All done!')).toBeTruthy();
   });
+
+  describe('compact', () => {
+    const steps = (
+      [
+        <Stepper.Step key="a" label="Cart" description="Review items" />,
+        <Stepper.Step key="b" label="Shipping" description="Where to" />,
+        <Stepper.Step key="c" label="Payment" />,
+      ]
+    );
+
+    it('shows only the active step label, once, below the indicators', () => {
+      const { queryByText, getAllByText, getByLabelText } = render(
+        <Stepper active={1} compact>{steps}</Stepper>
+      );
+      expect(queryByText('Cart')).toBeNull();
+      expect(queryByText('Payment')).toBeNull();
+      expect(getAllByText('Shipping')).toHaveLength(1);
+      expect(getAllByText('Where to')).toHaveLength(1);
+      expect(StyleSheet.flatten(getAllByText('Shipping')[0].props.style).textAlign).toBe('center');
+      // Hidden labels still name their steps.
+      expect(getByLabelText('Cart')).toBeTruthy();
+      expect(getByLabelText('Payment')).toBeTruthy();
+    });
+
+    it('shows no caption once every step is complete', () => {
+      const { queryByText } = render(<Stepper active={3} compact>{steps}</Stepper>);
+      expect(queryByText('Cart')).toBeNull();
+      expect(queryByText('Payment')).toBeNull();
+    });
+
+    it('resolves a breakpoint map against the viewport', () => {
+      const compactNow = render(<Stepper active={0} compact={{ base: true, xl: false }}>{steps}</Stepper>);
+      expect(compactNow.queryByText('Shipping')).toBeNull();
+      compactNow.unmount();
+
+      const fullNow = render(<Stepper active={0} compact={{ base: false }}>{steps}</Stepper>);
+      expect(fullNow.getByText('Shipping')).toBeTruthy();
+    });
+
+    it('is ignored by vertical steppers', () => {
+      const { getByText } = render(<Stepper active={0} compact orientation="vertical">{steps}</Stepper>);
+      expect(getByText('Shipping')).toBeTruthy();
+      expect(getByText('Payment')).toBeTruthy();
+    });
+  });
 });

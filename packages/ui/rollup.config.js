@@ -5,7 +5,7 @@ import json from '@rollup/plugin-json';
 import peerDepsExternal from 'rollup-plugin-peer-deps-external';
 import MagicString from 'magic-string';
 import { readFileSync, readdirSync, existsSync } from 'fs';
-import { join, posix, relative, sep } from 'path';
+import { join, posix, relative, resolve as resolvePath, sep } from 'path';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf8'));
 
@@ -61,6 +61,31 @@ const platformSplitModules = new Set(
   platformFiles.map((file) => relative('src', file).split(sep).join('/').replace(PLATFORM_FILE, ''))
 );
 
+// Rollup tree-shakes against the base implementation it bound `./foo` to, so a
+// native stub that ignores its parameters (or returns a constant) gets its
+// call sites rewritten — arguments dropped, results inlined — and the web
+// variant the consumer's bundler swaps in later receives nothing. Keeping
+// imports of platform-split modules external stops that cross-module
+// analysis; each base module is an entry of its own so it is still emitted.
+const platformBaseFiles = [...platformSplitModules].flatMap((base) =>
+  ['.tsx', '.ts', '.jsx', '.js'].map((ext) => join('src', `${base}${ext}`)).filter((file) => existsSync(file))
+);
+
+function platformExternals() {
+  const srcRoot = resolvePath('src');
+  return {
+    name: 'platform-externals',
+    async resolveId(source, importer, options) {
+      if (!importer || !source.startsWith('.')) return null;
+      const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
+      if (!resolved || resolved.external) return null;
+      const target = relative(srcRoot, resolved.id).split(sep).join('/').replace(/\.(tsx?|jsx?)$/, '');
+      if (!platformSplitModules.has(target)) return null;
+      return { id: join(srcRoot, target), external: 'relative' };
+    },
+  };
+}
+
 function platformImports() {
   const RELATIVE_JS_SPECIFIER = /(\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)(['"])(\.{1,2}\/[^'"]+?)\.js\2/g;
   return {
@@ -114,7 +139,7 @@ const componentEntries = readdirSync('src/components', { withFileTypes: true })
   .map((entry) => join('src/components', entry.name, 'index.ts'))
   .filter((entryPath) => existsSync(entryPath));
 
-const mainInputs = ['src/index.ts', ...componentEntries, ...platformFiles];
+const mainInputs = ['src/index.ts', ...componentEntries, ...platformFiles, ...platformBaseFiles];
 
 // No source maps. Maps that embed sourcesContent made up ~63% of the tarball;
 // maps without it point at ../../src, which isn't published, and a
@@ -132,6 +157,7 @@ export default {
     ...sourcemapOptions,
   },
   plugins: [
+    platformExternals(),
     ...commonConfig.plugins,
     typescript({
       tsconfig: './tsconfig.esm.json',

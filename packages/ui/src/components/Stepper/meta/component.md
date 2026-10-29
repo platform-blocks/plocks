@@ -25,6 +25,10 @@ props:
     type: "'right' | 'bottom'"
     description: "Where the label and description sit in a horizontal stepper: centered under the icon ('bottom') or beside it ('right'). Ignored for vertical steppers."
     default: bottom
+  - name: compact
+    type: "boolean | Partial<Record<Breakpoint, boolean>>"
+    description: "Horizontal steppers only: show just the step indicators, with the active step's label (and description) centered below the row. Accepts a breakpoint map, e.g. `{ base: true, md: false }`."
+    default: false
   - name: size
     type: string
     description: Size variant
@@ -50,6 +54,7 @@ examples:
   - basic
   - vertical
   - labelPosition
+  - compact
   - sizes
   - loading
   - customIcons

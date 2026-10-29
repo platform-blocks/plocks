@@ -220,6 +220,17 @@ describe('Popover', () => {
     expect(flatStyle(dropdown.props.style).width).toBe(260);
   });
 
+  it('sizes the dropdown to its content without `w`, never pinning a measured width', async () => {
+    const screen = render(withOverlays(<BasicPopover maw={500} />));
+    fireEvent.press(screen.getByText('Toggle Popover'));
+    const dropdown = await screen.findByTestId('popover-dropdown');
+    await settle();
+    // The measured size (160 here; 200 before measuring) must not come back as a
+    // fixed width, or a wider fixed-width child gets clipped to it.
+    expect(flatStyle(dropdown.props.style).width).toBeUndefined();
+    expect(findStyleUp(screen.getByText('Dropdown content'), 'maxWidth')).toBe(500);
+  });
+
   it('sizes the dropdown with w="target" / miw / mah, never the root', async () => {
     const screen = render(withOverlays(<BasicPopover testID="root" w="target" miw={120} mah={200} m={4} />));
     const root = flatStyle(screen.getByTestId('root').props.style);

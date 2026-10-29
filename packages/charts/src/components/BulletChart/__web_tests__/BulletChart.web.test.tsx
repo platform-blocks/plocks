@@ -6,6 +6,7 @@ import { expectChartDemo } from '../../../__web_tests__/chartDemoHarness';
 import { ChartThemeProvider } from '../../../theme/ChartThemeContext';
 import { Demo } from '../demos/basic';
 import { BulletChart } from '../BulletChart';
+import { bulletBarFrame } from '../AnimatedBulletBar';
 
 test('renders its published demo as web SVG with visible marks', () => {
   expectChartDemo(Demo, 'Revenue');
@@ -131,4 +132,16 @@ test('renders one bullet per data row on a shared scale', () => {
   expect(byId(container, 'bullet-target-0')).toBeNull();
   expect(byId(container, 'bullet-target-1')).not.toBeNull();
   expect(getByRole('img').getAttribute('aria-label')).toBe('A: 50; B: 100, target 80');
+});
+
+test('an animation frame never draws a negative or overlong value bar', () => {
+  // On web the first withTiming frame can land before the animation's start time;
+  // the ease-out curve then yields a large negative length (seen as -78px).
+  const rect = { x: 20, y: 10, width: 150, height: 12 };
+  expect(bulletBarFrame(-78.6, rect, true)).toEqual({ x: 20, y: 10, width: 0, height: 12 });
+  expect(bulletBarFrame(75, rect, true).width).toBe(75);
+  expect(bulletBarFrame(150.4, rect, true).width).toBe(150);
+  const column = { x: 30, y: 40, width: 20, height: 100 };
+  expect(bulletBarFrame(-5, column, false)).toEqual({ x: 30, y: 140, width: 20, height: 0 });
+  expect(bulletBarFrame(40, column, false)).toEqual({ x: 30, y: 100, width: 20, height: 40 });
 });

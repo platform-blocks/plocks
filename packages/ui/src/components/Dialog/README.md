@@ -104,6 +104,17 @@ openDialog({
 - Native mobile feel optimized for touch interfaces
 - Backdrop dismiss still available
 
+**Body padding:** the body is padded 20px in the modal and bottom-sheet variants
+(8px on top below a title or the drag handle) and not at all in fullscreen. Pass
+`p` to change it in any variant — `p={0}` lets a banner or image run edge to
+edge — or `px` / `py` / `pt` / `pb` / `pl` / `pr` for single edges:
+
+```tsx
+<Dialog opened={opened} variant="bottomsheet" p={0} accessibilityLabel="Profile" onClose={close}>
+  <ProfileBanner />
+</Dialog>
+```
+
 ### Full Screen
 Takes up the entire screen. Ideal for complex forms and detailed views.
 
@@ -211,8 +222,9 @@ Returns an object with:
 | backdrop | boolean | true | Whether to show backdrop |
 | backdropClosable | boolean | true | Whether backdrop click closes dialog |
 | onClose | () => void | - | Callback when dialog closes |
-| width | number | - | Custom width (modal only) |
-| height | number | - | Custom height (modal only) |
+| w | number | - | Custom width (modal / bottom sheet) |
+| h | number | - | Custom height |
+| p | SpacingValue | 20 | Body padding (`0` for edge-to-edge content) |
 
 ### useSimpleDialog Hook
 

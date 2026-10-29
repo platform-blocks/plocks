@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { ViewStyle } from 'react-native';
 
 import type { UseRovingFocusResult } from '../../core/accessibility/useRovingFocus';
+import type { ResponsiveValue } from '../../core/responsive';
 import type { SizeValue } from '../../core/theme/types';
 import type { BaseProps, ColorProp } from '../../core/types/base';
 import type { TextProps } from '../Text';
@@ -65,6 +66,16 @@ export interface StepperProps extends BaseProps<ViewStyle> {
    * @default 'bottom'
    */
   labelPosition?: 'right' | 'bottom';
+  /**
+   * Compact horizontal stepper for narrow screens: only the step indicators
+   * and connectors stay in the row, and the active step's label (and
+   * description) shows once, centered below it. Steps keep their labels as
+   * their accessible names. Takes a breakpoint map to switch with the
+   * viewport, e.g. `{ base: true, sm: false }`. Ignored when
+   * `orientation="vertical"`.
+   * @default false
+   */
+  compact?: ResponsiveValue<boolean>;
   /** Icon size */
   iconSize?: number;
   /** Component size: a size token, or a numeric control height. @default 'md' */
@@ -92,6 +103,8 @@ export interface StepperContextValue {
   orientation: 'horizontal' | 'vertical';
   iconPosition: 'left' | 'right';
   labelPosition: 'right' | 'bottom';
+  /** Resolved `compact`: steps render indicators only. */
+  compact: boolean;
   iconSize: number;
   size: SizeValue;
   metrics: StepperMetrics;

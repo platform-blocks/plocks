@@ -455,11 +455,14 @@ export type AppShellAsideProps = AppShellChromeProps;
 /** `AppShell.Footer` — rendered as the page's `contentinfo` landmark. */
 export type AppShellFooterProps = AppShellChromeProps;
 
+/** An item icon, or a function that renders one in the item's current color. */
+export type BottomAppBarIcon = React.ReactNode | ((state: { active: boolean; color: string }) => React.ReactNode);
+
 export interface BottomAppBarItem {
   key: string;
   label: string;
-  icon: React.ReactNode;
-  activeIcon?: React.ReactNode;
+  icon: BottomAppBarIcon;
+  activeIcon?: BottomAppBarIcon;
   badgeCount?: number;
   onPress?: () => void; // per-item override
 }
@@ -488,6 +491,16 @@ export interface BottomAppBarProps extends AppShellBottomNavProps {
   elevation?: number;
   /** Optional floating action button rendered centered & elevated */
   fab?: React.ReactNode;
+  /** Label (and function-icon) color of the active item. @default theme.colors.primary[5] */
+  activeColor?: string;
+  /** Label (and function-icon) color of inactive items. @default theme.text.secondary */
+  inactiveColor?: string;
+  /** Pill behind the active icon: `false` hides it, a color string tints it. @default true */
+  indicator?: boolean | string;
+  /** Color of the top border. */
+  borderColor?: string;
+  /** Background of item count badges; the count text picks a readable color. @default theme.colors.error[5] */
+  badgeColor?: string;
 }
 
 export interface AppShellMainProps extends BaseProps<ViewStyle> {

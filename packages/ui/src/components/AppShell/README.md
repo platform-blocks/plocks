@@ -43,7 +43,7 @@ export function App() {
 | `AppShell.Main` | `main` (`<main>`) | `maw` (content column width), `centerContent`, optional table of contents column. |
 | `AppShell.Footer` | `contentinfo` (`<footer>`) | Between navbar and aside. |
 | `AppShell.BottomNav` | `navigation` when labelled | Mobile bottom container. |
-| `AppShell.BottomAppBar` | `navigation` | Items with icons, labels, badges; active item is `aria-current="page"`. |
+| `AppShell.BottomAppBar` | `navigation` | Items with icons, labels, badges; active item is `aria-current="page"`. `activeColor` / `inactiveColor` / `indicator` / `borderColor` / `badgeColor` match an app palette; `icon` may be `({ active, color }) => node`. Also exported standalone as `BottomAppBar`. |
 | `AppShell.Section` | — | `grow` / `withScrollArea` inside navbar or aside. |
 | `AppShell.MobileMenu` | `dialog` (modal) | Native menu used with `mobileMenu`; `opened` / `onClose`. |
 

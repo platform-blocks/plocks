@@ -146,16 +146,6 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://plocks.dev/demos/loopshop/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/loopshop/source.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
     <loc>https://plocks.dev/demos/townlist/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -172,16 +162,6 @@
   </url>
   <url>
     <loc>https://plocks.dev/demos/nightfall/source.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/fieldhouse/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/fieldhouse/source.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -206,42 +186,12 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://plocks.dev/demos/mosaic-chat/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/mosaic-chat/source.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
     <loc>https://plocks.dev/demos/solitaire/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://plocks.dev/demos/solitaire/source.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/flutterflight/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/flutterflight/source.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/springstep/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/springstep/source.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -262,16 +212,6 @@
   </url>
   <url>
     <loc>https://plocks.dev/demos/calculator/source.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/daymark/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/daymark/source.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -306,52 +246,12 @@
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://plocks.dev/demos/signal-news/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/signal-news/source.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
     <loc>https://plocks.dev/demos/daily-edition/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://plocks.dev/demos/daily-edition/source.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/dicom-viewer/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/dicom-viewer/source.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/baseball-live/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/baseball-live/source.html</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/flight-tracker/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://plocks.dev/demos/flight-tracker/source.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>

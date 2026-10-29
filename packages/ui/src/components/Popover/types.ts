@@ -54,7 +54,10 @@ export interface PopoverProps extends BaseProps {
    * @default true
    */
   returnFocus?: boolean;
-  /** Dropdown width, number or 'target' to match target width */
+  /**
+   * Dropdown width: a number, or 'target' to match the target's width. Without
+   * it the dropdown sizes to its content, bounded by the viewport and `maw`.
+   */
   w?: number | 'target';
   /** Dropdown max-width */
   maw?: number;

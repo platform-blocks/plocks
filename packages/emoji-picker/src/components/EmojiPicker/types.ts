@@ -42,4 +42,10 @@ export interface EmojiPickerProps extends BaseProps<ViewStyle>, LayoutProps {
   maxRecent?: number;
   searchPlaceholder?: string;
   emptyText?: string;
+  /**
+   * Draw the picker's own frame: border, radius and elevated background. Pass
+   * `false` inside a Popover, Dialog or sheet that already draws one, so the
+   * picker sits flush instead of doubling the border. @default true
+   */
+  withBorder?: boolean;
 }

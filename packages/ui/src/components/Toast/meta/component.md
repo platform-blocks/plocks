@@ -22,6 +22,7 @@ props:
   actions: Action buttons rendered next to the body
   titleProps: Override props applied to the title `<Text>` (style, fw, ff, size, c)
   bodyProps: Override props applied to the body `<Text>` (the children content)
+  toast: "`PlocksProvider` prop — `ToastProvider` props for the built-in provider, or `false` to leave it out"
   layout: "`ToastProvider` prop — 'default' | 'stacked'; `stacked` shows only the newest toast with older ones peeking behind it until the stack is hovered or pressed"
 examples:
   - basic
@@ -38,3 +39,5 @@ examples:
 ---
 
 Toast displays a temporary notification about an action or event.
+
+`PlocksProvider` mounts a `ToastProvider` for you, so `useToast()` works with no setup. Configure it through the `toast` prop (`<PlocksProvider toast={{ defaultPosition: 'bottom-center', layout: 'stacked' }}>`) or pass `toast={false}` to leave it out. A `ToastProvider` you mount yourself inside `PlocksProvider` takes over for its subtree and for the global `toasts` API — toasts show once, in its viewport; one mounted above `PlocksProvider` makes it skip the built-in provider.

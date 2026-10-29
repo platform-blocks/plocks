@@ -467,7 +467,7 @@ export type {
 export type { ButtonProps } from './components/Button';
 export type { TreeProps, TreeNode, TreeNodeState } from './components/Tree';
 export type { NavTreeProps, NavTreeItem, BuildNavTreeOptions } from './components/NavTree';
-export type { TextProps } from './components/Text';
+export type { TextProps, TextStroke } from './components/Text';
 export type { ShimmerTextProps } from './components/ShimmerText';
 export type { GradientTextProps } from './components/GradientText';
 export type { HighlightProps } from './components/Highlight';
@@ -559,7 +559,7 @@ export type { LoaderProps } from './components/Loader';
 export type { LoadingOverlayProps } from './components/LoadingOverlay';
 export type { GaugeProps } from './components/Gauge';
 export type { RingProps, RingColorStop, RingRenderContext } from './components/Ring';
-export type { ToastProps } from './components/Toast';
+export type { ToastProps, ToastProviderProps } from './components/Toast';
 export type { DialogProps, DialogConfig, DialogAutoFocus, UseSimpleDialogOptions } from './components/Dialog';
 export type { TooltipProps, TooltipConfig, TooltipPropValue } from './components/Tooltip';
 export type { ContextMenuProps } from './components/ContextMenu';
@@ -583,7 +583,7 @@ export type { FloatingWindowProps, FloatingWindowDragHandleProps, FloatingWindow
 export type { PressAnimationProps } from './components/_internal/PressAnimation/PressAnimation';
 export type { AccordionProps, AccordionItemType } from './components/Accordion';
 export type { AppShellProps } from './components/AppShell';
-export type { AppShellBottomNavProps, BottomAppBarProps, BottomAppBarItem } from './components/AppShell';
+export type { AppShellBottomNavProps, BottomAppBarProps, BottomAppBarItem, BottomAppBarIcon } from './components/AppShell';
 export type { AppShellResizeSection, AppShellResizeCollapsible, AppShellResizeSizes, AppShellResizeSectionOptions, UseAppShellResizeOptions, UseAppShellResizeReturn } from './components/AppShell';
 export type {
   AppLayoutBlueprint,

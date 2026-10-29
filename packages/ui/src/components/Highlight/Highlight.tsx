@@ -104,6 +104,19 @@ const readableTextOn = (theme: PlocksTheme, background: string, preferred: strin
   return onColor(theme, background, MIN_TEXT_CONTRAST);
 };
 
+/** Font keys a marked fragment copies from the surrounding `style`; nested `Text` resets them otherwise. */
+const INHERITED_TYPOGRAPHY = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight', 'letterSpacing'] as const;
+
+const typographyFromStyle = (style: TextProps['style']): TextStyle | undefined => {
+  const flat = StyleSheet.flatten(style);
+  if (!flat) return undefined;
+  const inherited: TextStyle = {};
+  for (const key of INHERITED_TYPOGRAPHY) {
+    if (flat[key] !== undefined) (inherited as Record<string, unknown>)[key] = flat[key];
+  }
+  return Object.keys(inherited).length ? inherited : undefined;
+};
+
 const colorFromStyle = (style: TextProps['style']): string | undefined => {
   const color = StyleSheet.flatten(style)?.color;
   return typeof color === 'string' ? color : undefined;
@@ -125,6 +138,10 @@ export const Highlight = factory<{ props: HighlightProps; ref: RNText }>(
       ...rest
     } = props;
     const theme = useTheme();
+    // Typography props go to the marks too, so a fragment keeps the paragraph's font and size.
+    const { size, ff, fw, fs, lh, lts, tt } = rest;
+    const typographyProps = useMemo(() => ({ size, ff, fw, fs, lh, lts, tt }), [size, ff, fw, fs, lh, lts, tt]);
+    const inheritedTypography = useMemo(() => typographyFromStyle(style), [style]);
 
     const textContent = useMemo(() => {
       if (typeof children === 'string' || typeof children === 'number') {
@@ -168,13 +185,14 @@ export const Highlight = factory<{ props: HighlightProps; ref: RNText }>(
 
     const baseMarkStyle = useMemo<TextStyle>(
       () => ({
+        ...inheritedTypography,
         backgroundColor: markBackground,
         ...(markTextColor ? { color: markTextColor } : null),
         borderRadius: 4,
         paddingHorizontal: 4,
         paddingVertical: isWeb ? 0 : 2,
       }),
-      [markBackground, markTextColor]
+      [inheritedTypography, markBackground, markTextColor]
     );
 
     const overrideMarkStyle = useMemo(
@@ -191,6 +209,7 @@ export const Highlight = factory<{ props: HighlightProps; ref: RNText }>(
         segment.marked ? (
           <Text
             key={`highlight-${index}`}
+            {...typographyProps}
             variant={markVariant}
             as={markAs}
             c={markColor}
@@ -203,7 +222,7 @@ export const Highlight = factory<{ props: HighlightProps; ref: RNText }>(
           <React.Fragment key={`text-${index}`}>{segment.text}</React.Fragment>
         )
       );
-    }, [children, textContent, segments, markProps, baseMarkStyle, overrideMarkStyle]);
+    }, [children, textContent, segments, markProps, baseMarkStyle, overrideMarkStyle, typographyProps]);
 
     return (
       <Text ref={ref} variant={variant ?? 'span'} c={color} style={style} {...rest}>

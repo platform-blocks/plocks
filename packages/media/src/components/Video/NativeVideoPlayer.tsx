@@ -167,12 +167,51 @@ export const NativeVideoPlayer = forwardRef<VideoPlayerHandle, NativeVideoPlayer
       setError(null);
       emitLoad();
     };
-    const handleLoadedMetadata = () => {
-      if (video.duration) emitDurationChange(video.duration);
+    // Streams and some containers report NaN / Infinity until the real length is
+    // known; only a finite duration is passed on (and `durationchange` delivers it).
+    const handleDurationChange = () => {
+      if (Number.isFinite(video.duration) && video.duration > 0) emitDurationChange(video.duration);
     };
-    const handlePlay = () => emitPlay();
-    const handlePause = () => emitPause();
-    const handleTimeUpdate = () => emitTimeUpdate(video.currentTime);
+
+    // `timeupdate` only fires every ~250ms (Chrome, Safari), so on its own the
+    // elapsed readout ticks over up to a quarter second after the playhead crosses
+    // a second — on a short clip it visibly trails the seek bar. While playing,
+    // a frame loop samples the playhead and emits the moment the displayed second
+    // changes; everything in between still comes from `timeupdate`.
+    let lastEmitted = -1;
+    let frame: number | null = null;
+    const emitPosition = () => {
+      const time = video.currentTime;
+      if (!Number.isFinite(time) || time === lastEmitted) return;
+      lastEmitted = time;
+      emitTimeUpdate(time);
+    };
+    const sample = () => {
+      frame = null;
+      if (video.paused || video.ended) return;
+      if (Math.floor(video.currentTime) !== Math.floor(Math.max(lastEmitted, 0))) emitPosition();
+      frame = requestAnimationFrame(sample);
+    };
+    const stopSampling = () => {
+      if (frame !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(frame);
+      frame = null;
+    };
+    const startSampling = () => {
+      if (frame !== null || typeof requestAnimationFrame !== 'function') return;
+      frame = requestAnimationFrame(sample);
+    };
+
+    const handlePlay = () => {
+      emitPlay();
+      emitPosition();
+      startSampling();
+    };
+    const handlePause = () => {
+      stopSampling();
+      emitPause();
+      emitPosition();
+    };
+    const handleTimeUpdate = () => emitPosition();
     const handleWaiting = () => emitBuffer(true);
     const handleCanPlay = () => emitBuffer(false);
     const handleError = () => {
@@ -185,16 +224,23 @@ export const NativeVideoPlayer = forwardRef<VideoPlayerHandle, NativeVideoPlayer
     const listeners: Array<[keyof HTMLVideoElementEventMap, () => void]> = [
       ['loadstart', handleLoadStart],
       ['loadeddata', handleLoadedData],
-      ['loadedmetadata', handleLoadedMetadata],
+      ['loadedmetadata', handleDurationChange],
+      ['durationchange', handleDurationChange],
       ['play', handlePlay],
+      ['playing', startSampling],
       ['pause', handlePause],
+      ['ended', handleTimeUpdate],
       ['timeupdate', handleTimeUpdate],
+      ['seeked', handleTimeUpdate],
       ['waiting', handleWaiting],
       ['canplay', handleCanPlay],
       ['error', handleError],
     ];
     listeners.forEach(([name, handler]) => video.addEventListener(name, handler));
-    return () => listeners.forEach(([name, handler]) => video.removeEventListener(name, handler));
+    return () => {
+      stopSampling();
+      listeners.forEach(([name, handler]) => video.removeEventListener(name, handler));
+    };
   }, [videoUrl, emitLoadStart, emitLoad, emitDurationChange, emitPlay, emitPause, emitTimeUpdate, emitBuffer, emitError]);
 
   // Set video properties when they change

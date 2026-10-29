@@ -25,6 +25,8 @@ import {
   useOptionalColorScheme as useOptionalThemeModeColorScheme
 } from './ThemeModeProvider';
 import { useIsomorphicLayoutEffect } from '../hooks/useIsomorphicLayoutEffect';
+import { ToastProvider, useOptionalToast } from '../../components/Toast/ToastProvider';
+import type { ToastProviderProps } from '../../components/Toast/ToastProvider';
 
 interface ThemeBoundaryProps {
   theme: ThemeScopeProps['theme'];
@@ -102,6 +104,26 @@ function OverlayBoundary({ enabled, children }: OverlayBoundaryProps) {
   );
 }
 
+type ToastProviderConfig = Omit<ToastProviderProps, 'children'>;
+
+interface ToastBoundaryProps {
+  config: ToastProviderConfig | null;
+  children: React.ReactNode;
+}
+
+/**
+ * The built-in ToastProvider. Skipped when one is already above (the app
+ * wrapped PlocksProvider in its own); one the app mounts below takes over for
+ * its subtree and for the global `toasts` API, so toasts never show twice.
+ */
+function ToastBoundary({ config, children }: ToastBoundaryProps) {
+  const parent = useOptionalToast();
+  if (!config || parent) {
+    return <>{children}</>;
+  }
+  return <ToastProvider {...config}>{children}</ToastProvider>;
+}
+
 interface I18nBoundaryProps {
   locale: string;
   fallbackLocale: string;
@@ -119,6 +141,7 @@ function I18nBoundary({ locale, fallbackLocale, resources, children }: I18nBound
 }
 
 type DirectionProviderConfig = Omit<DirectionProviderProps, 'children'>;
+const EMPTY_TOAST_CONFIG: ToastProviderConfig = {};
 type HapticsProviderConfig = Omit<HapticsProviderProps, 'children'>;
 
 export interface PlocksProviderProps {
@@ -210,6 +233,15 @@ export interface PlocksProviderProps {
   haptics?: false | HapticsProviderConfig;
 
   /**
+   * Root provider only. Mounts a `ToastProvider`, so `useToast()` works with no
+   * further setup. Pass its props to configure it (`{ defaultPosition:
+   * 'bottom-center', limit: 3 }`) or `false` to leave it out. A
+   * `ToastProvider` you mount yourself still works: below PlocksProvider it
+   * takes over (its toasts, its viewport), above it the built-in one is skipped.
+   */
+  toast?: false | ToastProviderConfig;
+
+  /**
    * Reduced motion for every library animation:
    * - `'system'` (default at the root): follow the OS setting
    * - `true` / `false`: force it on / off (e.g. an in-app setting, screenshots)
@@ -257,7 +289,7 @@ function useResolvedTheme({
 type RootContentProps = Pick<
   PlocksProviderProps,
   'children' | 'theme' | 'themeModeConfig'
-> &
+> & { toastConfig: ToastProviderConfig | null } &
   Required<
     Pick<
       PlocksProviderProps,
@@ -283,6 +315,7 @@ function RootContent({
   withOverlays,
   withGlobalCSS,
   themeModeConfig,
+  toastConfig,
 }: RootContentProps) {
   const osColorScheme = useColorScheme();
   const themeModeColorScheme = useOptionalThemeModeColorScheme();
@@ -320,7 +353,9 @@ function RootContent({
         cssVariablesSelector={cssVariablesSelector}
         withGlobalCSS={withGlobalCSS}
       >
-        <OverlayBoundary enabled={withOverlays}>{children}</OverlayBoundary>
+        <OverlayBoundary enabled={withOverlays}>
+          <ToastBoundary config={toastConfig}>{children}</ToastBoundary>
+        </OverlayBoundary>
       </ThemeBoundary>
     </NestingContext.Provider>
   );
@@ -388,8 +423,8 @@ function NestedProvider({
 
 /**
  * The plocks provider. Mount one at the root of the app: it provides the theme
- * and mounts the app-level services (overlays, i18n, safe area, haptics,
- * direction, reduced motion, theme-mode persistence, global CSS).
+ * and mounts the app-level services (overlays, toasts, i18n, safe area,
+ * haptics, direction, reduced motion, theme-mode persistence, global CSS).
  *
  * A PlocksProvider inside another scopes a theme to its subtree — `theme`,
  * `inherit`, `colorSchemeMode` and, with its own `cssVariablesSelector`, CSS
@@ -418,8 +453,10 @@ function RootProvider({
   i18nResources,
   direction,
   haptics,
+  toast,
   reducedMotion
 }: PlocksProviderProps) {
+  const toastConfig: ToastProviderConfig | null = toast === false ? null : (toast ?? EMPTY_TOAST_CONFIG);
   const i18nStore = useMemo(
     () => i18nResources || { en: { translation: {} } },
     [i18nResources]
@@ -436,6 +473,7 @@ function RootProvider({
       withOverlays={withOverlays}
       withGlobalCSS={withGlobalCSS}
       themeModeConfig={themeModeConfig}
+      toastConfig={toastConfig}
     >
       {children}
     </RootContent>

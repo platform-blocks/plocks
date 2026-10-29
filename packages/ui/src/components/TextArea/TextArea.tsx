@@ -14,6 +14,7 @@ import { useDisclaimer, extractDisclaimerProps } from '../_internal/Disclaimer/d
 import { Field, FieldBoundary } from '../_internal/Field/Field';
 import { getFieldFrameStyles } from '../_internal/Field/fieldFrameStyles';
 import { getTextAreaStyles } from './styles';
+import type { TextInputFocusEvent } from '../Input/types';
 import type { TextAreaProps } from './types';
 
 const PLOCKS_INPUT_DATASET = { plocksInput: 'true' } as const;
@@ -21,8 +22,9 @@ const PLOCKS_INPUT_DATASET = { plocksInput: 'true' } as const;
 /**
  * Multi-line text field. Label, description, error and helper text come from
  * the shared `Field` frame (linked to the text area for assistive technology,
- * errors announced); the box matches Input, including the focus ring.
- * `ref` points at the TextInput.
+ * errors announced); the box matches Input, including the focus ring
+ * (`variant="unstyled"` draws neither). `h` fixes the box height; `flex`
+ * makes the field fill its parent's height instead. `ref` points at the TextInput.
  */
 export const TextArea = factory<{
   props: TextAreaProps;
@@ -37,6 +39,8 @@ export const TextArea = factory<{
 
     const {
       id,
+      flex,
+      focused: focusedProp,
       value,
       defaultValue,
       onChangeText,
@@ -107,15 +111,32 @@ export const TextArea = factory<{
       ? Math.max(minRows, maxRows ? Math.min(lineCount, maxRows) : lineCount)
       : rows;
 
-    const handleFocus = useCallback(() => {
-      setFocused(true);
-      onFocus?.();
-    }, [onFocus]);
+    const {
+      style: textInputStyle,
+      onFocus: textInputOnFocus,
+      onBlur: textInputOnBlur,
+      ...restTextInputProps
+    } = textInputProps ?? {};
 
-    const handleBlur = useCallback(() => {
-      setFocused(false);
-      onBlur?.();
-    }, [onBlur]);
+    // `textInputProps.onFocus` / `onBlur` get the native event and run alongside
+    // the field's own focus tracking, never instead of it.
+    const handleFocus = useCallback(
+      (event: TextInputFocusEvent) => {
+        setFocused(true);
+        textInputOnFocus?.(event);
+        onFocus?.();
+      },
+      [textInputOnFocus, onFocus]
+    );
+
+    const handleBlur = useCallback(
+      (event: TextInputFocusEvent) => {
+        setFocused(false);
+        textInputOnBlur?.(event);
+        onBlur?.();
+      },
+      [textInputOnBlur, onBlur]
+    );
 
     const handleChangeText = useCallback(
       (text: string) => {
@@ -137,9 +158,11 @@ export const TextArea = factory<{
 
     const charCount = currentValue.length;
     const isCharCountError = maxLength ? charCount > maxLength : false;
-    const inputHeight = typeof h === 'number' ? h : visibleRows * rowHeight;
+    const fill = flex !== undefined;
+    // Filling, the box takes the space its parent leaves (an explicit `h` still wins).
+    const inputHeight = typeof h === 'number' ? h : fill ? undefined : visibleRows * rowHeight;
+    const isFocused = (focusedProp ?? focused) && !disabled;
 
-    const { style: textInputStyle, ...restTextInputProps } = textInputProps ?? {};
     const editable = !disabled && !readOnly && editableProp !== false;
 
     return (
@@ -161,14 +184,20 @@ export const TextArea = factory<{
         descriptionProps={descriptionProps}
         testID={testID}
         // `fullWidth` first, so an explicit `w` wins.
-        style={[styles.root, getLayoutStyles(layoutProps), resolveStyleProps(styleProps, theme), style]}
+        style={[
+          styles.root,
+          fill ? { flex, minHeight: 0 } : null,
+          getLayoutStyles(layoutProps),
+          resolveStyleProps(styleProps, theme),
+          style,
+        ]}
       >
         {({ controlProps, invalid, success: successState }) => {
-          const frame = getFieldFrameStyles(theme, size, variant, radius, invalid, focused, disabled, successState);
+          const frame = getFieldFrameStyles(theme, size, variant, radius, invalid, isFocused, disabled, successState);
           return (
             <>
-              <View style={[frame.frame, styles.frame]}>
-                {focused && !disabled ? <View style={frame.focusRing} /> : null}
+              <View style={[frame.frame, styles.frame, fill ? styles.frameFill : null]}>
+                {isFocused && variant !== 'unstyled' ? <View style={frame.focusRing} /> : null}
                 {startSection ? (
                   <FieldBoundary>
                     <View {...mergeSlotProps({ style: frame.startSection }, startSectionProps)}>{startSection}</View>
@@ -197,6 +226,7 @@ export const TextArea = factory<{
                     style={[
                       frame.input,
                       styles.input,
+                      fill ? styles.inputFill : null,
                       { height: inputHeight, paddingEnd: showClearButton ? 32 : 0 },
                       webStyle({ resize }),
                       textInputStyle,

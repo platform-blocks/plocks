@@ -75,3 +75,32 @@ describe('withBrush', () => {
     expect(end.getAttribute('aria-valuenow')).toBe('8');
   });
 });
+
+describe('secondary axis labels', () => {
+  it('reserves enough width for percent labels on the right axis', () => {
+    const layers = [
+      { type: 'bar' as const, id: 'rev', name: 'Revenue', data: [{ x: 1, y: 1200 }, { x: 2, y: 1800 }, { x: 3, y: 1500 }] },
+      { type: 'line' as const, id: 'margin', name: 'Margin', targetAxis: 'right' as const, data: [{ x: 1, y: 10 }, { x: 2, y: 30 }, { x: 3, y: 22 }] },
+    ];
+    const { container } = render(
+      <PlocksProvider>
+        <ChartThemeProvider>
+          <ComboChart
+            w={360}
+            h={240}
+            layers={layers}
+            yDomainRight={[0, 30]}
+            yAxisRight={{ labelFormatter: (v) => `${v}%` }}
+          />
+        </ChartThemeProvider>
+      </PlocksProvider>
+    );
+    const label = Array.from(container.querySelectorAll('*')).find(
+      (node) => node.children.length === 0 && node.textContent === '30%',
+    ) as HTMLElement | undefined;
+    expect(label).toBeTruthy();
+    // '%' is about an em wide; at 11px "30%" needs ~23px. The box must hold it
+    // with room to spare rather than ellipsising it to "30...".
+    expect(parseFloat(label!.style.width)).toBeGreaterThanOrEqual(30);
+  });
+});

@@ -1,4 +1,4 @@
-import { Block, Button } from '@plocks/ui';
+import { Block, Button, Row } from '@plocks/ui';
 
 export function Demo() {
   return (
@@ -7,6 +7,10 @@ export function Demo() {
       <Button w={200}>Fixed width (200)</Button>
       <Button w="50%">Half width (50%)</Button>
       <Button fullWidth>Full width</Button>
+      <Row gap="sm">
+        <Button flex={1}>Cancel</Button>
+        <Button flex={1} variant="filled">Save</Button>
+      </Row>
     </Block>
   );
 }

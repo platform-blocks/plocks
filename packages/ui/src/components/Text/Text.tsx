@@ -36,6 +36,9 @@ export type TextWeight =
 
 export type TextAlign = 'left' | 'center' | 'right' | 'justify';
 
+/** `Text` `stroke`: a color string (1px stroke), or `{ c, w }` for color and width in px. */
+export type TextStroke = string | { c?: string; w?: number };
+
 /**
  * Props for `Text`. Besides its own typography props, `Text` accepts every
  * React Native `Text` prop (`role`, `aria-*`, `accessibilityLabel`,
@@ -95,6 +98,18 @@ export interface TextProps
   td?: TextStyle['textDecorationLine'];
   /** Custom font family (overrides theme font) */
   ff?: string;
+  /**
+   * Outline the glyphs. A color string (theme token, `'primary.6'` or any CSS
+   * color) draws a 1px stroke; `{ c, w }` sets the stroke color and width in px
+   * (`c` defaults to `theme.text.primary`). Pair with `c="transparent"` for
+   * outline-only text.
+   *
+   * Web draws a true stroke (`-webkit-text-stroke`). React Native has no text
+   * stroke, so native approximates it with a `textShadow` halo of the stroke
+   * color; outline-only text is web-only — on native a transparent fill is
+   * replaced by the stroke color so the text stays visible.
+   */
+  stroke?: TextStroke;
   /** Flex factor when text shares a row with controls. */
   flex?: number;
   shrink?: number;
@@ -272,6 +287,39 @@ function buildTextStyle(theme: PlocksTheme, input: TextStyleInput): TextStyle {
   return style;
 }
 
+/** Whether a resolved CSS color paints nothing (`transparent`, zero alpha). */
+function isTransparentColor(color: string | undefined): boolean {
+  if (!color) return false;
+  const value = color.trim().toLowerCase();
+  if (value === 'transparent') return true;
+  if (/^#([0-9a-f]{3}0|[0-9a-f]{6}00)$/.test(value)) return true;
+  return /^(rgba|hsla)\(.*[,/]\s*0(\.0*)?%?\s*\)$/.test(value);
+}
+
+/**
+ * The style for the `stroke` prop. Web: a real `-webkit-text-stroke`. Native: a
+ * zero-offset `textShadow` halo (the closest React Native gets), with a
+ * transparent fill swapped for the stroke color — a shadow of invisible glyphs
+ * draws nothing on iOS.
+ */
+function buildStrokeStyle(theme: PlocksTheme, stroke: TextStroke | undefined, fill: string | undefined): TextStyle | undefined {
+  if (stroke === undefined || stroke === null || stroke === '') return undefined;
+  const { c, w } = typeof stroke === 'string' ? { c: stroke, w: undefined } : stroke;
+  const width = w ?? 1;
+  if (!(width > 0)) return undefined;
+  const color = resolveTextColor(theme, c) ?? theme.text?.primary ?? DEFAULT_THEME.text.primary;
+  if (isWeb) {
+    return { WebkitTextStroke: `${width}px ${color}` } as unknown as TextStyle;
+  }
+  const style: TextStyle = {
+    textShadowColor: color,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: width,
+  };
+  if (isTransparentColor(fill)) style.color = color;
+  return style;
+}
+
 // ---------------------------------------------------------------------------
 // Web helpers
 // ---------------------------------------------------------------------------
@@ -400,6 +448,7 @@ export const Text = factory<{ props: TextProps; ref: RNText }>(
       td,
       style,
       ff,
+      stroke,
       flex,
       shrink,
       position,
@@ -448,6 +497,13 @@ export const Text = factory<{ props: TextProps; ref: RNText }>(
         }),
       [theme, variant, roleStyle, size, fw, ta, resolvedColor, ff, lh, lts, tt, fs, td]
     );
+    const strokeKey = typeof stroke === 'object' && stroke ? `${stroke.c ?? ''}|${stroke.w ?? ''}` : stroke;
+    const strokeStyle = useMemo(
+      () => buildStrokeStyle(theme, stroke, textStyle.color as string | undefined),
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- `strokeKey` stands in for an inline `{ c, w }` object.
+      [theme, strokeKey, textStyle.color]
+    );
+    const strokeStyles = strokeStyle ? [strokeStyle] : [];
     const spacingStyle = useStyleProps(styleProps);
     const positionStyle: TextStyle = {};
     if (flex !== undefined) positionStyle.flex = flex;
@@ -485,7 +541,7 @@ export const Text = factory<{ props: TextProps; ref: RNText }>(
         // Reset browser margins on headings/paragraphs first, so margins from
         // style props or `style` still apply.
         ...(isBlockTag ? { margin: 0 } : null),
-        ...toWebStyle([textStyle, spacingStyle, ...positionStyles, style]),
+        ...toWebStyle([textStyle, ...strokeStyles, spacingStyle, ...positionStyles, style]),
         // Inline by default unless the caller controls display / white-space.
         ...(hasDisplayOverride ? null : { display: 'inline' }),
       };
@@ -579,7 +635,7 @@ export const Text = factory<{ props: TextProps; ref: RNText }>(
         role={nativeRole}
         // A legacy role without an ARIA equivalent (`text`, `keyboardkey`) stays as-is.
         accessibilityRole={consumerRole ? undefined : accessibilityRole}
-        style={[textStyle, spacingStyle, ...positionStyles, style]}
+        style={[textStyle, ...strokeStyles, spacingStyle, ...positionStyles, style]}
         selectable={selectable}
         onPress={onPress}
         disabled={disabled}

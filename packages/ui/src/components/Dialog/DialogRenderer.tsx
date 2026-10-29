@@ -27,6 +27,7 @@ export function DialogRenderer() {
       h={topDialog.h}
       radius={topDialog.radius}
       style={topDialog.style}
+      p={topDialog.p}
       showHeader={topDialog.showHeader}
       titleProps={topDialog.titleProps}
       autoFocus={topDialog.autoFocus}

@@ -105,6 +105,35 @@ describe('Input (native)', () => {
     expect(onBlur).toHaveBeenCalledTimes(1);
   });
 
+  it('draws the focus ring while focused, except unstyled', () => {
+    const ring = DEFAULT_THEME.states!.focusRing!;
+    const { rerender } = render(<Input label="Name" />);
+    fireEvent(getInput(), 'focus');
+    expect(borderColors(screen.toJSON())).toContain(ring);
+
+    rerender(<Input label="Name" variant="unstyled" />);
+    expect(borderColors(screen.toJSON())).not.toContain(ring);
+  });
+
+  it('runs textInputProps.onFocus / onBlur alongside the focus ring and onFocus / onBlur', () => {
+    const ring = DEFAULT_THEME.states!.focusRing!;
+    const onFocus = jest.fn();
+    const onBlur = jest.fn();
+    const nativeFocus = jest.fn();
+    const nativeBlur = jest.fn();
+    render(
+      <Input label="Name" onFocus={onFocus} onBlur={onBlur} textInputProps={{ onFocus: nativeFocus, onBlur: nativeBlur }} />
+    );
+    fireEvent(getInput(), 'focus', { nativeEvent: {} });
+    expect(nativeFocus).toHaveBeenCalledWith({ nativeEvent: {} });
+    expect(onFocus).toHaveBeenCalledTimes(1);
+    expect(borderColors(screen.toJSON())).toContain(ring);
+    fireEvent(getInput(), 'blur', { nativeEvent: {} });
+    expect(nativeBlur).toHaveBeenCalledTimes(1);
+    expect(onBlur).toHaveBeenCalledTimes(1);
+    expect(borderColors(screen.toJSON())).not.toContain(ring);
+  });
+
   it('runs validation rules after the first blur', async () => {
     jest.useFakeTimers();
     try {

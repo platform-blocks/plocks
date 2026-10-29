@@ -3,11 +3,12 @@ import { Button, Row } from '@plocks/ui';
 export function Demo() {
   return (
     <Row gap="md" wrap="wrap">
-      <Button variant="filled" color="primary">Primary</Button>
-      <Button variant="filled" color="secondary">Secondary</Button>
-      <Button variant="filled" color="success">Success</Button>
-      <Button variant="filled" color="warning">Warning</Button>
-      <Button variant="filled" color="error">Error</Button>
+      <Button color="primary">Primary</Button>
+      <Button color="secondary">Secondary</Button>
+      <Button color="success">Success</Button>
+      <Button color="warning">Warning</Button>
+      <Button color="error">Error</Button>
+      <Button color="#5865F2">Custom</Button>
     </Row>
   );
 }

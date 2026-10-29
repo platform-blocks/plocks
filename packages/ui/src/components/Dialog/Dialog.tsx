@@ -337,10 +337,6 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
         ...(variant === 'fullscreen' ? { flex: 1 } : null),
         alignSelf: 'stretch',
         backgroundColor: surface.background,
-        padding: variant === 'fullscreen' ? 0 : 20,
-        // The header already sits 20 above the title and the close button adds a
-        // few px below it, so a second full 20 here reads as a gap.
-        ...(variant !== 'fullscreen' && (hasHeader || swipeEnabled) ? { paddingTop: 8 } : null),
         width: '100%',
       },
       closeButton: {
@@ -371,6 +367,15 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
     return table;
   }, [variant, resolvedRadius, resolvedMaxHeight, bottomSheetMaxWidth, defaultModalMaxWidth,
     modalEffectiveWidth, screenWidth, insets.top, insets.bottom, showHeader, hasHeader, swipeEnabled]);
+
+  // Body padding, in the same longhands the padding props resolve to. Only the
+  // edges the caller leaves alone get the default, so `p={0}` (or a `style`
+  // padding, shorthand or not) reaches every edge on every platform instead of
+  // losing to a default longhand.
+  const bodyPadding = useMemo(
+    () => getDefaultBodyPadding(variant, hasHeader || swipeEnabled, StyleSheet.flatten([spacingStyles, style])),
+    [variant, hasHeader, swipeEnabled, spacingStyles, style]
+  );
 
   const blurBackdrop = isWeb && variant !== 'fullscreen';
   const backdropAnimatedStyle = useAnimatedStyle(() => {
@@ -404,7 +409,7 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
   });
 
   const body = (
-    <View ref={contentRef} style={[styles.content, spacingStyles, style]}>
+    <View ref={contentRef} style={[styles.content, bodyPadding, spacingStyles, style]}>
       {children}
     </View>
   );
@@ -497,6 +502,32 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
       </OverlayHost>
     </Modal>
   );
+}
+
+const DEFAULT_BODY_PADDING = 20;
+
+/**
+ * The body's default padding: 20 on every edge (8 on top below a header or
+ * drag handle, which already supply that spacing), none for fullscreen. Edges
+ * the caller's body style covers are left out so the caller's value is the only
+ * one on that edge.
+ */
+function getDefaultBodyPadding(
+  variant: DialogProps['variant'],
+  belowHeader: boolean,
+  bodyStyle: ViewStyle | undefined
+): ViewStyle {
+  if (variant === 'fullscreen') {
+    // Fullscreen bodies have always been edge to edge.
+    return {};
+  }
+  const has = (...keys: (keyof ViewStyle)[]) => keys.some(key => bodyStyle?.[key] !== undefined);
+  const padding: ViewStyle = {};
+  if (!has('padding', 'paddingVertical', 'paddingTop')) padding.paddingTop = belowHeader ? 8 : DEFAULT_BODY_PADDING;
+  if (!has('padding', 'paddingVertical', 'paddingBottom')) padding.paddingBottom = DEFAULT_BODY_PADDING;
+  if (!has('padding', 'paddingHorizontal', 'paddingStart', 'paddingLeft')) padding.paddingStart = DEFAULT_BODY_PADDING;
+  if (!has('padding', 'paddingHorizontal', 'paddingEnd', 'paddingRight')) padding.paddingEnd = DEFAULT_BODY_PADDING;
+  return padding;
 }
 
 /**

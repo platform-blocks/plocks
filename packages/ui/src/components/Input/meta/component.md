@@ -21,7 +21,9 @@ props:
   disabled: Whether the input is disabled
   required: Whether the input is required
   type: Input type (text, password, email, number, etc.)
-  variant: Visual variant of the input shell — 'default' | 'filled' | 'outline' | 'unstyled'
+  variant: Visual variant of the input shell — 'default' | 'filled' | 'outline' | 'unstyled' (no frame and no focus ring)
+  focused: Force the focused look regardless of real focus (`false` keeps the focus ring off)
+  textInputProps: Extra props for the underlying `TextInput`; its `onFocus` / `onBlur` receive the native event and run alongside the field's focus ring and `onFocus` / `onBlur`
   size: Size token controlling height, font, label, and toggle icon scaling
   autoFocus: Whether to auto-focus the input on mount
   maxLength: Maximum number of characters allowed

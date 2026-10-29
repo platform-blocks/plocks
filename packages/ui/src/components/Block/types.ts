@@ -29,12 +29,16 @@ export interface BlockStyleProps {
   borderLeftColor?: string;
   borderTopLeftRadius?: number;
   borderTopRightRadius?: number;
+  borderBottomLeftRadius?: number;
+  borderBottomRightRadius?: number;
   borderStyle?: ViewStyle['borderStyle'];
   overflow?: ViewStyle['overflow'];
   aspectRatio?: number;
   /** Web touch gesture handling; useful for drag surfaces. */
   touchAction?: 'auto' | 'none' | 'pan-x' | 'pan-y' | 'manipulation';
-  /** Small visual offset without affecting surrounding layout. */
+  /** Small horizontal visual offset without affecting surrounding layout. */
+  translateX?: number;
+  /** Small vertical visual offset without affecting surrounding layout. */
   translateY?: number;
   /** Rotation around the block center, such as `"45deg"`. */
   rotate?: string;
