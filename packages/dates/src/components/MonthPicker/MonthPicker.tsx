@@ -10,6 +10,8 @@ import {
   useControllableState,
 } from '@plocks/ui';
 import type { ResponsiveProp } from '@plocks/ui';
+import { getYearOptions } from '../Calendar/levelSelect';
+import { NativeSelect } from '../Calendar/NativeSelect';
 import { PickerGrid, type PickerGridItem } from '../Calendar/PickerGrid';
 import { dateUtils, formatMonthYear, getDateFormatter, getMonthGridWidth, stepUpSize } from '../Calendar/utils';
 import type { MonthPickerProps } from './types';
@@ -30,6 +32,8 @@ export const MonthPicker = factory<{ props: MonthPickerProps; ref: View }>((prop
     hideHeader = false,
     monthsPerRow,
     fullWidth = false,
+    withNativeLevelSelect = false,
+    yearsSelectRange,
     style,
     testID,
   } = props;
@@ -88,6 +92,17 @@ export const MonthPicker = factory<{ props: MonthPickerProps; ref: View }>((prop
   // container. Default to the same natural width as a calendar's day grid.
   const pickerWidth = fullWidth ? undefined : getMonthGridWidth(theme, size);
 
+  // Native has no select element (`NativeSelect` is null there): keep the title.
+  const YearSelect = withNativeLevelSelect ? NativeSelect : null;
+  const yearSelect = YearSelect ? (
+    <YearSelect
+      label="Year"
+      value={currentYear}
+      options={getYearOptions(currentYear, yearsSelectRange, minDate, maxDate)}
+      onChange={setCurrentYear}
+    />
+  ) : undefined;
+
   return (
     <PickerGrid
       ref={ref}
@@ -101,6 +116,7 @@ export const MonthPicker = factory<{ props: MonthPickerProps; ref: View }>((prop
       width={pickerWidth}
       hideHeader={hideHeader}
       title={String(currentYear)}
+      titleNode={yearSelect}
       previousLabel="Previous year"
       nextLabel="Next year"
       onPrevious={() => setCurrentYear(currentYear - 1)}

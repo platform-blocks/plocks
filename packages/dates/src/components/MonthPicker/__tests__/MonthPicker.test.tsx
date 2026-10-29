@@ -20,4 +20,13 @@ describe('MonthPicker', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Next year' }));
     expect(onYearChange).toHaveBeenCalledWith(2027);
   });
+
+  it('keeps the year title and arrows on native with withNativeLevelSelect', () => {
+    const onYearChange = jest.fn();
+    render(<MonthPicker year={2026} withNativeLevelSelect onYearChange={onYearChange} />);
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.getByText('2026')).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: 'Previous year' }));
+    expect(onYearChange).toHaveBeenCalledWith(2025);
+  });
 });

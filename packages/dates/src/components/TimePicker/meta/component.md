@@ -15,6 +15,7 @@ props:
   columnWidth: Width of each scroll column
   columnHeight: Max height of each scroll column
   disabled: Disable selection
+  presets: "Preset times as quick-pick buttons under the columns — 24-hour 'HH:mm' / 'HH:mm:ss' strings, or { label, values }[] groups. Picking one sets the value (seconds kept only with withSeconds); the matching preset is aria-pressed"
   accessibilityLabel: Accessible name of the column group (default "Time")
 ---
 

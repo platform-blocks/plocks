@@ -22,6 +22,10 @@ export interface MonthPickerInputProps extends PickerFieldBaseProps {
   formatValue?: (value: Date) => string;
   /** Close the picker after selecting a month */
   closeOnSelect?: boolean;
+  /** Replace the year title with a year select (web; see MonthPicker). */
+  withNativeLevelSelect?: boolean;
+  /** Inclusive `[from, to]` years of the year select (see MonthPicker). */
+  yearsSelectRange?: [number, number];
   /** Additional props forwarded to MonthPicker (except value) */
   monthPickerProps?: Partial<Omit<MonthPickerProps, 'value'>>;
   /**

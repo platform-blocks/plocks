@@ -25,4 +25,16 @@ export interface MonthPickerProps extends BaseProps {
   monthsPerRow?: ResponsiveProp<number>;
   /** Stretch to fill the container instead of sizing to the natural grid width. Default `false`. */
   fullWidth?: boolean;
+  /**
+   * Replace the header's year title with a year select. Changing it moves the
+   * view and calls `onYearChange`, like the arrows. Web renders a native
+   * `<select>`; native platforms have no select element, so they keep the title.
+   */
+  withNativeLevelSelect?: boolean;
+  /**
+   * Inclusive `[from, to]` years offered by the year select
+   * (`withNativeLevelSelect`), cut to `minDate` / `maxDate`. Defaults to the
+   * displayed year ±50.
+   */
+  yearsSelectRange?: [number, number];
 }

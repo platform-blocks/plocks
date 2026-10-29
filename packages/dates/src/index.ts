@@ -12,7 +12,7 @@ export type { YearPickerProps } from './components/YearPicker';
 export type { DatePickerInputProps } from './components/DatePickerInput';
 export type { MonthPickerInputProps } from './components/MonthPickerInput';
 export type { YearPickerInputProps } from './components/YearPickerInput';
-export type { TimePickerProps, TimePickerValue } from './components/TimePicker/types';
+export type { TimePickerProps, TimePickerValue, TimePickerPresets, TimePickerPresetGroup } from './components/TimePicker/types';
 export type { TimePickerInputProps } from './components/TimePickerInput';
 export type { DatePickerInputHandle } from './components/DatePickerInput';
 export type { MonthPickerInputHandle } from './components/MonthPickerInput';

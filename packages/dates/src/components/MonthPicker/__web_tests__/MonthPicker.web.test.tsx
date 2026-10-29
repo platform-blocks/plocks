@@ -68,4 +68,24 @@ describe('MonthPicker (react-native-web DOM)', () => {
     press(' ');
     expect(onChange).toHaveBeenCalledWith(new Date(2026, 6, 1));
   });
+
+  it('replaces the year title with a year select (withNativeLevelSelect)', () => {
+    const onYearChange = jest.fn();
+    render(<MonthPicker withNativeLevelSelect yearsSelectRange={[2020, 2030]} year={2026} onYearChange={onYearChange} />);
+    const year = screen.getByRole('combobox', { name: 'Year' }) as HTMLSelectElement;
+    expect(year.value).toBe('2026');
+    expect(year.options).toHaveLength(11);
+    act(() => {
+      fireEvent.change(year, { target: { value: '2028' } });
+    });
+    expect(onYearChange).toHaveBeenCalledWith(2028);
+  });
+
+  it('moves the grid when the year select changes (uncontrolled)', () => {
+    render(<MonthPicker withNativeLevelSelect value={new Date(2026, 0, 1)} />);
+    act(() => {
+      fireEvent.change(screen.getByRole('combobox', { name: 'Year' }), { target: { value: '2001' } });
+    });
+    expect(screen.getByRole('grid', { name: '2001' })).toBeTruthy();
+  });
 });

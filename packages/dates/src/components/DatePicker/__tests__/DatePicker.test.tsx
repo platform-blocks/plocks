@@ -95,6 +95,15 @@ describe('DatePicker', () => {
     expect(screen.getByRole('button', { name: 'June 2026' })).toBeTruthy();
   });
 
+  it('keeps the level button on native with withNativeLevelSelect (no select element there)', () => {
+    const onLevelChange = jest.fn();
+    render(<DatePicker withNativeLevelSelect calendarProps={{ defaultDate: MARCH, onLevelChange }} />);
+
+    expect(screen.queryByRole('combobox')).toBeNull();
+    fireEvent.press(screen.getByRole('button', { name: 'March 2026' }));
+    expect(onLevelChange).toHaveBeenCalledWith('year');
+  });
+
   it('disables days before minDate', () => {
     const onChange = jest.fn();
     render(<DatePicker onChange={onChange} calendarProps={{ defaultDate: MARCH, minDate: day(10) }} />);

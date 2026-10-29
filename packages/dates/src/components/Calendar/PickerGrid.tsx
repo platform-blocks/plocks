@@ -52,6 +52,8 @@ export interface PickerGridProps {
   width?: number;
   hideHeader?: boolean;
   title: string;
+  /** Replaces the header title, e.g. with a year select. */
+  titleNode?: React.ReactNode;
   previousLabel: string;
   nextLabel: string;
   onPrevious: () => void;
@@ -115,6 +117,7 @@ export const PickerGrid = factory<{ props: PickerGridProps; ref: View }>(
       width,
       hideHeader = false,
       title,
+      titleNode,
       previousLabel,
       nextLabel,
       onPrevious,
@@ -171,9 +174,11 @@ export const PickerGrid = factory<{ props: PickerGridProps; ref: View }>(
               <Icon name="chevron-left" size={iconSize} color={theme.text.secondary} />
             </Pressable>
 
-            <Text size="xl" fw="bold" style={styles.title} {...a11yProps({ live: 'polite' })}>
-              {title}
-            </Text>
+            {titleNode ?? (
+              <Text size="xl" fw="bold" style={styles.title} {...a11yProps({ live: 'polite' })}>
+                {title}
+              </Text>
+            )}
 
             <Pressable
               onPress={onNext}

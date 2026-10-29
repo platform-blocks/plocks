@@ -37,6 +37,8 @@ export const DatePickerInput = factory<{ props: DatePickerInputProps; ref: DateP
       onChange,
       type = 'single',
       calendarProps,
+      withNativeLevelSelect,
+      yearsSelectRange,
       placeholder = 'Pick date',
       displayFormat = 'MMMM d, yyyy',
       clearable = false,
@@ -148,6 +150,8 @@ export const DatePickerInput = factory<{ props: DatePickerInputProps; ref: DateP
         <View style={PANEL_CENTER}>
           <Calendar
             {...calendarRest}
+            withNativeLevelSelect={withNativeLevelSelect ?? calendarRest.withNativeLevelSelect}
+            yearsSelectRange={yearsSelectRange ?? calendarRest.yearsSelectRange}
             locale={locale}
             numberOfMonths={numberOfMonths}
             date={calendarDate}

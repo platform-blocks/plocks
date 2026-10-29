@@ -26,6 +26,8 @@ export const DatePicker = factory<{ props: DatePickerProps; ref: View }>((props,
     onChange,
     type = 'single',
     calendarProps,
+    withNativeLevelSelect,
+    yearsSelectRange,
     style,
     testID,
     accessibilityLabel,
@@ -93,6 +95,8 @@ export const DatePicker = factory<{ props: DatePickerProps; ref: View }>((props,
     <View ref={ref} style={[spacingStyles, style]} testID={testID} {...groupProps}>
       <Calendar
         {...calendarRest}
+        withNativeLevelSelect={withNativeLevelSelect ?? calendarRest.withNativeLevelSelect}
+        yearsSelectRange={yearsSelectRange ?? calendarRest.yearsSelectRange}
         locale={locale}
         numberOfMonths={numberOfMonths}
         date={viewDate}

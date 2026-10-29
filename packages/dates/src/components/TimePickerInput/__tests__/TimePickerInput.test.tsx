@@ -82,4 +82,39 @@ describe('TimePickerInput (native)', () => {
     ref.current?.clear?.();
     expect(onChange).toHaveBeenLastCalledWith(null);
   });
+
+  describe('presets', () => {
+    it('sets the value from a preset and keeps the panel open by default', () => {
+      const onChange = jest.fn();
+      const onClose = jest.fn();
+      render(<TimePickerInput testID="tpi" label="Start" onChange={onChange} onClose={onClose} presets={['09:00', '17:30']} />);
+      fireEvent.press(screen.getByRole('button', { name: 'Choose time' }));
+      fireEvent.press(screen.getByRole('button', { name: '17:30' }));
+      expect(onChange).toHaveBeenLastCalledWith({ hours: 17, minutes: 30 });
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByLabelText('Hour')).toBeTruthy();
+      expect(screen.getByDisplayValue('17:30')).toBeTruthy();
+    });
+
+    it('closes the panel after a preset with closeDropdownOnPresetSelect', () => {
+      const onChange = jest.fn();
+      const onClose = jest.fn();
+      render(
+        <TimePickerInput
+          testID="tpi"
+          label="Start"
+          onChange={onChange}
+          onClose={onClose}
+          closeDropdownOnPresetSelect
+          presets={[{ label: 'Morning', values: ['09:00'] }]}
+        />
+      );
+      fireEvent.press(screen.getByRole('button', { name: 'Choose time' }));
+      expect(screen.getByLabelText('Morning')).toBeTruthy();
+      fireEvent.press(screen.getByRole('button', { name: '09:00' }));
+      expect(onChange).toHaveBeenLastCalledWith({ hours: 9, minutes: 0 });
+      expect(onClose).toHaveBeenCalled();
+      expect(screen.queryByLabelText('Hour')).toBeNull();
+    });
+  });
 });
