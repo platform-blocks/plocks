@@ -40,6 +40,8 @@ export interface PickerTriggerProps {
   /** Dropdown open: the frame border takes the accent color. */
   opened?: boolean;
   invalid?: boolean;
+  /** Success state: draws the success border unless `invalid`. */
+  success?: boolean;
   disabled?: boolean;
   readOnly?: boolean;
   startSection?: React.ReactNode;
@@ -75,6 +77,7 @@ export function PickerTrigger({
   variant = 'default',
   opened = false,
   invalid = false,
+  success = false,
   disabled = false,
   readOnly = false,
   startSection,
@@ -88,7 +91,7 @@ export function PickerTrigger({
   frameStyle,
 }: PickerTriggerProps) {
   const [focused, setFocused] = useState(false);
-  const styles = useFieldControlStyles({ size, radius, variant, focused: opened || focused, invalid, disabled });
+  const styles = useFieldControlStyles({ size, radius, variant, focused: opened || focused, invalid, success, disabled });
   const { metrics } = styles;
 
   const userOnFocus = triggerProps?.onFocus;

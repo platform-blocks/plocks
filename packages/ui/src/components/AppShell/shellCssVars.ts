@@ -36,6 +36,13 @@ export const APP_SHELL_CSS_VARS = {
   navbarWidth: '--plocks-shell-navbar-w',
   /** Bottom of the content area — the footer, or the bottom nav where one replaces it. */
   contentBottom: '--plocks-shell-content-bottom',
+  /**
+   * Aside width. Only written by `AppShell resize` (on the shell root, while
+   * the aside is resizable); `createAppShellCss` does not emit it.
+   */
+  asideWidth: '--plocks-shell-aside-w',
+  /** Footer height. Only written by `AppShell resize`, like `asideWidth`. */
+  footerHeight: '--plocks-shell-footer-h',
 } as const;
 
 export type AppShellCssVar = keyof typeof APP_SHELL_CSS_VARS;

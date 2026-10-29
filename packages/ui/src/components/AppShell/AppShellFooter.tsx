@@ -20,7 +20,7 @@ export const AppShellFooter = factory<{ props: AppShellFooterProps; ref: View }>
     const theme = useTheme();
     const chrome = shellChrome(theme);
     const spacingStyles = useStyleProps(props);
-    const { footerHeight, navbarWidth, navbarWidthStyle, asideWidth, cssGeometry } = useAppShell();
+    const { footerHeightStyle, navbarWidthStyle, asideWidthStyle } = useAppShell();
     const internal = useAppShellInternal();
 
     if (internal?.footerCollapsed) return null;
@@ -35,11 +35,12 @@ export const AppShellFooter = factory<{ props: AppShellFooterProps; ref: View }>
         aria-label={accessibilityLabel}
         style={[
           {
-            height: asDimension(footerHeight),
+            // Plain px, or `var()`s under cssGeometry / web resizing.
+            height: asDimension(footerHeightStyle),
             position: 'absolute',
             bottom: 0,
-            start: asDimension(cssGeometry ? navbarWidthStyle : navbarWidth),
-            end: asDimension(asideWidth),
+            start: asDimension(navbarWidthStyle),
+            end: asDimension(asideWidthStyle),
             backgroundColor: chrome.background,
             zIndex: zIndex ?? internal?.zIndices.footer ?? getZIndex(theme, 'sticky'),
             borderTopWidth: withBorder ? 1 : 0,

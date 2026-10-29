@@ -34,10 +34,12 @@ export function getFieldFocusRingColor(theme: PlocksTheme): string {
  *
  * Focus draws a 2px `focusRing` OUTSIDE the 1px border — including in the
  * error state, where the border stays the error color — so focus never
- * reflows the field and never hides the error.
+ * reflows the field and never hides the error. `success` colors the border
+ * with the theme's success color the same way; `invalid` wins over it.
  *
  * @example
  * const styles = getFieldFrameStyles(theme, size, variant, radius, invalid, focused, disabled);
+ * const okStyles = getFieldFrameStyles(theme, size, variant, radius, false, focused, disabled, true);
  * <View style={styles.frame}>{focused ? <View style={styles.focusRing} /> : null}...</View>
  */
 export const getFieldFrameStyles = createThemedStyles(
@@ -48,13 +50,16 @@ export const getFieldFrameStyles = createThemedStyles(
     radius: RadiusValue | undefined,
     invalid: boolean,
     focused: boolean,
-    disabled: boolean
+    disabled: boolean,
+    success: boolean = false
   ) => {
     const metrics = getControlSize(theme, size);
     const unstyled = variant === 'unstyled';
     const errorColor = theme.colors.error[5];
+    const successColor = theme.colors.success[5];
     const accentColor = theme.colors.primary[5];
     const isFocused = focused && !disabled;
+    const showSuccess = success && !invalid;
 
     let backgroundColor: string = theme.backgrounds.surface;
     let borderColor: string = theme.backgrounds.borderStrong;
@@ -68,11 +73,12 @@ export const getFieldFrameStyles = createThemedStyles(
     }
     if (disabled && !unstyled) backgroundColor = theme.backgrounds.disabled;
     if (invalid) borderColor = errorColor;
+    else if (showSuccess) borderColor = successColor;
     else if (isFocused && !unstyled) borderColor = accentColor;
 
     // A constant border width in every state, so focus/error never reflow the
-    // field. `unstyled` only draws one to flag an error.
-    const borderWidth = unstyled && !invalid ? 0 : 1;
+    // field. `unstyled` only draws one to flag an error or success.
+    const borderWidth = unstyled && !invalid && !showSuccess ? 0 : 1;
     const borderRadius = unstyled ? 0 : resolveRadius(theme, radius ?? getComponentDefaultRadius('input'));
     const ringInset = -(borderWidth + FIELD_FOCUS_RING_WIDTH);
     const sectionGap = resolveSpacing(theme, 'xs') as number;

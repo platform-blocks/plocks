@@ -7,7 +7,7 @@ import { useTheme } from '../../core/theme/ThemeProvider';
 import { getZIndex } from '../../core/theme/zIndices';
 import { useStyleProps } from '../../core/utils/spacing';
 import { useAppShell, useAppShellInternal, useNavbarPushOffset } from './AppShellContext';
-import { asDimension, insetTransition } from './shellUtils';
+import { asDimension, insetTransition, offsetGeometry } from './shellUtils';
 import type { AppShellHeaderProps } from './types';
 
 /**
@@ -20,7 +20,7 @@ export const AppShellHeader = factory<{ props: AppShellHeaderProps; ref: View }>
     const theme = useTheme();
     const chrome = shellChrome(theme);
     const spacingStyles = useStyleProps(props);
-    const { headerHeightStyle, navbarWidth, navbarWidthStyle, asideWidth, cssGeometry, transitionDuration } = useAppShell();
+    const { headerHeightStyle, navbarWidthStyle, asideWidthStyle, cssGeometry, transitionDuration } = useAppShell();
     const internal = useAppShellInternal();
     const pushOffset = useNavbarPushOffset();
 
@@ -28,7 +28,9 @@ export const AppShellHeader = factory<{ props: AppShellHeaderProps; ref: View }>
 
     const alt = internal?.layout === 'alt';
     const withBorder = withBorderProp ?? internal?.withBorder ?? true;
-    const start = !alt ? 0 : cssGeometry ? navbarWidthStyle : (typeof navbarWidth === 'number' ? navbarWidth : 0) + pushOffset;
+    // `navbarWidthStyle` is the navbar width in px, or a `var()` (cssGeometry,
+    // web resizing) — under cssGeometry the push is the variable's own job.
+    const start = !alt ? 0 : cssGeometry ? navbarWidthStyle : offsetGeometry(navbarWidthStyle, pushOffset);
 
     return (
       <View
@@ -42,7 +44,7 @@ export const AppShellHeader = factory<{ props: AppShellHeaderProps; ref: View }>
             position: 'absolute',
             top: 0,
             start: asDimension(start),
-            end: alt ? asDimension(asideWidth) : 0,
+            end: alt ? asDimension(asideWidthStyle) : 0,
             backgroundColor: chrome.background,
             zIndex: zIndex ?? internal?.zIndices.header ?? getZIndex(theme, 'header'),
             borderBottomWidth: withBorder ? 1 : 0,

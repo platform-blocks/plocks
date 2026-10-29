@@ -95,6 +95,7 @@ export const PasswordInput = factory<{ props: PasswordInputProps; ref: TextInput
     const {
       showStrengthIndicator = false,
       showVisibilityToggle = true,
+      visibilityToggleFocusable = false,
       strengthValidation,
       value,
       defaultValue,
@@ -124,7 +125,13 @@ export const PasswordInput = factory<{ props: PasswordInputProps; ref: TextInput
     const handleToggleVisibility = useCallback(() => setShowPassword((shown) => !shown), []);
 
     const toggle = showVisibilityToggle ? (
-      <PasswordToggle visible={showPassword} onToggle={handleToggleVisibility} size={size} disabled={disabled} />
+      <PasswordToggle
+        visible={showPassword}
+        onToggle={handleToggleVisibility}
+        size={size}
+        disabled={disabled}
+        focusable={visibilityToggleFocusable}
+      />
     ) : null;
 
     const secureProps = useMemo<ExtendedTextInputProps>(

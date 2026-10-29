@@ -57,6 +57,14 @@ export interface StepperProps extends BaseProps<ViewStyle> {
   orientation?: 'horizontal' | 'vertical';
   /** Icon position relative to step body */
   iconPosition?: 'left' | 'right';
+  /**
+   * Where the label and description sit in a horizontal stepper: `'bottom'`
+   * centers them under the step icon, `'right'` places them beside it with the
+   * connector running on to the next step. Ignored when `orientation="vertical"`
+   * (the label always sits beside the icon there).
+   * @default 'bottom'
+   */
+  labelPosition?: 'right' | 'bottom';
   /** Icon size */
   iconSize?: number;
   /** Component size: a size token, or a numeric control height. @default 'md' */
@@ -83,6 +91,7 @@ export interface StepperContextValue {
   onStepClick?: (stepIndex: number) => void;
   orientation: 'horizontal' | 'vertical';
   iconPosition: 'left' | 'right';
+  labelPosition: 'right' | 'bottom';
   iconSize: number;
   size: SizeValue;
   metrics: StepperMetrics;

@@ -3,12 +3,22 @@ import { AccessibilityInfo, StyleSheet, TextInput } from 'react-native';
 import type { ReactTestRendererJSON } from 'react-test-renderer';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
+import { DEFAULT_THEME } from '../../../core/theme/defaultTheme';
 import { Field } from '../../_internal/Field/Field';
 import { Input } from '../Input';
 import { PasswordInput } from '../PasswordInput';
 import { validationRules } from '../validation';
 
 const getInput = () => screen.UNSAFE_getByType(TextInput);
+
+/** Every `borderColor` in the rendered tree (the field frame is the only bordered node). */
+function borderColors(node: ReactTestRendererJSON | ReactTestRendererJSON[] | null): string[] {
+  if (!node) return [];
+  if (Array.isArray(node)) return node.flatMap(borderColors);
+  const own = StyleSheet.flatten(node.props?.style)?.borderColor;
+  const children = (node.children ?? []).filter((child): child is ReactTestRendererJSON => typeof child !== 'string');
+  return [...(own ? [String(own)] : []), ...children.flatMap(borderColors)];
+}
 
 describe('Input (native)', () => {
   beforeEach(() => {
@@ -148,6 +158,35 @@ describe('Input (native)', () => {
     const tree = render(<Input label="Name" fullWidth w={240} maw={320} />).toJSON() as ReactTestRendererJSON;
     expect(StyleSheet.flatten(tree.props.style)).toMatchObject({ width: 240, maxWidth: 320, minWidth: 0 });
   });
+
+  it('shows a success message in the success color and draws the success border', () => {
+    const { toJSON } = render(
+      <Input id="user" label="Username" helperText="Pick a handle" success="Username is available" />
+    );
+    const message = screen.getByText('Username is available');
+    expect(StyleSheet.flatten(message.props.style).color).toBe(DEFAULT_THEME.colors.success[5]);
+    expect(screen.queryByText('Pick a handle')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(getInput().props.accessibilityHint).toBe('Username is available');
+    expect(borderColors(toJSON())).toContain(DEFAULT_THEME.colors.success[5]);
+  });
+
+  it('lets an error win over success', () => {
+    const { toJSON } = render(
+      <Input id="user" label="Username" success="Username is available" error="Username is taken" />
+    );
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(screen.queryByText('Username is available')).toBeNull();
+    const colors = borderColors(toJSON());
+    expect(colors).toContain(DEFAULT_THEME.colors.error[5]);
+    expect(colors).not.toContain(DEFAULT_THEME.colors.success[5]);
+  });
+
+  it('colors the border for `success` without a message', () => {
+    const { toJSON } = render(<Input label="Code" success helperText="Six digits" />);
+    expect(screen.getByText('Six digits')).toBeTruthy();
+    expect(borderColors(toJSON())).toContain(DEFAULT_THEME.colors.success[5]);
+  });
 });
 
 describe('PasswordInput (native)', () => {
@@ -168,5 +207,16 @@ describe('PasswordInput (native)', () => {
     expect(screen.queryByLabelText(/password/i, { exact: false })).toBeTruthy();
     expect(screen.queryByLabelText('Show password')).toBeNull();
     expect(screen.queryByLabelText('Hide password')).toBeNull();
+  });
+
+  it('keeps the toggle out of keyboard focus unless visibilityToggleFocusable', () => {
+    const { rerender } = render(<PasswordInput label="Password" />);
+    expect(screen.getByLabelText('Show password').props.focusable).toBe(false);
+    // Still pressable.
+    fireEvent.press(screen.getByLabelText('Show password'));
+    expect(getInput().props.secureTextEntry).toBe(false);
+
+    rerender(<PasswordInput label="Password" visibilityToggleFocusable />);
+    expect(screen.getByLabelText('Hide password').props.focusable).toBe(true);
   });
 });

@@ -14,6 +14,7 @@ props:
   size: Size token controlling checkbox + label scaling
   radius: Box corner radius (token or px)
   color: Indicator color — palette token | 'primary.6' | any CSS color
+  variant: Draw style once checked — 'filled' (solid accent, default) or 'light' (tinted box, mark in the accent)
   disabled: Whether the checkbox is disabled
   readOnly: Shows the state but ignores input
   required: Whether the checkbox is required (asterisk + announced)
@@ -26,6 +27,7 @@ props:
 examples:
   - Basic checkbox usage
   - Indeterminate state
+  - Filled and light variants
   - Label customization with labelProps / descriptionProps
 ---
 

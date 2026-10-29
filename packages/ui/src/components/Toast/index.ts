@@ -26,6 +26,7 @@ export {
 export type {
   ToastOptions,
   ToastStackPosition,
+  ToastLayout,
   ToastQueueOptions,
   SeverityToastOptions,
   ToastMessage,

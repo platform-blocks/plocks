@@ -7,8 +7,9 @@ import React from 'react';
 import { Knob, __KnobInternals } from '../Knob';
 import type {
   KnobProps,
-  KnobFillPartProps,
+  KnobBodyPartProps,
   KnobRingPartProps,
+  KnobRingStyle,
   KnobRingSegmentPartProps,
   KnobProgressPartProps,
   KnobTickLayerPartProps,
@@ -172,7 +173,7 @@ describe('Knob compound parts', () => {
     const appearance = buildAppearanceFromParts(
       { ring: { thickness: 16, color: '#94a3b8' } },
       [
-        createPart('fill', { color: '#0f172a', borderWidth: 2 } as KnobFillPartProps, 0),
+        createPart('body', { color: '#0f172a', borderWidth: 2, shape: 'fluted' } as KnobBodyPartProps, 0),
         createPart('ring', { thickness: 24, color: '#1e293b' } as KnobRingPartProps, 1),
         createPart('progress', { visible: false } as KnobProgressPartProps, 2),
         createPart('tick', { source: 'values', values: [0], shape: 'line' } as KnobTickLayerPartProps, 3),
@@ -181,7 +182,7 @@ describe('Knob compound parts', () => {
       ]
     );
 
-    expect(appearance?.fill).toMatchObject({ color: '#0f172a', borderWidth: 2 });
+    expect(appearance?.body).toMatchObject({ color: '#0f172a', borderWidth: 2, shape: 'fluted' });
     expect(appearance?.ring).toMatchObject({ thickness: 24, color: '#1e293b' });
     expect(appearance?.progress).toBe(false);
     expect(appearance?.pointer).toBe(false);
@@ -218,7 +219,7 @@ describe('Knob compound parts', () => {
       createPart('ringSegment', { value: 40, color: '#ef4444' } as KnobRingSegmentPartProps, 2),
     ]);
 
-    expect(appearance?.ring?.segments).toEqual([
+    expect((appearance?.ring as KnobRingStyle | undefined)?.segments).toEqual([
       { value: 35, color: '#22c55e' },
       { value: 25, color: '#f59e0b' },
       { value: 40, color: '#ef4444' },
@@ -237,6 +238,6 @@ describe('Knob compound parts', () => {
     ]);
 
     expect(appearance?.ring).toMatchObject({ thickness: 20, color: '#1e293b' });
-    expect(appearance?.ring?.segments).toEqual([{ value: 50, color: '#22c55e' }]);
+    expect((appearance?.ring as KnobRingStyle | undefined)?.segments).toEqual([{ value: 50, color: '#22c55e' }]);
   });
 });

@@ -5,7 +5,7 @@ source: "@plocks/ui"
 status: "beta"
 category: overlay
 playground: true
-accessibility: "The target itself carries the handlers (no extra tab stop) plus aria-expanded / aria-controls. Hover cards also open on keyboard focus, stay open while hovered, and close on Escape; `trigger=\"click\"` moves focus into the card and returns it on close."
+accessibility: "The target itself carries the handlers (no extra tab stop) plus aria-expanded / aria-controls. Hover cards also open on keyboard focus, stay open while hovered or while focus moves into them, and close on Escape; `trigger=\"click\"` moves focus into the card. Focus returns to the target on close unless `returnFocus` is off."
 variants:
   - name: "basic"
     description: "Hover (or focus) preview card with an arrow"
@@ -52,6 +52,10 @@ props:
   - name: "closeOnEscape"
     type: "boolean"
     description: "Close on Escape (web) and Android back"
+    default: "true"
+  - name: "returnFocus"
+    type: "boolean"
+    description: "Return focus to the target when the card closes while focus is inside it"
     default: "true"
   - name: "disabled"
     type: "boolean"

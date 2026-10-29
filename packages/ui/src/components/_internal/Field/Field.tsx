@@ -17,6 +17,8 @@ export interface FieldRenderProps {
   /** Spread on the focusable control: id, aria-labelledby/describedby (web), composed label/hint (native), aria-invalid/required. */
   controlProps: A11yProps;
   invalid: boolean;
+  /** `success` is set and there is no error: controls draw the success border. */
+  success: boolean;
   ids: FieldA11yIds;
   disabled: boolean;
   required: boolean;
@@ -33,7 +35,13 @@ export interface FieldProps {
   description?: React.ReactNode;
   /** Error message (rendered, announced, marks the control invalid). `true` marks invalid without a message. */
   error?: React.ReactNode;
-  /** Shown under the control when there is no error. */
+  /**
+   * Success state. `true` only flags it (controls draw the success border); a
+   * node/string is also rendered, in the success color, where helper text goes
+   * and is linked to the control like helper text. Ignored while `error` is set.
+   */
+  success?: boolean | React.ReactNode;
+  /** Shown under the control when there is no error or success message. */
   helperText?: React.ReactNode;
   required?: boolean;
   /** Show the visual asterisk for required fields. Default: `required`. */
@@ -110,6 +118,7 @@ export function Field({
   label,
   description,
   error,
+  success,
   helperText,
   required = false,
   withAsterisk,
@@ -127,12 +136,18 @@ export function Field({
   containerProps,
   rootRef,
 }: FieldProps) {
+  // An error wins over success. A success message takes the helper slot (and
+  // the helper id), so the control is described by it exactly like helper text.
+  const hasError = hasContent(error) || error === true;
+  const isSuccess = !hasError && !!success;
+  const showSuccessMessage = isSuccess && hasContent(success);
+
   const a11y = useFieldA11y({
     id,
     label,
     description,
     error,
-    helperText,
+    helperText: showSuccessMessage ? success : helperText,
     required,
     disabled,
     readOnly,
@@ -148,6 +163,7 @@ export function Field({
       headerBeside: { flexShrink: 1 } as ViewStyle,
       footer: { marginTop: 4 } as ViewStyle,
       error: { color: theme.colors.error[5], fontSize: footerFontSize, fontFamily: theme.fontFamily } as TextStyle,
+      success: { color: theme.colors.success[5], fontSize: footerFontSize, fontFamily: theme.fontFamily } as TextStyle,
       helper: { color: theme.text.muted, fontSize: footerFontSize, fontFamily: theme.fontFamily } as TextStyle,
     };
   }, [size]);
@@ -161,8 +177,8 @@ export function Field({
   }, [errorText]);
 
   const renderProps = useMemo<FieldRenderProps>(
-    () => ({ controlProps, invalid, ids, disabled, required, readOnly, size }),
-    [controlProps, invalid, ids, disabled, required, readOnly, size]
+    () => ({ controlProps, invalid, success: isSuccess, ids, disabled, required, readOnly, size }),
+    [controlProps, invalid, isSuccess, ids, disabled, required, readOnly, size]
   );
 
   const header = (
@@ -193,7 +209,9 @@ export function Field({
     </View>
   ) : showHelper ? (
     <View id={a11y.helperProps.id} style={styles.footer}>
-      <RNText style={styles.helper}>{helperText}</RNText>
+      <RNText style={showSuccessMessage ? styles.success : styles.helper}>
+        {showSuccessMessage ? success : helperText}
+      </RNText>
     </View>
   ) : null;
 

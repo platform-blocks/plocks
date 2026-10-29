@@ -60,6 +60,23 @@ export interface TooltipProps extends BaseProps {
   closeDelay?: number;
   /** Events that show the tooltip. Focus is on by default so keyboard users see it. */
   events?: TooltipEvents;
+  /**
+   * Keep the tooltip open while the pointer moves from the trigger onto it, so
+   * links or selectable text inside can be reached (WCAG 1.4.13). Off, the
+   * bubble ignores the pointer and closes as soon as it leaves the trigger.
+   * @default false
+   */
+  interactive?: boolean;
+  /**
+   * Hide the bubble while its trigger is detached: removed from the document,
+   * hidden (`display: none`, `visibility: hidden`, 0×0), or scrolled / clipped
+   * fully out of view. It comes back by itself once the trigger is visible again
+   * and the tooltip is still open. Applies to controlled tooltips too, without
+   * calling `onClose`. Web only; on native the bubble is still dropped when the
+   * trigger measures 0×0 as it opens.
+   * @default true
+   */
+  hideDetached?: boolean;
   /** Never show the tooltip. */
   disabled?: boolean;
   /** Children element to attach tooltip to */

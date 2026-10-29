@@ -47,6 +47,21 @@ describe('Stepper (react-native-web DOM)', () => {
     expect(document.activeElement).toBe(steps[0]);
   });
 
+  it('labelPosition="right" lays the label out beside the icon instead of centered under it', () => {
+    const { unmount } = renderStepper();
+    expect(getComputedStyle(screen.getByText('Cart')).textAlign).toBe('center');
+    unmount();
+
+    renderStepper({ labelPosition: 'right' });
+    // react-native-web writes `left` as the logical `start`.
+    expect(getComputedStyle(screen.getByText('Cart')).textAlign).toBe('start');
+    const step = screen.getByRole('listitem', { name: 'Cart' });
+    const row = step.firstElementChild as HTMLElement;
+    // Indicator, body and connector share one row.
+    expect(getComputedStyle(row).flexDirection).toBe('row');
+    expect(row.contains(screen.getByText('Cart'))).toBe(true);
+  });
+
   it('without onStepClick the steps are a list, not buttons', () => {
     renderStepper();
     expect(screen.queryAllByRole('button')).toHaveLength(0);

@@ -36,6 +36,12 @@ export interface HoverCardProps extends BaseProps {
   withArrow?: boolean;
   /** Close on Escape (web) and Android back. @default true */
   closeOnEscape?: boolean;
+  /**
+   * Return focus to the target when the card closes while focus is inside it
+   * (after tabbing into it, or with `trigger="click"`). Closing with focus
+   * elsewhere never steals it back. @default true
+   */
+  returnFocus?: boolean;
   /** Called when opened */
   onOpen?: () => void;
   /** Called when closed */

@@ -2,7 +2,7 @@ import React from 'react';
 import { AccessibilityInfo, Text, TextInput } from 'react-native';
 import { render, screen } from '@testing-library/react-native';
 
-import { Field, useFieldContext } from '../Field';
+import { Field, useFieldContext, type FieldRenderProps } from '../Field';
 
 describe('Field (native)', () => {
   it('renders label, description, control and helper text, wiring the control', () => {
@@ -77,5 +77,48 @@ describe('Field (native)', () => {
     const Probe = () => <Text testID="p">{String(useFieldContext())}</Text>;
     render(<Probe />);
     expect(screen.getByTestId('p').props.children).toBe('null');
+  });
+
+  it('shows a success message in the helper slot and flags success, until an error wins', () => {
+    const Control = ({ controlProps, success, invalid }: FieldRenderProps) => (
+      <>
+        <TextInput testID="input" {...controlProps} />
+        <Text testID="flags">{`${success}|${invalid}`}</Text>
+      </>
+    );
+    const { rerender } = render(
+      <Field id="user" label="Username" helperText="Pick a handle" success="Username is available">
+        {Control}
+      </Field>
+    );
+    expect(screen.getByText('Username is available')).toBeTruthy();
+    expect(screen.queryByText('Pick a handle')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByTestId('input').props.accessibilityHint).toBe('Username is available');
+    expect(screen.getByTestId('flags').props.children).toBe('true|false');
+
+    rerender(
+      <Field id="user" label="Username" success="Username is available" error="Username is taken">
+        {Control}
+      </Field>
+    );
+    expect(screen.queryByText('Username is available')).toBeNull();
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(screen.getByTestId('flags').props.children).toBe('false|true');
+  });
+
+  it('treats `success` as a flag only when it has no message', () => {
+    render(
+      <Field id="code" label="Code" helperText="Six digits" success>
+        {({ controlProps, success }) => (
+          <>
+            <TextInput testID="input" {...controlProps} />
+            <Text testID="flag">{String(success)}</Text>
+          </>
+        )}
+      </Field>
+    );
+    expect(screen.getByText('Six digits')).toBeTruthy();
+    expect(screen.getByTestId('flag').props.children).toBe('true');
   });
 });

@@ -91,6 +91,8 @@ const TimelineItem = factory<{ props: TimelineItemInternalProps; ref: View }>(({
   itemIndex = 0,
   isLastItem = false,
   itemAlign,
+  opposite,
+  alternate = false,
   style,
   ...rest
 }, ref) => {
@@ -138,8 +140,11 @@ const TimelineItem = factory<{ props: TimelineItemInternalProps; ref: View }>(({
           : itemIndex <= timelineActive;
 
   // `left` / `right` are the start / end sides: they flip under RTL.
-  const effectiveAlign = itemAlign || align;
+  // `alternate` swaps the item to the other side (and `opposite` with it).
+  const baseAlign = itemAlign || align;
+  const effectiveAlign = alternate ? (baseAlign === 'right' ? 'left' : 'right') : baseAlign;
   const atEnd = effectiveAlign === 'right';
+  const hasOpposite = opposite !== undefined && opposite !== null && opposite !== false;
 
   const lineColor = isActive ? resolvedItemColor : inactiveColor;
 
@@ -257,9 +262,19 @@ const TimelineItem = factory<{ props: TimelineItemInternalProps; ref: View }>(({
   const bulletNode = <View style={bulletStyle}>{bullet}</View>;
 
   if (centerMode) {
-    // Three column layout: start content | bullet/line | end content
+    // Three column layout: start content | bullet/line | end content.
+    // Whichever side the content leaves free shows `opposite`, hugging the spine.
     const startContent = !atEnd && (title || children);
     const endContent = atEnd && (title || children);
+
+    const renderOpposite = (side: 'left' | 'right') => {
+      if (!hasOpposite) return null;
+      const node =
+        typeof opposite === 'string' || typeof opposite === 'number'
+          ? <Text style={[timestampStyle, { marginBottom: 0, textAlign: side }]}>{opposite}</Text>
+          : applyTextStyle(opposite, { textAlign: side });
+      return <View style={{ width: '100%', alignItems: side === 'right' ? 'flex-end' : 'flex-start' }}>{node}</View>;
+    };
 
     // Helper to clone Text children with alignment
     const alignChildText = (nodes: React.ReactNode, side: 'left' | 'right'): React.ReactNode =>
@@ -275,12 +290,14 @@ const TimelineItem = factory<{ props: TimelineItemInternalProps; ref: View }>(({
         {...otherProps}
       >
         <View style={{ flex: 1, paddingEnd: sizeConfig.spacing, alignItems: 'flex-end' }}>
-          {startContent && (
+          {startContent ? (
             <View style={{ width: '100%', alignItems: 'flex-end' }}>
               {timestamp && <Text style={[timestampStyle, { textAlign: 'right' }]}>{timestamp}</Text>}
               {title && <Text style={[titleStyle, { textAlign: 'right' }]}>{title}</Text>}
               {alignChildText(children, 'right')}
             </View>
+          ) : (
+            atEnd && renderOpposite('right')
           )}
         </View>
         {/* Bullet & line column */}
@@ -289,12 +306,14 @@ const TimelineItem = factory<{ props: TimelineItemInternalProps; ref: View }>(({
           {bulletNode}
         </View>
         <View style={{ flex: 1, paddingStart: sizeConfig.spacing, alignItems: 'flex-start' }}>
-          {endContent && (
+          {endContent ? (
             <View style={{ width: '100%', alignItems: 'flex-start' }}>
               {timestamp && <Text style={[timestampStyle, { textAlign: 'left' }]}>{timestamp}</Text>}
               {title && <Text style={[titleStyle, { textAlign: 'left' }]}>{title}</Text>}
               {alignChildText(children, 'left')}
             </View>
+          ) : (
+            !atEnd && renderOpposite('left')
           )}
         </View>
       </View>
@@ -349,6 +368,12 @@ const TimelineRoot = factory<{ props: TimelineProps; ref: View }>(({
   const { styleProps, otherProps } = extractStyleProps(rest);
   const spacingStyle = useStyleProps(styleProps);
 
+  // Items are numbered in item order (other children are ignored).
+  const items = React.Children.toArray(children).filter(isTimelineItem);
+  // `opposite` content needs a column on each side of the spine.
+  const hasOpposite = items.some((item) => item.props.opposite != null && item.props.opposite !== false);
+  const effectiveCenterMode = centerMode || hasOpposite;
+
   const baseMetrics = useMemo(() => getTimelineMetrics(theme, size), [theme, size]);
   const resolvedTimelineColor = resolveAccentColor(theme, color) ?? theme.colors.primary[5];
   const effectiveLineWidth = lineWidth ?? baseMetrics.lineWidth;
@@ -364,7 +389,7 @@ const TimelineRoot = factory<{ props: TimelineProps; ref: View }>(({
       reverseActive,
       size,
       metrics: { ...baseMetrics, lineWidth: effectiveLineWidth, bulletSize: effectiveBulletSize },
-      centerMode,
+      centerMode: effectiveCenterMode,
       titleColor,
       descriptionColor,
       timestampColor,
@@ -378,22 +403,26 @@ const TimelineRoot = factory<{ props: TimelineProps; ref: View }>(({
       reverseActive,
       size,
       baseMetrics,
-      centerMode,
+      effectiveCenterMode,
       titleColor,
       descriptionColor,
       timestampColor,
     ]
   );
 
-  // Items are numbered in item order (other children are ignored).
-  const items = React.Children.toArray(children).filter(isTimelineItem);
+  // Explicit center mode alternates sides unless an item picks one. When only
+  // `opposite` triggers it, content keeps the side it has in the default layout
+  // (after the bullet) and `opposite` takes the other column.
+  const defaultSide = (idx: number): 'left' | 'right' => {
+    if (centerMode) return idx % 2 === 0 ? 'left' : 'right';
+    return align === 'right' ? 'left' : 'right';
+  };
   const processedItems = items.map((item, idx) =>
     React.cloneElement(item, {
       key: item.key ?? idx,
       itemIndex: idx,
       isLastItem: idx === items.length - 1,
-      // Center mode alternates sides unless an item picks one.
-      ...(centerMode ? { itemAlign: item.props.itemAlign || (idx % 2 === 0 ? 'left' : 'right') } : null),
+      ...(effectiveCenterMode ? { itemAlign: item.props.itemAlign || defaultSide(idx) } : null),
     })
   );
 

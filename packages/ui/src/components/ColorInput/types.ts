@@ -36,6 +36,13 @@ export interface ColorInputProps
   /** Whether to show the swatch dropdown (and its toggle button) */
   withSwatches?: boolean;
 
+  /**
+   * Size the anchored dropdown exactly to the field's width (the swatch grid
+   * fills it) instead of at least 320px. `fullWidth` stretches the field itself.
+   * @default false
+   */
+  dropdownFullWidth?: boolean;
+
   // Positioning props - matching AutoComplete's positioning API
   /** Dropdown placement */
   placement?: PlacementType;

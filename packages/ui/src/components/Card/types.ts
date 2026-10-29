@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { ViewProps, ViewStyle } from 'react-native';
+import type { PressableProps, StyleProp, ViewProps, ViewStyle } from 'react-native';
 
 import type { WebMouseEvent } from '../../core/platform/webProps';
 import type { BorderRadiusProps } from '../../core/theme/radius';
@@ -62,7 +62,17 @@ export interface CardProps
   padding?: SizeValue;
   /** Makes the card a button (or the given `role`); it is focusable and activates with Enter/Space on web. */
   onPress?: () => void;
-  /** Disables `onPress` and marks the card `aria-disabled`. */
+  /** Long-press handler. Like `onPress`, setting it makes the card pressable. */
+  onLongPress?: PressableProps['onLongPress'];
+  /** Fires as soon as a press starts. Setting it makes the card pressable. */
+  onPressIn?: PressableProps['onPressIn'];
+  /** Fires when a press ends. Setting it makes the card pressable. */
+  onPressOut?: PressableProps['onPressOut'];
+  /** Milliseconds before `onLongPress` fires. */
+  delayLongPress?: PressableProps['delayLongPress'];
+  /** Style while pressed. Replaces the variant's built-in press feedback. */
+  pressedStyle?: StyleProp<ViewStyle>;
+  /** Disables every press handler and marks the card `aria-disabled`. */
   disabled?: boolean;
   /** Web-only: context-menu (right-click) handler. */
   onContextMenu?: (event: WebMouseEvent) => void;

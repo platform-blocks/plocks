@@ -121,6 +121,14 @@ export interface ToastProps extends BaseProps, BorderRadiusProps {
    * @default false
    */
   paused?: boolean;
+  /**
+   * Draws a thin line along the bottom edge that shrinks over the `autoHide`
+   * duration and pauses whenever the countdown pauses. Nothing renders for a
+   * persistent toast or `autoHide: 0`. `ToastProvider` can turn it on for
+   * every toast it shows.
+   * @default false
+   */
+  withAutoCloseProgress?: boolean;
   /** Edge the toast enters from (animation direction) */
   position?: ToastDirection;
   /** Container style */

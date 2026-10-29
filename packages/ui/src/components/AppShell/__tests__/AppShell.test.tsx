@@ -1,9 +1,11 @@
 import React from 'react';
-import { Dimensions, Pressable, StyleSheet, Text } from 'react-native';
+import { Dimensions, PanResponder, Pressable, StyleSheet, Text } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import { AppShell, useAppShell, useAppShellApi } from '../AppShell';
 import { MobileMenu } from '../MobileMenu';
+import { useAppShellResize } from '../hooks/useAppShellResize';
+import type { UseAppShellResizeOptions } from '../types';
 import { createAppShellCss } from '../shellCssVars';
 import { resolveResponsiveValue } from '../hooks/useResponsiveValue';
 import { resetViewportStore } from '../../../core/responsive/viewportStore';
@@ -422,5 +424,103 @@ describe('shell geometry helpers', () => {
       { theme: { breakpoints: { xs: '480px', sm: '576px', md: '800px', lg: '992px', xl: '1200px' } } }
     );
     expect(custom).toContain('@media (min-width: 800px)');
+  });
+});
+
+describe('AppShell resize (native)', () => {
+  // `PanResponder.create` hands its config back as `panHandlers`, so a handle
+  // carries the raw `onPanResponder*` callbacks as props. (Per test: the
+  // file's afterEach restores every mock.)
+  beforeEach(() => {
+    jest
+      .spyOn(PanResponder, 'create')
+      .mockImplementation(((config: object) => ({ panHandlers: config })) as never);
+  });
+
+  function ResizableShell({ options, ...props }: ShellProps & { options: UseAppShellResizeOptions }) {
+    const resize = useAppShellResize(options);
+    return <Shell transitionDuration={0} resize={resize} {...props} />;
+  }
+
+  type Handlers = Record<string, ((...args: unknown[]) => void) | undefined>;
+  const at = (pageX: number, pageY: number) => ({ nativeEvent: { pageX, pageY, locationX: 0, locationY: 0 } });
+  const handlers = (section: string) => screen.getByTestId(`app-shell-resize-${section}`).props as Handlers;
+  const press = (section: string, x: number, y: number) => act(() => handlers(section).onPanResponderGrant?.(at(x, y)));
+  const move = (section: string, x: number, y: number) => act(() => handlers(section).onPanResponderMove?.(at(x, y), {}));
+  const release = (section: string, x: number, y: number) =>
+    act(() => handlers(section).onPanResponderRelease?.(at(x, y), {}));
+  const action = (section: string, actionName: string) =>
+    act(() => handlers(section).onAccessibilityAction?.({ nativeEvent: { actionName } }));
+  const valueOf = (section: string) => screen.getByTestId(`app-shell-resize-${section}`).props['aria-valuenow'];
+
+  it('renders no handles without resize, and none for the drawer navbar or the mobile aside', () => {
+    const view = render(<Shell />);
+    expect(screen.queryByRole('separator')).toBeNull();
+    view.unmount();
+
+    // Native is always mobile: the navbar is a drawer and the aside is not inline.
+    render(<ResizableShell options={{ navbar: true, aside: true }} />);
+    expect(screen.queryByRole('separator')).toBeNull();
+  });
+
+  it('exposes the header handle as an adjustable separator', () => {
+    render(<ResizableShell options={{ header: { min: 40, max: 100 } }} />);
+    const handle = screen.getByRole('separator', { name: 'Resize header' });
+    expect(handle.props['aria-valuenow']).toBe(60);
+    expect(handle.props['aria-valuemin']).toBe(40);
+    expect(handle.props['aria-valuemax']).toBe(100);
+    expect(handle.props.accessibilityActions.map((a: { name: string }) => a.name)).toEqual(['increment', 'decrement']);
+
+    action('header', 'increment');
+    expect(valueOf('header')).toBe(70);
+    expect(styleOf('header').height).toBe(70);
+    expect(styleOf('main').top).toBe(70);
+    action('header', 'decrement');
+    action('header', 'decrement');
+    expect(valueOf('header')).toBe(50);
+  });
+
+  it('drags the header live and commits on release', () => {
+    const onSizeChange = jest.fn();
+    const onResizeEnd = jest.fn();
+    render(<ResizableShell options={{ header: { max: 100 }, onSizeChange, onResizeEnd }} />);
+
+    press('header', 100, 60);
+    move('header', 100, 80);
+    // The shell follows the live size on native.
+    expect(styleOf('header').height).toBe(80);
+    expect(styleOf('main').top).toBe(80);
+    expect(onSizeChange).toHaveBeenLastCalledWith('header', 80);
+    move('header', 100, 200);
+    expect(styleOf('header').height).toBe(100);
+    release('header', 100, 200);
+    expect(onResizeEnd).toHaveBeenCalledTimes(1);
+    expect(onResizeEnd).toHaveBeenLastCalledWith('header', 100);
+    expect(valueOf('header')).toBe(100);
+    expect(styleOf('header').height).toBe(100);
+  });
+
+  it('drags the footer up to grow it, and collapses it below collapseThreshold', () => {
+    const onCollapse = jest.fn();
+    render(<ResizableShell options={{ footer: { min: 30, collapseThreshold: 20, onCollapse } }} />);
+    expect(screen.getByRole('separator', { name: 'Resize footer' })).toBeTruthy();
+
+    press('footer', 100, 800);
+    move('footer', 100, 790);
+    expect(styleOf('footer').height).toBe(50);
+    move('footer', 100, 830);
+    expect(onCollapse).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('footer')).toBeNull();
+    expect(valueOf('footer')).toBe(0);
+    move('footer', 100, 795);
+    expect(styleOf('footer').height).toBe(45);
+    move('footer', 100, 830);
+    release('footer', 100, 830);
+    expect(onCollapse).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId('footer')).toBeNull();
+
+    // The handle stays on the edge; increment brings the footer back.
+    action('footer', 'increment');
+    expect(styleOf('footer').height).toBe(40);
   });
 });

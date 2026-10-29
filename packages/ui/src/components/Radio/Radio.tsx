@@ -22,6 +22,7 @@ import { composite } from '../../core/theme/colorUtils';
 import { literalBackgrounds, literalText } from '../../core/theme/cssVariableTheme';
 import { resolveColorProp } from '../../core/theme/resolveColors';
 import { getControlSize, onColor, resolveSpacing } from '../../core/theme/tokens';
+import { CORE_COLORS, resolveVariantRoles } from '../../core/theme/variantRoles';
 import type { PlocksTheme, SizeValue } from '../../core/theme/types';
 import { getLayoutStyles } from '../../core/utils/layout';
 import { useMergedRef } from '../../core/utils/mergeRefs';
@@ -34,7 +35,7 @@ import { Field } from '../_internal/Field/Field';
 import { Icon } from '../Icon';
 import { Text } from '../Text';
 import { useGroupFocus } from '../Checkbox/useGroupFocus';
-import type { RadioGroupOption, RadioGroupProps, RadioGroupVariant, RadioProps } from './types';
+import type { RadioGroupOption, RadioGroupProps, RadioGroupVariant, RadioProps, RadioVariant } from './types';
 
 /** Length of the default select animation; the deselect phase scales against it. */
 const RADIO_BASE_DURATION = 160;
@@ -73,18 +74,33 @@ export interface RadioPalette {
  */
 export function getRadioPalette(
   theme: PlocksTheme,
-  { disabled, error, color }: { disabled: boolean; error: boolean; color?: string }
+  { disabled, error, color, variant }: { disabled: boolean; error: boolean; color?: string; variant?: RadioVariant }
 ): RadioPalette {
   const text = literalText(theme);
   const backgrounds = literalBackgrounds(theme);
   const accent = resolveColorProp(theme, color, { shades: RADIO_SHADES }) ?? theme.colors.primary[6];
   const line = backgrounds.borderStrong ?? backgrounds.border;
   const errorColor = theme.colors.error[5];
-  const fillColor = disabled ? line : error ? errorColor : accent;
   const holeColor = backgrounds.surface;
+  // A control boundary needs 3:1 against the surface: `text.muted` has it.
+  const ringColor = disabled ? line : error ? errorColor : text.muted;
+
+  if (variant === 'light' && !disabled) {
+    // The tint and the dot color come from the shared variant system, so a light
+    // radio matches a light Chip / Badge of the same color on both schemes. The
+    // roles are resolved against the literal tokens: the first-paint `var()`
+    // wrappers it would otherwise add can't be interpolated.
+    const literalTheme: PlocksTheme = { ...theme, text, backgrounds, literalColors: undefined };
+    const roles = resolveVariantRoles(literalTheme, {
+      variant: 'light',
+      color: error ? 'error' : color == null || (CORE_COLORS as readonly string[]).includes(color) ? color : accent,
+    });
+    return { ringColor, fillColor: roles.fill, holeColor, dotColor: roles.text };
+  }
+
+  const fillColor = disabled ? line : error ? errorColor : accent;
   return {
-    // A control boundary needs 3:1 against the surface: `text.muted` has it.
-    ringColor: disabled ? line : error ? errorColor : text.muted,
+    ringColor,
     fillColor,
     holeColor,
     // Light on the accent while it stays legible; dark themes take their accent
@@ -99,6 +115,7 @@ interface RadioIndicatorProps {
   error: boolean;
   size: SizeValue;
   color?: string;
+  variant?: RadioVariant;
   transitionDuration?: number;
 }
 
@@ -109,7 +126,7 @@ interface RadioIndicatorProps {
  * recolors the track — one continuous motion on the UI thread (reanimated),
  * shared by `Radio` and the `card` variant of `RadioGroup`.
  */
-const RadioIndicator = ({ checked, disabled, error, size, color, transitionDuration }: RadioIndicatorProps) => {
+const RadioIndicator = ({ checked, disabled, error, size, color, variant, transitionDuration }: RadioIndicatorProps) => {
   const theme = useTheme();
   const radioSize = getRadioSize(theme, size);
   // The dot sits at ~40% of the control — the ratio most design systems land on.
@@ -117,7 +134,7 @@ const RadioIndicator = ({ checked, disabled, error, size, color, transitionDurat
   const holeSize = radioSize - RING_WIDTH * 2;
   const dotScale = dotSize / holeSize;
 
-  const { ringColor, fillColor, holeColor, dotColor } = getRadioPalette(theme, { disabled, error, color });
+  const { ringColor, fillColor, holeColor, dotColor } = getRadioPalette(theme, { disabled, error, color, variant });
 
   const progress = useSharedValue(checked ? 1 : 0);
   const duration = useTransitionDuration(transitionDuration, RADIO_BASE_DURATION);
@@ -199,11 +216,13 @@ export const Radio = factory<{ props: RadioProps; ref: View }>((props, ref) => {
     onChange,
     size = 'md',
     color = 'primary',
+    variant = 'filled',
     label,
     children,
     description,
     error,
     helperText,
+    success,
     disabled = false,
     readOnly = false,
     required = false,
@@ -263,6 +282,7 @@ export const Radio = factory<{ props: RadioProps; ref: View }>((props, ref) => {
       error={!!error}
       size={size}
       color={color}
+      variant={variant}
       transitionDuration={transitionDuration}
     />
   );
@@ -290,6 +310,7 @@ export const Radio = factory<{ props: RadioProps; ref: View }>((props, ref) => {
       description={description}
       error={error}
       helperText={helperText}
+      success={success}
       required={required}
       withAsterisk={withAsterisk}
       disabled={disabled}
@@ -428,6 +449,7 @@ export const RadioGroup = factory<{ props: RadioGroupProps; ref: View }>((props,
     description,
     error,
     helperText,
+    success,
     disabled = false,
     readOnly = false,
     required = false,
@@ -614,6 +636,7 @@ export const RadioGroup = factory<{ props: RadioGroupProps; ref: View }>((props,
       description={description}
       error={error}
       helperText={helperText}
+      success={success}
       required={required}
       withAsterisk={withAsterisk}
       disabled={disabled}

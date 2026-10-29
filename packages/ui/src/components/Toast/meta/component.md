@@ -15,12 +15,14 @@ props:
   withCloseButton: Show a dismiss button
   position: Entry direction — 'top' | 'bottom' | 'left' | 'right' (`ToastDirection`; the provider's screen position type is `ToastStackPosition`)
   autoHide: Auto-hide duration in ms (0 to disable)
+  withAutoCloseProgress: Draw a line along the bottom edge that shrinks over `autoHide` and pauses with the countdown (also a `ToastProvider` default)
   paused: Suspend the auto-hide countdown, resuming with the time that was left
   persistent: Keep toast visible until manually dismissed
   onExited: Fired once the hide transition has finished playing
   actions: Action buttons rendered next to the body
   titleProps: Override props applied to the title `<Text>` (style, fw, ff, size, c)
   bodyProps: Override props applied to the body `<Text>` (the children content)
+  layout: "`ToastProvider` prop — 'default' | 'stacked'; `stacked` shows only the newest toast with older ones peeking behind it until the stack is hovered or pressed"
 examples:
   - basic
   - visual-variants
@@ -28,6 +30,8 @@ examples:
   - variants
   - interactive
   - stacking
+  - stacked
+  - autoCloseProgress
   - positions
   - enhanced
   - text-customization

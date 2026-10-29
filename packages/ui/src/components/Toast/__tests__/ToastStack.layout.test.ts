@@ -85,6 +85,60 @@ describe('computeStackLayout', () => {
   });
 
   it('returns an empty layout for an empty stack', () => {
-    expect(layout([])).toEqual({ offsets: {}, stackHeight: 0, pinned: {} });
+    expect(layout([])).toEqual({ offsets: {}, stackHeight: 0, pinned: {}, depths: {}, clipHeight: null });
+  });
+
+  it('lists every toast at full height when not collapsed', () => {
+    const { depths, clipHeight } = layout([item('a'), item('b'), item('c')]);
+    expect(depths).toEqual({ a: 0, b: 0, c: 0 });
+    expect(clipHeight).toBeNull();
+  });
+});
+
+describe('computeStackLayout (collapsed deck)', () => {
+  const deck = (
+    items: { id: string; visible: boolean }[],
+    pinned: Record<string, number> = {},
+  ) => computeStackLayout(items, HEIGHTS, GAP, pinned, true);
+
+  it('tucks older toasts a few px behind the newest instead of listing them', () => {
+    const { offsets, depths, clipHeight, stackHeight } = deck([item('a'), item('b'), item('c')]);
+    expect(offsets.c).toBe(0);
+    expect(depths).toEqual({ c: 0, b: 1, a: 2 });
+    expect(offsets.b).toBeGreaterThan(0);
+    expect(offsets.b).toBeLessThan(GAP);
+    expect(offsets.a).toBe(offsets.b * 2);
+    // Everything behind is clipped to the front toast, so the deck is the front
+    // toast plus the peeking edges — never the taller toast hiding behind it.
+    expect(clipHeight).toBe(HEIGHTS.c);
+    expect(stackHeight).toBe(offsets.a + HEIGHTS.c);
+  });
+
+  it('stops peeking after a couple of toasts and keeps the rest tucked at the back', () => {
+    const many = ['a', 'b', 'c', 'd', 'e'].map(id => item(id));
+    const { offsets, depths } = deck(many);
+    expect(depths.e).toBe(0);
+    expect(depths.a).toBe(4);
+    // Deeper toasts share the last peek offset rather than piling further out.
+    expect(offsets.a).toBe(offsets.b);
+    expect(offsets.b).toBe(offsets.c);
+  });
+
+  it('promotes the next toast to the front when the front one leaves', () => {
+    const before = deck([item('a'), item('b')]);
+    const after = deck([item('a'), item('b', false)], before.pinned);
+    expect(after.offsets.a).toBe(0);
+    expect(after.depths.a).toBe(0);
+    // The leaving toast holds its place in front while it fades.
+    expect(after.offsets.b).toBe(0);
+    expect(after.depths.b).toBe(0);
+  });
+
+  it('keeps a tucked toast tucked while it leaves', () => {
+    const before = deck([item('a'), item('b')]);
+    const after = deck([item('a', false), item('b')], before.pinned);
+    expect(after.offsets.a).toBe(before.offsets.a);
+    expect(after.depths.a).toBe(1);
+    expect(after.stackHeight).toBe(before.stackHeight);
   });
 });

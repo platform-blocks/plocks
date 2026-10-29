@@ -82,4 +82,35 @@ describe('Input (react-native-web DOM)', () => {
     fireEvent.click(toggle);
     expect(screen.getByRole('button', { name: 'Hide password' })).toBeTruthy();
   });
+
+  it('keeps the PasswordInput toggle out of the tab order unless visibilityToggleFocusable', () => {
+    const { unmount } = render(<PasswordInput label="Password" defaultValue="secret" />);
+    const toggle = screen.getByRole('button', { name: 'Show password' });
+    expect(toggle.getAttribute('tabindex')).toBe('-1');
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Hide password' })).toBeTruthy();
+    unmount();
+
+    render(<PasswordInput label="Password" defaultValue="secret" visibilityToggleFocusable />);
+    expect(screen.getByRole('button', { name: 'Show password' }).getAttribute('tabindex')).toBe('0');
+  });
+
+  it('describes the input by its success message, which an error replaces', () => {
+    const { unmount } = render(
+      <Input id="user" label="Username" helperText="Pick a handle" success="Username is available" />
+    );
+    const input = screen.getByRole('textbox', { name: 'Username' });
+    expect(input.getAttribute('aria-describedby')).toBe('user-helper');
+    expect(input.getAttribute('aria-invalid')).toBeNull();
+    expect(document.getElementById('user-helper')?.textContent).toBe('Username is available');
+    expect(screen.queryByText('Pick a handle')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    unmount();
+
+    render(<Input id="user" label="Username" success="Username is available" error="Username is taken" />);
+    const invalidInput = screen.getByRole('textbox', { name: 'Username' });
+    expect(invalidInput.getAttribute('aria-describedby')).toBe('user-error');
+    expect(invalidInput.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.queryByText('Username is available')).toBeNull();
+  });
 });

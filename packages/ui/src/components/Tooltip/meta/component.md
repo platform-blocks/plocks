@@ -5,7 +5,7 @@ source: "@plocks/ui"
 status: "stable"
 category: overlay
 playground: true
-accessibility: "role=tooltip bubble linked to the trigger with aria-describedby (web) and exposed as the trigger's accessibilityHint (native). Shows on keyboard focus as well as hover/press, never moves focus, is hoverable and dismisses with Escape (WCAG 1.4.13)."
+accessibility: "role=tooltip bubble linked to the trigger with aria-describedby (web) and exposed as the trigger's accessibilityHint (native). Shows on keyboard focus as well as hover/press, never moves focus, dismisses with Escape, and stays hoverable with `interactive` (WCAG 1.4.13)."
 variants:
   - name: "simple"
     description: "Basic tooltip with minimal styling and content"
@@ -15,6 +15,10 @@ variants:
     description: "Various positioning options with smart edge detection"
   - name: "advanced"
     description: "Advanced features like custom content, delays, and styling"
+  - name: "interactive"
+    description: "Hoverable tooltip whose links and text can be reached with the pointer"
+  - name: "hide-detached"
+    description: "Open tooltip that hides while its trigger is scrolled out of view"
   - name: "debug"
     description: "Debug mode for development and positioning testing"
 dependencies:
@@ -51,6 +55,12 @@ props:
   - name: "offset"
     type: "number"
     description: "Distance from trigger element in pixels"
+  - name: "interactive"
+    type: "boolean"
+    description: "Keep the tooltip open while the pointer moves onto it so links or selectable text inside are reachable. Off (default), the bubble ignores the pointer and closes as soon as it leaves the trigger"
+  - name: "hideDetached"
+    type: "boolean"
+    description: "Hide the bubble while its trigger is removed, hidden, 0×0, or scrolled/clipped fully out of view; it returns when the trigger is visible again. Applies to controlled tooltips without calling onClose. Default true. Web only (native still drops the bubble when the trigger measures 0×0 on open)"
   - name: "disabled"
     type: "boolean"
     description: "Whether the tooltip is disabled"

@@ -20,7 +20,7 @@ export const AppShellAside = factory<{ props: AppShellAsideProps; ref: View }>(
     const theme = useTheme();
     const chrome = shellChrome(theme);
     const spacingStyles = useStyleProps(props);
-    const { asideWidth, headerHeight, headerHeightStyle, footerHeight, contentBottomStyle, isAsideCollapsed, cssGeometry } =
+    const { asideWidthStyle, headerHeightStyle, footerHeightStyle, contentBottomStyle, isAsideCollapsed, cssGeometry } =
       useAppShell();
     const internal = useAppShellInternal();
 
@@ -37,10 +37,12 @@ export const AppShellAside = factory<{ props: AppShellAsideProps; ref: View }>(
         aria-label={accessibilityLabel}
         style={[
           {
-            width: asDimension(asideWidth),
+            // The *Style values are the plain px unless they are `var()`s
+            // (cssGeometry, or a resizable section on web).
+            width: asDimension(asideWidthStyle),
             position: 'absolute',
-            top: alt ? 0 : asDimension(cssGeometry ? headerHeightStyle : headerHeight),
-            bottom: alt ? 0 : asDimension(cssGeometry ? contentBottomStyle : footerHeight),
+            top: alt ? 0 : asDimension(headerHeightStyle),
+            bottom: alt ? 0 : asDimension(cssGeometry ? contentBottomStyle : footerHeightStyle),
             end: 0,
             backgroundColor: chrome.background,
             zIndex: zIndex ?? internal?.zIndices.aside ?? getZIndex(theme, 'sticky'),

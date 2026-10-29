@@ -57,3 +57,12 @@ it('applies checkbox selection to leaves and lets a pill remove one', async () =
   fireEvent.click(screen.getByRole('button', { name: 'Remove Apple' }));
   expect(onChange).toHaveBeenLastCalledWith(['pear']);
 });
+it('renders custom pills with renderPill and removes through the helper', () => {
+  const onChange = jest.fn();
+  render(<PlocksProvider><TreeSelect label="Food" mode="multiple" data={[{ id: 'apple', label: 'Apple' }, { id: 'pear', label: 'Pear' }]} defaultValue={['apple', 'pear']} onRemove={onChange} renderPill={(node, { remove }) => <button key={node.id} type="button" onClick={remove}>{`Drop ${node.label}`}</button>} /></PlocksProvider>);
+  expect(screen.queryByRole('button', { name: 'Remove Apple' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Drop Apple' }));
+  expect(onChange).toHaveBeenCalledWith('apple');
+  expect(screen.queryByRole('button', { name: 'Drop Apple' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Drop Pear' })).toBeTruthy();
+});

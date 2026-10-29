@@ -37,4 +37,16 @@ describe('Block (web)', () => {
     expect(screen.getByTestId('custom').textContent).toBe('inside');
     expect(ref.current).toBe(screen.getByTestId('custom'));
   });
+
+  it('is a button when pressable, unless given a role', () => {
+    render(
+      <>
+        <Block onPress={() => {}} aria-label="Play">play</Block>
+        <Block onPress={() => {}} role="tab" aria-label="Files">files</Block>
+      </>
+    );
+    expect(screen.getByRole('button', { name: 'Play' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Files' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Files' })).toBeNull();
+  });
 });

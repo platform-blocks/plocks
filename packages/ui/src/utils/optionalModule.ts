@@ -45,6 +45,7 @@ const optionalModuleLoaders: Record<string, OptionalModuleLoader> = {
   'react-native-gesture-handler/ReanimatedSwipeable': () => { try { return require('react-native-gesture-handler/ReanimatedSwipeable'); } catch { return null; } },
   'expo-status-bar': () => { try { return require('expo-status-bar'); } catch { return null; } },
   'expo-navigation-bar': () => { try { return require('expo-navigation-bar'); } catch { return null; } },
+  'expo-video': () => { try { return require('expo-video'); } catch { return null; } },
   '@shopify/flash-list': () => { try { return require('@shopify/flash-list'); } catch { return null; } },
   '@react-native-masked-view/masked-view': () => { try { return require('@react-native-masked-view/masked-view'); } catch { return null; } },
   '@react-native-async-storage/async-storage': () => { try { return require('@react-native-async-storage/async-storage'); } catch { return null; } },

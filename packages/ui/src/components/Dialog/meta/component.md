@@ -26,6 +26,7 @@ examples:
   - confirmation
   - form
   - bottomsheet
+  - bottomsheet-scroll
   - title-customization
 ---
 

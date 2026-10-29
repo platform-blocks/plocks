@@ -28,8 +28,8 @@ export function Demo() {
           interaction: { spinStopAtLimits: true },
         }}
       >
-        <Knob.Fill visible={false} />
-        <Knob.Ring thickness={30} color="#0f172a" trailColor="#1f2937" radiusOffset={-4} />
+        <Knob.Body visible={false} />
+        <Knob.Ring thickness={30} color="#0f172a" trailColor="#1f2937" backgroundColor="transparent" radiusOffset={-4} />
         <Knob.RingSegment value={35} color="#1e3a8a" />
         <Knob.RingSegment value={25} color="#155e75" />
         <Knob.RingSegment value={25} color="#854d0e" />

@@ -1,5 +1,5 @@
 import type React from 'react';
-import type { PressableProps, ViewProps, ViewStyle } from 'react-native';
+import type { PressableProps, StyleProp, ViewProps, ViewStyle } from 'react-native';
 
 import type { ShadowToken } from '../../core/theme/tokens';
 import type { BaseProps, RadiusValue } from '../../core/types/base';
@@ -133,6 +133,10 @@ export interface BlockProps
   onLongPress?: PressableProps['onLongPress'];
   onPressIn?: PressableProps['onPressIn'];
   onPressOut?: PressableProps['onPressOut'];
+  /** Milliseconds before `onLongPress` fires. */
+  delayLongPress?: PressableProps['delayLongPress'];
+  /** Style while pressed. A pressable Block has no press feedback without it. */
+  pressedStyle?: StyleProp<ViewStyle>;
   /** Web pointer entry on the rendered root. */
   onMouseEnter?: () => void;
   /** Web pointer exit on the rendered root. */

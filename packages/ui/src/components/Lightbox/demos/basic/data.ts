@@ -1,10 +1,10 @@
-import type { LightboxItem } from '@plocks/ui';
+import type { LightboxImageItem } from '@plocks/ui';
 
 /**
  * Three bundled scenes with full metadata, so the viewer's info panel has something
  * to show for every slide.
  */
-export const SAMPLE_IMAGES: LightboxItem[] = [
+export const SAMPLE_IMAGES: LightboxImageItem[] = [
   {
     id: '1',
     uri: require('../../../../assets/images/scene-mountains.png'),

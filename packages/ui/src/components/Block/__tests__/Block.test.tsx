@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { DEFAULT_THEME } from '../../../core/theme/defaultTheme';
 import { Block } from '../Block';
@@ -35,5 +35,29 @@ describe('Block', () => {
   it('lets an explicit w win over fullWidth', () => {
     render(<Block testID="block" fullWidth w={200} />);
     expect(StyleSheet.flatten(screen.getByTestId('block').props.style).width).toBe(200);
+  });
+
+  it('applies pressedStyle only while pressed', () => {
+    render(
+      <Block onPress={() => {}} bg="surface" pressedStyle={{ opacity: 0.7 }}>
+        <Text>row</Text>
+      </Block>
+    );
+    const [pressable] = screen.UNSAFE_root.findAll((node) => typeof node.props.style === 'function');
+    const style = pressable.props.style;
+    expect(StyleSheet.flatten(style({ pressed: false })).opacity).toBeUndefined();
+    expect(StyleSheet.flatten(style({ pressed: true })).opacity).toBe(0.7);
+  });
+
+  it('forwards delayLongPress to the Pressable', () => {
+    const onLongPress = jest.fn();
+    render(
+      <Block onLongPress={onLongPress} delayLongPress={250}>
+        <Text>hold</Text>
+      </Block>
+    );
+    expect(screen.UNSAFE_root.findAll((node) => node.props.delayLongPress === 250).length).toBeGreaterThan(0);
+    fireEvent(screen.getByText('hold'), 'longPress');
+    expect(onLongPress).toHaveBeenCalledTimes(1);
   });
 });

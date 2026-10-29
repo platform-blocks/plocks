@@ -51,6 +51,10 @@ props:
     type: boolean
     description: Whether to show the swatch dropdown and its toggle button
     default: true
+  - name: dropdownFullWidth
+    type: boolean
+    description: Size the anchored dropdown exactly to the field's width (the swatch grid fills it) instead of at least 320px; `fullWidth` stretches the field itself
+    default: false
   - name: swatches
     type: string[]
     description: Custom color swatches array
@@ -71,6 +75,7 @@ props:
 examples:
   - basic
   - swatches
+  - dropdown-full-width
 ---
 
 ColorInput combines a hex field with a palette of preset colors.

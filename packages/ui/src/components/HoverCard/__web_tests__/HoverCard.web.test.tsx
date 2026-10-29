@@ -42,7 +42,76 @@ function Profile(props: Partial<React.ComponentProps<typeof HoverCard>>) {
   );
 }
 
+/** A hover card with a button inside, plus a control after it to tab out to. */
+function Actions(props: Partial<React.ComponentProps<typeof HoverCard>>) {
+  return (
+    <OverlayProvider>
+      <HoverCard
+        openDelay={0}
+        closeDelay={0}
+        target={<Pressable role="link" accessibilityLabel="@plocks"><Text>@plocks</Text></Pressable>}
+        {...props}
+      >
+        <Text>Cross-platform UI blocks</Text>
+        <Pressable role="button" accessibilityLabel="Follow"><Text>Follow</Text></Pressable>
+      </HoverCard>
+      <Pressable role="button" accessibilityLabel="Elsewhere"><Text>Elsewhere</Text></Pressable>
+      <OverlayRenderer />
+    </OverlayProvider>
+  );
+}
+
+async function openWithKeyboard() {
+  const target = screen.getByRole('link', { name: '@plocks' });
+  act(() => target.focus());
+  await settle();
+  expect(screen.getByRole('dialog')).toBeTruthy();
+  return target;
+}
+
 describe('HoverCard (react-native-web DOM)', () => {
+  it('stays open when focus moves from the target onto a button inside the card', async () => {
+    render(<Actions />);
+    const target = await openWithKeyboard();
+    const follow = screen.getByRole('button', { name: 'Follow' });
+
+    act(() => follow.focus());
+    await settle();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(document.activeElement).toBe(follow);
+
+    // Back to the target keeps it open too; leaving both closes it.
+    act(() => target.focus());
+    await settle();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    act(() => follow.focus());
+    act(() => screen.getByRole('button', { name: 'Elsewhere' }).focus());
+    await settle();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('returns focus to the target when closed from inside; not with returnFocus={false}', async () => {
+    const { unmount } = render(<Actions />);
+    const target = await openWithKeyboard();
+    const follow = screen.getByRole('button', { name: 'Follow' });
+    act(() => follow.focus());
+    fireEvent.keyDown(follow, { key: 'Escape' });
+    await settle();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(target);
+    unmount();
+
+    render(<Actions returnFocus={false} />);
+    const target2 = await openWithKeyboard();
+    const follow2 = screen.getByRole('button', { name: 'Follow' });
+    act(() => follow2.focus());
+    fireEvent.keyDown(follow2, { key: 'Escape' });
+    await settle();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).not.toBe(target2);
+  });
+
+
   it('adds no extra tab stop around the target', () => {
     const { container } = render(<Profile />);
     expect(getTabbableElements(container)).toHaveLength(1);

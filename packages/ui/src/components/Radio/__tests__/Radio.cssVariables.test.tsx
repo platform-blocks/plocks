@@ -41,10 +41,12 @@ const options = [
 
 describe('Radio under a CSS-variable theme', () => {
   it('takes every interpolated color from the literals, not the var() references', () => {
-    for (const disabled of [false, true]) {
-      const palette = getRadioPalette(mockCssVarTheme, { disabled, error: false, color: 'primary' });
-      expect(palette.holeColor).toBe(literalBackgrounds.surface);
-      for (const value of Object.values(palette)) expect(value).not.toMatch(/var\(/);
+    for (const variant of ['filled', 'light'] as const) {
+      for (const disabled of [false, true]) {
+        const palette = getRadioPalette(mockCssVarTheme, { disabled, error: false, color: 'primary', variant });
+        expect(palette.holeColor).toBe(literalBackgrounds.surface);
+        for (const value of Object.values(palette)) expect(value).not.toMatch(/var\(/);
+      }
     }
   });
 

@@ -219,6 +219,137 @@ export interface AppShellProps extends BaseProps<ViewStyle> {
   tableOfContentsWidth?: number | string;
   /** Toggle border between content and table of contents */
   tableOfContentsWithBorder?: boolean;
+  /**
+   * Resizable sections: the result of `useAppShellResize()`. Each section it
+   * names gets a drag handle (`role="separator"`) on its inner edge, and its
+   * size comes from the hook instead of the section config while it is
+   * resizable (not below the navbar/aside breakpoint, not a native drawer).
+   *
+   * Web: the shell then writes its geometry as CSS custom properties
+   * (`--plocks-shell-navbar-w`, `--plocks-shell-aside-w`,
+   * `--plocks-shell-header-h`, `--plocks-shell-footer-h`,
+   * `--plocks-shell-content-bottom`) on the shell's root element rather than
+   * leaving them to `:root`, and a drag updates them in place without a React
+   * render. Content portalled outside the shell cannot see them; read
+   * `useAppShellLayout()` there instead.
+   */
+  resize?: UseAppShellResizeReturn;
+}
+
+// ---------------------------------------------------------------------------
+// Resizable sections (useAppShellResize)
+// ---------------------------------------------------------------------------
+
+/** A section `useAppShellResize` can make resizable. */
+export type AppShellResizeSection = 'navbar' | 'aside' | 'header' | 'footer';
+
+/** Sections whose collapsed state the hook owns (the navbar's is the shell's own open/rail state). */
+export type AppShellResizeCollapsible = 'aside' | 'header' | 'footer';
+
+/** Section sizes in px. */
+export type AppShellResizeSizes = Partial<Record<AppShellResizeSection, number>>;
+
+export interface AppShellResizeSectionOptions {
+  /** Smallest size in px. @default navbar/aside 160, header 40, footer 32 */
+  min?: number;
+  /** Largest size in px. @default navbar/aside 480, header/footer 200 */
+  max?: number;
+  /** Starting size in px, and what `reset` returns to. @default the section config's width/height */
+  defaultSize?: number;
+  /**
+   * Dragging the section smaller than this (px) collapses it — the navbar to
+   * its rail, the others to nothing — and calls `onCollapse`. Without it the
+   * drag stops at `min`.
+   */
+  collapseThreshold?: number;
+  /** Called when a drag (or a keyboard step past `min`) collapses the section. */
+  onCollapse?: () => void;
+  /** Accessible name of the handle. @default 'Resize navigation' / 'Resize aside' / 'Resize header' / 'Resize footer' */
+  label?: string;
+}
+
+export interface UseAppShellResizeOptions {
+  /** Make the navbar resizable (`true` = defaults). */
+  navbar?: AppShellResizeSectionOptions | boolean;
+  /** Make the aside resizable (`true` = defaults). */
+  aside?: AppShellResizeSectionOptions | boolean;
+  /** Make the header resizable (`true` = defaults). */
+  header?: AppShellResizeSectionOptions | boolean;
+  /** Make the footer resizable (`true` = defaults). */
+  footer?: AppShellResizeSectionOptions | boolean;
+  /** Arrow-key step in px. @default 10 */
+  step?: number;
+  /** Shift+arrow step in px. @default 50 */
+  shiftStep?: number;
+  /** Persist sizes under this key with `usePersistedState`. Read once per key; keep it stable. */
+  storageKey?: string;
+  /** Every size change — each drag frame, each key press. */
+  onSizeChange?: (section: AppShellResizeSection, size: number) => void;
+  /** A drag released, or a keyboard step taken. `size` is 0 (or the rail width) when the section collapsed. */
+  onResizeEnd?: (section: AppShellResizeSection, size: number) => void;
+}
+
+/** @internal A section's options with the defaults filled in. */
+export interface ResolvedAppShellResizeSection {
+  min: number;
+  max: number;
+  defaultSize: number | undefined;
+  collapseThreshold: number | undefined;
+  onCollapse: (() => void) | undefined;
+  label: string;
+}
+
+/**
+ * @internal The live half of `useAppShellResize`: the size a section has
+ * *during* a drag, kept outside React state so a drag doesn't re-render the
+ * component that owns the hook (and with it the page) on every frame.
+ */
+export interface AppShellResizeStore {
+  /** The section being dragged, or `null`. */
+  getActive: () => AppShellResizeSection | null;
+  /** Live size of the section being dragged (a new object per change). */
+  getLive: () => AppShellResizeSizes;
+  subscribe: (listener: () => void) => () => void;
+  begin: (section: AppShellResizeSection) => void;
+  /** A live size, or `undefined` while the drag holds the section collapsed. */
+  move: (section: AppShellResizeSection, size: number | undefined) => void;
+  end: () => void;
+  /** Set by AppShell on web: writes a live size into the shell root's CSS variables. */
+  writer: ((section: AppShellResizeSection, size: number) => void) | null;
+}
+
+/** What `useAppShellResize` returns; pass it whole to `<AppShell resize>`. */
+export interface UseAppShellResizeReturn {
+  /**
+   * Committed size per resizable section, in px — the user's size, else
+   * `defaultSize`; absent when neither is set (the section config's size
+   * applies). Updates when a drag ends, not on every frame.
+   */
+  sizes: AppShellResizeSizes;
+  /** Whether a drag (or keyboard) collapsed the aside, header or footer. The navbar's state is `useAppShell().navbarOpen`. */
+  collapsed: Record<AppShellResizeCollapsible, boolean>;
+  /** Set a section's size (clamped to its `min`/`max`). */
+  setSize: (section: AppShellResizeSection, size: number) => void;
+  /** Collapse or expand the aside, header or footer. */
+  setCollapsed: (section: AppShellResizeCollapsible, collapsed: boolean) => void;
+  /** Back to `defaultSize` (or the config size) and expanded — one section, or all of them. */
+  reset: (section?: AppShellResizeSection) => void;
+  /** @internal `setSize` without `onSizeChange` (a drag already reported it); returns the clamped size. */
+  commitSize: (section: AppShellResizeSection, size: number) => number | undefined;
+  /** @internal */
+  sections: Record<AppShellResizeSection, ResolvedAppShellResizeSection | undefined>;
+  /** @internal */
+  step: number;
+  /** @internal */
+  shiftStep: number;
+  /** @internal */
+  store: AppShellResizeStore;
+  /** @internal Latest options for a section (for its callbacks). */
+  getSectionOptions: (section: AppShellResizeSection) => ResolvedAppShellResizeSection | undefined;
+  /** @internal */
+  notifySizeChange: (section: AppShellResizeSection, size: number) => void;
+  /** @internal */
+  notifyResizeEnd: (section: AppShellResizeSection, size: number) => void;
 }
 
 /** Imperative navbar controls, from `useAppShellApi()`. */
@@ -277,6 +408,12 @@ export interface AppShellContextValue {
   headerHeightStyle: number | string;
   navbarWidthStyle: number | string;
   contentBottomStyle: number | string;
+  /**
+   * `asideWidth` / `footerHeight` as style values: the numbers, or `var()`
+   * references while those sections are resizable on web (see `resize`).
+   */
+  asideWidthStyle: number | string;
+  footerHeightStyle: number | string;
 }
 
 // Configuration object consumed by layout calculator

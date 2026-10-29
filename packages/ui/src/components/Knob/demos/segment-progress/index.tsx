@@ -20,7 +20,7 @@ export function Demo() {
         appearance={{
           arc: { startAngle: -135, sweepAngle: 270 },
           ring: {  segments: ZONES, segmentMode: 'progress' },
-          fill: { radiusOffset: -20 },
+          body: { radiusOffset: -20 },
         }}
         valueLabel={{ formatter: (val) => `${Math.round(val)}%` }}
       />

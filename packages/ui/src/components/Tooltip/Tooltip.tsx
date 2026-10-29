@@ -19,14 +19,16 @@ import { getNodeText } from '../../core/accessibility/useA11yId';
 import { useLatestCallback } from '../../core/hooks/useLatestCallback';
 import type { PlacementType } from '../../core/utils/positioning-enhanced';
 import type { TooltipProps, TooltipFactoryPayload } from './types';
+import { useAnchorDetached } from './useAnchorDetached';
 
 const ARROW_SIZE = 5;
 const TOOLTIP_FONT_SIZE = 13;
 const TOOLTIP_LINE_HEIGHT = 16;
 const TOOLTIP_MIN_HEIGHT = 30;
 /**
- * Grace period before a hover-opened tooltip hides, so the pointer can travel
- * from the trigger onto the bubble (WCAG 1.4.13: hover content is hoverable).
+ * Grace period before an `interactive` hover-opened tooltip hides, so the
+ * pointer can travel from the trigger onto the bubble (WCAG 1.4.13: hover
+ * content is hoverable).
  */
 const HOVER_GRACE_MS = 100;
 const FALLBACK_PLACEMENTS: PlacementType[] = ['top', 'bottom', 'right', 'left'];
@@ -147,6 +149,8 @@ function TooltipBase(props: TooltipProps, ref: Ref<View>) {
     openDelay = 0,
     closeDelay = 0,
     events,
+    interactive = false,
+    hideDetached = true,
     disabled = false,
     children,
     style,
@@ -222,10 +226,22 @@ function TooltipBase(props: TooltipProps, ref: Ref<View>) {
   }, [clearTimer, closeDelay, setOpened]);
 
   const hideNow = useCallback(() => hide(0), [hide]);
+  // Only an interactive bubble is hoverable; a plain one goes as the pointer leaves.
+  const hoverable = isWeb && eventSettings.hover && interactive;
   const hideAfterHover = useCallback(() => hide(Math.max(closeDelay, HOVER_GRACE_MS)), [hide, closeDelay]);
+  const hideOnHoverOut = useCallback(() => (hoverable ? hideAfterHover() : hide()), [hoverable, hideAfterHover, hide]);
+
+  // The node handed to the positioner as its anchor (set by the ref callbacks below).
+  const anchorNodeRef = useRef<unknown>(null);
+  const getAnchor = useCallback(() => anchorNodeRef.current, []);
+  // Detached (trigger removed, hidden or scrolled out of view): render nothing
+  // but stay "open", so the bubble returns with the trigger. Not a close, so
+  // onClose isn't called and a controlled `opened` is left alone (as Mantine).
+  const detached = useAnchorDetached(getAnchor, isOpen && hideDetached);
+  const isShown = isOpen && !detached;
 
   const floating = useFloating({
-    opened: isOpen,
+    opened: isShown,
     // Escape (WCAG 1.4.13: dismissible without moving pointer or focus).
     onDismiss: hideNow,
     placement: position,
@@ -249,10 +265,16 @@ function TooltipBase(props: TooltipProps, ref: Ref<View>) {
   const triggerNodeRef = useRef<unknown>(null);
   const setTriggerNode = useCallback((node: unknown) => {
     triggerNodeRef.current = node;
-    if (node) refs.setReference(node);
+    if (node) {
+      anchorNodeRef.current = node;
+      refs.setReference(node);
+    }
   }, [refs]);
   const setWrapperNode = useCallback((node: unknown) => {
-    if (node && !triggerNodeRef.current) refs.setReference(node);
+    if (node && !triggerNodeRef.current) {
+      anchorNodeRef.current = node;
+      refs.setReference(node);
+    }
   }, [refs]);
   const wrapperRef = useMergedRef<View>(ref, setWrapperNode);
 
@@ -300,11 +322,11 @@ function TooltipBase(props: TooltipProps, ref: Ref<View>) {
       triggerOverrides,
       webProps({
         onMouseEnter: chain(childProps.onMouseEnter, () => show()),
-        onMouseLeave: chain(childProps.onMouseLeave, () => hideAfterHover()),
+        onMouseLeave: chain(childProps.onMouseLeave, () => hideOnHoverOut()),
       })
     );
     triggerOverrides.onHoverIn = chain(childProps.onHoverIn, () => show());
-    triggerOverrides.onHoverOut = chain(childProps.onHoverOut, () => hideAfterHover());
+    triggerOverrides.onHoverOut = chain(childProps.onHoverOut, () => hideOnHoverOut());
   }
   if (eventSettings.focus) {
     triggerOverrides.onFocus = chain(childProps.onFocus, () => show());
@@ -338,7 +360,6 @@ function TooltipBase(props: TooltipProps, ref: Ref<View>) {
     ? Math.min(requestedWidth, positionMaxWidth)
     : requestedWidth;
 
-  const hoverable = isWeb && eventSettings.hover;
   const floatingProps = floating.getFloatingProps({
     style: [
       bubbleStyle,
@@ -347,13 +368,14 @@ function TooltipBase(props: TooltipProps, ref: Ref<View>) {
         maxWidth: computedMaxWidth,
         maxHeight: floating.position?.maxHeight,
       },
-      hoverable ? null : NO_POINTER,
+      // A plain tooltip never takes the pointer, so it can't block what's under it.
+      interactive ? null : NO_POINTER,
     ],
     // Hoverable: the pointer may move onto the bubble without it vanishing.
     ...(hoverable ? webProps({ onMouseEnter: clearTimer, onMouseLeave: hideAfterHover }) : null),
   });
 
-  const bubble = isOpen ? (
+  const bubble = isShown ? (
     <View {...floatingProps}>
       <Text
         {...mergeSlotProps(

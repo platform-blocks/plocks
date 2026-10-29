@@ -71,6 +71,7 @@ function SelectInner<T>(props: SelectProps<T>, ref: React.ForwardedRef<SelectHan
     label,
     description,
     helperText,
+    success,
     error,
     labelProps,
     descriptionProps,
@@ -567,6 +568,7 @@ function SelectInner<T>(props: SelectProps<T>, ref: React.ForwardedRef<SelectHan
       description={description}
       error={error}
       helperText={helperText}
+      success={success}
       required={required}
       withAsterisk={withAsterisk}
       disabled={disabled}
@@ -579,7 +581,7 @@ function SelectInner<T>(props: SelectProps<T>, ref: React.ForwardedRef<SelectHan
       style={[rootStyle, layoutStyles, spacingStyles, style]}
       testID={testID}
     >
-      {({ controlProps, invalid }) => (
+      {({ controlProps, invalid, success: successState }) => (
         <>
           <View style={ANCHOR_WRAPPER}>
             <PickerTrigger
@@ -599,6 +601,7 @@ function SelectInner<T>(props: SelectProps<T>, ref: React.ForwardedRef<SelectHan
               variant={variant}
               opened={opened}
               invalid={invalid}
+              success={successState}
               disabled={disabled}
               readOnly={readOnly}
               startSection={startSection}

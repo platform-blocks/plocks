@@ -188,6 +188,14 @@ export interface PasswordInputProps extends Omit<InputProps, 'type' | 'secureTex
   /** Whether to show toggle visibility button */
   showVisibilityToggle?: boolean;
 
+  /**
+   * Keep the show/hide toggle in the keyboard tab order (`tabIndex` 0 on web,
+   * `focusable` on native). It stays clickable and reachable by screen readers
+   * either way.
+   * @default false
+   */
+  visibilityToggleFocusable?: boolean;
+
   /** Password strength validation rules */
   strengthValidation?: PasswordStrengthRule[];
 }

@@ -107,6 +107,7 @@ export const Switch = factory<{ props: SwitchProps; ref: View }>((props, ref) =>
     description,
     error,
     helperText,
+    success,
     disabled = false,
     readOnly = false,
     required = false,
@@ -310,6 +311,7 @@ export const Switch = factory<{ props: SwitchProps; ref: View }>((props, ref) =>
       description={description}
       error={error}
       helperText={helperText}
+      success={success}
       required={required}
       withAsterisk={withAsterisk}
       disabled={disabled}

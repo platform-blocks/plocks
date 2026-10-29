@@ -29,6 +29,23 @@ describe('Accordion (react-native-web DOM)', () => {
     expect(screen.getByRole('region', { name: 'Shipping' }).textContent).toContain('Ships in 2 days');
   });
 
+  it('disableCollapse keeps the open item expanded when its header is pressed', () => {
+    render(
+      <PlocksProvider>
+        <Accordion items={ITEMS} disableCollapse defaultExpanded={['one']} autoPersist={false} transitionDuration={0} />
+      </PlocksProvider>
+    );
+    const header = screen.getByRole('button', { name: 'Shipping' });
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(header);
+    expect(screen.getByRole('button', { name: 'Shipping' }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('region', { name: 'Shipping' }).textContent).toContain('Ships in 2 days');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Returns' }));
+    expect(screen.getByRole('button', { name: 'Shipping' }).getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByRole('button', { name: 'Returns' }).getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('marks disabled headers aria-disabled and ignores presses', () => {
     const onExpandedChange = jest.fn();
     render(

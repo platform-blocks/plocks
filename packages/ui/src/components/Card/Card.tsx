@@ -143,6 +143,10 @@ const CardRoot = factory<{ props: CardProps; ref: View }>((allProps, ref) => {
     radius,
     style,
     onPress,
+    onLongPress,
+    onPressIn,
+    onPressOut,
+    pressedStyle,
     disabled,
     withBorder,
     borderColor,
@@ -260,7 +264,7 @@ const CardRoot = factory<{ props: CardProps; ref: View }>((allProps, ref) => {
     />
   ) : null;
 
-  if (onPress) {
+  if (onPress || onLongPress || onPressIn || onPressOut) {
     return (
       <SurfaceContext.Provider value={surfaceContextValue}>
         <CardContext.Provider value={cardContextValue}>
@@ -269,11 +273,14 @@ const CardRoot = factory<{ props: CardProps; ref: View }>((allProps, ref) => {
             {...a11yProps({ role: role ?? 'button', disabled })}
             {...rest}
             onPress={disabled ? undefined : onPress}
+            onLongPress={disabled ? undefined : onLongPress}
+            onPressIn={disabled ? undefined : onPressIn}
+            onPressOut={disabled ? undefined : onPressOut}
             disabled={disabled}
             style={({ pressed }) => [
               ...combinedStyles,
               disabled && styles.disabled,
-              pressed && !disabled ? variantConfig.pressedStyle : null,
+              pressed && !disabled ? (pressedStyle ?? variantConfig.pressedStyle) : null,
             ]}
           >
             {gradientOverlay}
@@ -303,6 +310,6 @@ const CardRoot = factory<{ props: CardProps; ref: View }>((allProps, ref) => {
 
 /**
  * A padded surface for grouping content. `Card.Section` children can bleed to
- * the card's edges. With `onPress` the card is a button (or the `role` given).
+ * the card's edges. With any press handler the card is a button (or the `role` given).
  */
 export const Card = withStatics(CardRoot, { Section: CardSection });

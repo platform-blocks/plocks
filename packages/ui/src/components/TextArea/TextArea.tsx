@@ -44,6 +44,7 @@ export const TextArea = factory<{
       description,
       error,
       helperText,
+      success,
       disabled = false,
       readOnly = false,
       required = false,
@@ -148,6 +149,7 @@ export const TextArea = factory<{
         description={description}
         error={error}
         helperText={helperText}
+        success={success}
         required={required}
         withAsterisk={withAsterisk}
         disabled={disabled}
@@ -161,8 +163,8 @@ export const TextArea = factory<{
         // `fullWidth` first, so an explicit `w` wins.
         style={[styles.root, getLayoutStyles(layoutProps), resolveStyleProps(styleProps, theme), style]}
       >
-        {({ controlProps, invalid }) => {
-          const frame = getFieldFrameStyles(theme, size, variant, radius, invalid, focused, disabled);
+        {({ controlProps, invalid, success: successState }) => {
+          const frame = getFieldFrameStyles(theme, size, variant, radius, invalid, focused, disabled, successState);
           return (
             <>
               <View style={[frame.frame, styles.frame]}>

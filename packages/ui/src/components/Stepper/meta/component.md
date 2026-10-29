@@ -17,6 +17,14 @@ props:
     type: string
     description: Stepper orientation
     default: horizontal
+  - name: iconPosition
+    type: "'left' | 'right'"
+    description: Side of the step body the icon sits on
+    default: left
+  - name: labelPosition
+    type: "'right' | 'bottom'"
+    description: "Where the label and description sit in a horizontal stepper: centered under the icon ('bottom') or beside it ('right'). Ignored for vertical steppers."
+    default: bottom
   - name: size
     type: string
     description: Size variant
@@ -41,6 +49,7 @@ props:
 examples:
   - basic
   - vertical
+  - labelPosition
   - sizes
   - loading
   - customIcons

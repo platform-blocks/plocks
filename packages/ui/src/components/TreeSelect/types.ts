@@ -9,6 +9,8 @@ interface TreeSelectSharedProps extends FieldBaseProps {
   searchable?: boolean; searchValue?: string; defaultSearchValue?: string; onSearchChange?: (query: string) => void;
   filter?: (node: TreeNode, query: string) => boolean; clearSearchOnChange?: boolean; nothingFoundMessage?: React.ReactNode;
   clearable?: boolean; allowDeselect?: boolean; withLines?: boolean; renderNode?: (node: TreeNode, state: TreeNodeState) => React.ReactNode;
+  /** Custom rendering of one selected-value pill in `multiple` and `checkbox` modes; `remove` deselects that value and `disabled` mirrors the field's disabled / read-only state. */
+  renderPill?: (node: TreeNode, helpers: { remove: () => void; disabled: boolean }) => React.ReactNode;
   maxDropdownHeight?: number; expandedValues?: string[]; defaultExpandedValues?: string[]; defaultExpandAll?: boolean; onExpandedChange?: (ids: string[]) => void;
   dropdownOpened?: boolean; defaultDropdownOpened?: boolean; onDropdownOpen?: () => void; onDropdownClose?: () => void;
   position?: PlacementType; dropdownWidth?: number | 'target';

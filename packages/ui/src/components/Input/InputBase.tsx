@@ -67,6 +67,7 @@ export const TextInputBase = factory<{
     label,
     description,
     error,
+    success,
     helperText,
     disabled = false,
     readOnly = false,
@@ -107,7 +108,14 @@ export const TextInputBase = factory<{
   const outerField = useFieldContext();
   // `true` marks the field invalid without a message, so it counts as an error too.
   const hasOwnError = hasContent(error);
-  const headless = !!outerField && !hasContent(label) && !hasContent(description) && !hasContent(helperText) && !hasOwnError;
+  const hasOwnSuccess = hasContent(success);
+  const headless =
+    !!outerField &&
+    !hasContent(label) &&
+    !hasContent(description) &&
+    !hasContent(helperText) &&
+    !hasOwnError &&
+    !hasOwnSuccess;
 
   const [currentValue, setCurrentValue] = useControllableState<string>({
     value: value == null ? undefined : String(value),
@@ -204,8 +212,17 @@ export const TextInputBase = factory<{
     style,
   ];
 
-  const renderControl = (field: Pick<FieldRenderProps, 'controlProps' | 'invalid'>) => {
-    const frame = getFieldFrameStyles(theme, size, variant, radius, field.invalid, isFocused, fieldDisabled);
+  const renderControl = (field: Pick<FieldRenderProps, 'controlProps' | 'invalid' | 'success'>) => {
+    const frame = getFieldFrameStyles(
+      theme,
+      size,
+      variant,
+      radius,
+      field.invalid,
+      isFocused,
+      fieldDisabled,
+      field.success
+    );
     const secure = secureTextEntry ?? secureTextEntryProp ?? false;
     const editable = !fieldDisabled && !fieldReadOnly && editableProp !== false;
     const selectionColor =
@@ -269,6 +286,7 @@ export const TextInputBase = factory<{
         {renderControl({
           controlProps: outerField.controlProps,
           invalid: outerField.invalid,
+          success: outerField.success,
         })}
         {disclaimerNode}
       </View>
@@ -281,6 +299,7 @@ export const TextInputBase = factory<{
       label={label}
       description={description}
       error={error}
+      success={success}
       helperText={helperText}
       required={required}
       withAsterisk={withAsterisk}

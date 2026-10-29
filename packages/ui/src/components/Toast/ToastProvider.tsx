@@ -106,6 +106,11 @@ export type ToastStackPosition =
   | 'bottom-center';
 
 export type ToastStackDirection = 'up' | 'down';
+/**
+ * How a position's toasts are arranged: a full list, or a deck that shows only
+ * the newest toast until the stack is hovered or pressed.
+ */
+export type ToastLayout = 'default' | 'stacked';
 export type ToastQueuePriority = 'fifo' | 'lifo' | 'priority';
 
 export interface ToastQueueOptions {
@@ -325,6 +330,19 @@ interface ToastProviderProps {
   offset?: ToastViewportOffset;
   /** Queue management options */
   queueOptions?: Partial<ToastQueueOptions>;
+  /**
+   * Draws the auto-close progress line on every toast that does not set
+   * `withAutoCloseProgress` itself.
+   * @default false
+   */
+  withAutoCloseProgress?: boolean;
+  /**
+   * `stacked` shows only the newest toast of a position in full, with older
+   * ones peeking out behind it, and expands to the full list while the pointer
+   * rests on the stack or after a press. `default` lists every toast.
+   * @default 'default'
+   */
+  layout?: ToastLayout;
 }
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({
@@ -335,7 +353,9 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
   defaultVariant,
   defaultSize,
   offset,
-  queueOptions
+  queueOptions,
+  withAutoCloseProgress = false,
+  layout = 'default',
 }) => {
   const [toasts, setToast] = useState<ToastItem[]>([]);
 
@@ -399,6 +419,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
       // whether the pointer is resting on the stack. Running a second timer here
       // used to double-fire the dismissal — and hid `persistent` toasts anyway.
       autoHide: options.autoHide ?? autoHide,
+      withAutoCloseProgress: options.withAutoCloseProgress ?? withAutoCloseProgress,
       timestamp: Date.now(),
       priority: options.priority || 0,
     };
@@ -415,7 +436,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
     });
 
     return id;
-  }, [defaultPosition, maxVisible, autoHide, defaultVariant, defaultSize]);
+  }, [defaultPosition, maxVisible, autoHide, defaultVariant, defaultSize, withAutoCloseProgress]);
 
   const startHiding = useCallback((matches: (toast: ToastItem) => boolean) => {
     setToast(prev => {
@@ -652,6 +673,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({
           items={positionToast}
           containerStyle={getPositionStyle(position as ToastStackPosition)}
           spacing={spacing}
+          layout={layout}
           onClose={hide}
           onExited={remove}
         />

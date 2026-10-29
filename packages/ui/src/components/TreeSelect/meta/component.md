@@ -20,6 +20,9 @@ props:
     type: boolean
     description: "Filters nodes by label."
     default: false
+  - name: "renderPill"
+    type: "(node: TreeNode, helpers: { remove: () => void; disabled: boolean }) => React.ReactNode"
+    description: "Custom rendering of one selected-value pill in multiple and checkbox modes; remove deselects that value and disabled mirrors the field state. maxDisplayedValues overflow still applies."
 examples:
   - basic
 ---

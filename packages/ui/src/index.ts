@@ -215,6 +215,7 @@ export {
   useDebouncedCallback,
   useMediaQuery,
   useHover,
+  useLongPress,
   useScrollSpy,
   useMaskedInput,
   useTitleRegistration,
@@ -227,6 +228,7 @@ export {
   getPaginationRange,
 } from './hooks';
 export type { UseHapticsOptions, UseHapticsReturn } from './hooks';
+export type { UseLongPressEvent, UseLongPressHandlers, UseLongPressOptions } from './hooks';
 
 // =============================================================================
 // COMPONENT EXPORTS (organized by category for better mental model)
@@ -245,6 +247,7 @@ export {
   useAppShell,
   useAppShellApi,
   useAppShellLayout,
+  useAppShellResize,
   AppShellHeader,
   AppShellNavbar,
   AppShellAside,
@@ -285,6 +288,7 @@ export { Radio, RadioGroup } from './components/Radio';
 export { Switch } from './components/Switch';
 export { ToggleButton, ToggleGroup } from './components/Toggle';
 export { ToggleBar } from './components/Toggle';
+export { Toolbar, ToolbarToggle, ToolbarToggleGroup, ToolbarToggleItem, ToolbarDivider } from './components/Toolbar';
 export { SegmentedControl } from './components/SegmentedControl';
 export { Slider, RangeSlider } from './components/Slider';
 export { Knob } from './components/Knob';
@@ -490,6 +494,7 @@ export type { RadioProps, RadioGroupProps } from './components/Radio';
 export type { SwitchProps } from './components/Switch';
 export type { ToggleButtonProps, ToggleGroupProps } from './components/Toggle';
 export type { ToggleBarProps, ToggleBarOption } from './components/Toggle/ToggleBar';
+export type { ToolbarProps, ToolbarToggleProps, ToolbarToggleItemProps, ToolbarToggleGroupProps, ToolbarDividerProps, ToolbarOrientation, ToolbarVariant, ToolbarToggleValue, ToolbarToggleGroupType } from './components/Toolbar';
 export type { SegmentedControlProps, SegmentedControlItem, SegmentedControlData } from './components/SegmentedControl';
 export type { SliderProps, RangeSliderProps } from './components/Slider';
 export type { KnobProps, KnobMark, KnobVariant, KnobBehavior } from './components/Knob';
@@ -563,7 +568,7 @@ export type { HoverCardProps, HoverCardPosition, HoverCardShadow } from './compo
 
 export type { CollapseProps } from './components/Collapse';
 export type { IconButtonProps } from './components/IconButton';
-export type { LightboxProps, LightboxItem } from './components/Lightbox';
+export type { LightboxProps, LightboxItem, LightboxImageItem, LightboxVideoItem, LightboxSlideState } from './components/Lightbox';
 export type { ImageProps } from './components/Image';
 export type { WaveformProps } from './components/Waveform';
 export type { DividerProps } from './components/Divider';
@@ -579,6 +584,7 @@ export type { PressAnimationProps } from './components/_internal/PressAnimation/
 export type { AccordionProps, AccordionItemType } from './components/Accordion';
 export type { AppShellProps } from './components/AppShell';
 export type { AppShellBottomNavProps, BottomAppBarProps, BottomAppBarItem } from './components/AppShell';
+export type { AppShellResizeSection, AppShellResizeCollapsible, AppShellResizeSizes, AppShellResizeSectionOptions, UseAppShellResizeOptions, UseAppShellResizeReturn } from './components/AppShell';
 export type {
   AppLayoutBlueprint,
   AppLayoutRuntimeContext,
@@ -662,13 +668,13 @@ export type { TooltipEvents, TooltipPositionType } from './components/Tooltip';
 export type { ContextMenuItem, ContextMenuTriggerProps } from './components/ContextMenu';
 export type { DialogFocusable, DialogVariant, DialogContextValue } from './components/Dialog';
 export { useActiveToasts, toasts } from './components/Toast';
-export type { ToastOptions, ToastStackPosition, ToastDirection, ToastVariant, ToastSeverity, ToastAction, SeverityToastOptions, ToastShortcut, ToastMessage, ToastQueueOptions } from './components/Toast';
+export type { ToastOptions, ToastStackPosition, ToastLayout, ToastDirection, ToastVariant, ToastSeverity, ToastAction, SeverityToastOptions, ToastShortcut, ToastMessage, ToastQueueOptions } from './components/Toast';
 export type { PopoverMiddlewares, FloatingStrategy, ArrowPosition } from './components/Popover';
 export type { UseScrollSpyReturn } from './hooks/useScrollSpy';
 export type { UseTitleRegistrationReturn } from './hooks/useTitleRegistration';
-export type { CheckboxLabelPosition } from './components/Checkbox';
+export type { CheckboxLabelPosition, CheckboxVariant } from './components/Checkbox';
 export type { SwitchVariant, SwitchLabelPosition } from './components/Switch';
-export type { RadioGroupOption, RadioLabelPosition } from './components/Radio';
+export type { RadioGroupOption, RadioLabelPosition, RadioVariant } from './components/Radio';
 export type { ControlFieldIds, ControlFieldPart, ControlFieldLabelProps, ControlFieldDescriptionProps, ControlFieldIndicatorProps, ControlFieldErrorProps } from './components/ControlField';
 export type { SliderBaseProps, SliderTick } from './components/Slider';
 

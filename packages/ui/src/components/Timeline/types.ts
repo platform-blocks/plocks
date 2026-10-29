@@ -37,6 +37,16 @@ export interface TimelineItemProps extends PassthroughViewProps, BaseProps<ViewS
   active?: boolean;
   /** Override timeline alignment for this specific item (`left` = start side, `right` = end side; they flip under RTL) */
   itemAlign?: 'left' | 'right';
+  /**
+   * Content rendered on the other side of the line (a timestamp, a label).
+   * Any item with `opposite` switches the timeline to the centered layout:
+   * the content keeps the side it has in the default layout (after the
+   * bullet) and `opposite` fills the other column. Flip individual items with
+   * `itemAlign` or `alternate`.
+   */
+  opposite?: ReactNode;
+  /** Swap sides: the content moves to the other column and `opposite` takes its place. */
+  alternate?: boolean;
 }
 
 export interface TimelineProps extends PassthroughViewProps, BaseProps<ViewStyle> {
@@ -62,7 +72,7 @@ export interface TimelineProps extends PassthroughViewProps, BaseProps<ViewStyle
   reverseActive?: boolean;
   /** Component size: a size token, or the title font size in px */
   size?: SizeValue;
-  /** Center mode renders a single central spine allowing items on both sides via itemAlign prop */
+  /** Center mode renders a single central spine allowing items on both sides via itemAlign prop. Switched on automatically when any item has `opposite` content. */
   centerMode?: boolean;
 }
 

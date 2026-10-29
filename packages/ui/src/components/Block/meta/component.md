@@ -17,6 +17,8 @@ props:
   fluid: flex 1 (full available height)
   direction / align / justify / wrap / gap / grow / shrink / basis: Flexbox layout
   position / top / right / bottom / left / start / end / zIndex: Positioning
+  onPress / onLongPress / onPressIn / onPressOut: Render a `<Pressable>` root with `role="button"` unless `role` is given (`delayLongPress` sets the long-press delay in ms)
+  pressedStyle: Style while pressed — no press feedback without it
   component: Polymorphic — render as any element (default View)
 examples:
   - basic

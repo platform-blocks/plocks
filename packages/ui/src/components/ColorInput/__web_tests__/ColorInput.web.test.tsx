@@ -19,18 +19,49 @@ jest.mock('../../../hooks/useOverlayMode', () => ({
   }),
 }));
 
+// react-native-web drives `onLayout` from a ResizeObserver. The jest setup's
+// no-op stub never fires it; this one reports as soon as an element is observed
+// (react-native-web then measures it from `offsetWidth` / `offsetHeight`).
+class ResizeObserverStub {
+  private readonly callback: ResizeObserverCallback;
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+  }
+  observe(target: Element) {
+    this.callback([{ target } as ResizeObserverEntry], this as unknown as ResizeObserver);
+  }
+  unobserve() {}
+  disconnect() {}
+}
+const resizeObserverWindow = window as unknown as { ResizeObserver?: unknown };
+const originalResizeObserver = resizeObserverWindow.ResizeObserver;
+
 // jsdom has no layout: give every element a box so the dropdown can be placed.
+let rectWidth = 320;
 const originalRect = Element.prototype.getBoundingClientRect;
 beforeAll(() => {
+  resizeObserverWindow.ResizeObserver = ResizeObserverStub;
   Element.prototype.getBoundingClientRect = function getBoundingClientRect() {
-    return { x: 20, y: 40, top: 40, left: 20, right: 340, bottom: 80, width: 320, height: 40, toJSON: () => ({}) } as DOMRect;
+    return {
+      x: 20,
+      y: 40,
+      top: 40,
+      left: 20,
+      right: 20 + rectWidth,
+      bottom: 80,
+      width: rectWidth,
+      height: 40,
+      toJSON: () => ({}),
+    } as DOMRect;
   };
 });
 afterAll(() => {
   Element.prototype.getBoundingClientRect = originalRect;
+  resizeObserverWindow.ResizeObserver = originalResizeObserver;
 });
 beforeEach(() => {
   mockUseSheet = false;
+  rectWidth = 320;
   __resetLayerStackForTests();
 });
 
@@ -155,5 +186,29 @@ describe('ColorInput (react-native-web DOM)', () => {
     expect(sheet.getAttribute('aria-modal')).toBe('true');
     expect(screen.getByRole('radiogroup', { name: 'Color swatches' })).toBeTruthy();
     expect(screen.getAllByRole('radio')).toHaveLength(SWATCHES.length);
+  });
+
+  it('sizes the dropdown to the field with dropdownFullWidth, else at least 320px', async () => {
+    rectWidth = 200;
+    // onLayout measures with offsetWidth, which jsdom always reports as 0.
+    const originalOffsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => rectWidth });
+    try {
+      const openDropdown = async () => {
+        const toggle = screen.getByRole('button', { name: 'Show color swatches' });
+        fireEvent.click(toggle);
+        await settle();
+        return document.getElementById(toggle.getAttribute('aria-controls') ?? '') as HTMLElement;
+      };
+
+      const { unmount } = render(<ColorInput label="Brand color" swatches={SWATCHES} dropdownFullWidth />);
+      expect((await openDropdown()).style.width).toBe('200px');
+      unmount();
+
+      render(<ColorInput label="Brand color" swatches={SWATCHES} />);
+      expect((await openDropdown()).style.width).toBe('320px');
+    } finally {
+      if (originalOffsetWidth) Object.defineProperty(HTMLElement.prototype, 'offsetWidth', originalOffsetWidth);
+    }
   });
 });

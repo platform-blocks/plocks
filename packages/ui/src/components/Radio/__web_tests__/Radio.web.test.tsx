@@ -6,6 +6,13 @@ import { Radio, RadioGroup } from '../Radio';
 
 const render = (ui: React.ReactElement) => rtlRender(<PlocksProvider>{ui}</PlocksProvider>);
 
+/** The track disc inside a radio control: the layer that carries the selected fill. */
+const trackOf = (radio: HTMLElement) => radio.firstElementChild!.firstElementChild as HTMLElement;
+const alphaOf = (color: string) => {
+  const match = /^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/.exec(color);
+  return match ? parseFloat(match[1]) : 1;
+};
+
 const OPTIONS = [
   { label: 'Basic', value: 'basic' },
   { label: 'Pro', value: 'pro' },
@@ -18,6 +25,21 @@ describe('Radio (react-native-web DOM)', () => {
     render(<Radio value="a" label="Alpha" checked />);
     const radio = screen.getByRole('radio', { name: 'Alpha' });
     expect(radio.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('tints a selected light radio instead of filling it with the accent', () => {
+    render(
+      <>
+        <Radio value="f" label="Filled" checked transitionDuration={0} />
+        <Radio value="l" label="Light" variant="light" checked transitionDuration={0} />
+      </>
+    );
+    const filled = trackOf(screen.getByRole('radio', { name: 'Filled' })).style.backgroundColor;
+    const light = trackOf(screen.getByRole('radio', { name: 'Light' })).style.backgroundColor;
+
+    expect(alphaOf(filled)).toBe(1);
+    expect(light).toMatch(/^rgba\(/);
+    expect(alphaOf(light)).toBeLessThan(1);
   });
 
   it('picks itself with Space and from its label', () => {

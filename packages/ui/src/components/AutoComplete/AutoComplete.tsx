@@ -100,6 +100,7 @@ const AutoCompleteInner = (props: AutoCompleteProps, ref: React.ForwardedRef<Aut
     label,
     description,
     helperText,
+    success,
     error,
     required = false,
     withAsterisk,
@@ -544,6 +545,8 @@ const AutoCompleteInner = (props: AutoCompleteProps, ref: React.ForwardedRef<Aut
     variant,
     focused: focused && !(useSheet && opened),
     invalid: error !== undefined && error !== null && error !== false && error !== '',
+    // Field's rule: any truthy `success` flags it; `invalid` wins inside the frame styles.
+    success: !!success,
     disabled,
   });
   const fieldFontSize = metrics.fontSize;
@@ -914,6 +917,7 @@ const AutoCompleteInner = (props: AutoCompleteProps, ref: React.ForwardedRef<Aut
       description={description}
       error={error}
       helperText={helperText}
+      success={success}
       required={required}
       withAsterisk={withAsterisk}
       disabled={disabled}

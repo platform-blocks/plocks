@@ -34,6 +34,7 @@ export const APP_SHELL_META: AppShellMetaSection[] = [
       { name: 'zIndex', type: 'number', description: "Stacking order for every section without its own (default: each section's theme.zIndices layer)" },
       { name: 'transitionDuration', type: 'number', description: 'ms; reduced motion forces 0', default: 200 },
       { name: 'transitionTimingFunction', type: 'string', description: 'CSS timing function for navbar/content transitions' },
+      { name: 'resize', type: 'UseAppShellResizeReturn', description: 'Resizable sections, from useAppShellResize(); off where the navbar/aside are drawers or mobile' },
     ]
   },
   {

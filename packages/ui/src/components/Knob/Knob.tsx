@@ -21,7 +21,7 @@ import type {
   KnobAppearance,
   KnobPointerStyle,
   KnobRootProps,
-  KnobFillPartProps,
+  KnobBodyPartProps,
   KnobRingPartProps,
   KnobRingSegmentPartProps,
   KnobProgressPartProps,
@@ -42,6 +42,7 @@ import {
   getSignedArcSweepBetweenRatios,
 } from './arc';
 import { resolveKnobAppearance } from './appearance';
+import { getKnobVariantArc, getKnobVariantLabelPosition } from './variants';
 import { resolveKnobSize } from './sizes';
 import { clamp } from './utils/math';
 import { findClosestMarkEntry, pickAdjacentMark } from './utils/marks';
@@ -53,6 +54,7 @@ import { useKnobGestures } from './hooks/useKnobGestures';
 import { normalizeInteractionConfig } from './interactionConfig';
 import { knobStyles as styles } from './styles';
 import { KnobSurface } from './components/KnobSurface';
+import { BodyLayer } from './components/BodyLayer';
 import type { SurfaceLayersProps } from './components/SurfaceLayers';
 import type { TickLayersProps } from './components/TickLayers';
 import type { PointerLayerProps } from './components/PointerLayer';
@@ -130,10 +132,13 @@ const KnobBase = factory<{
     [appearance?.interaction]
   );
 
-  const arcConfig = useMemo(
-    () => normalizeArcConfig(appearance?.arc, { isEndless }),
-    [appearance?.arc, isEndless]
-  );
+  // The variant's sweep goes under the caller's, like the rest of its appearance. It is
+  // read here rather than from the resolved appearance because angles are needed first.
+  const arcConfig = useMemo(() => {
+    const variantArc = getKnobVariantArc(variant);
+    const arc = variantArc ? { ...variantArc, ...appearance?.arc } : appearance?.arc;
+    return normalizeArcConfig(arc, { isEndless });
+  }, [variant, appearance?.arc, isEndless]);
 
   // Returns null when the range is degenerate, so callers can fall back to `startAngle`.
   const valueToRatio = useCallback(
@@ -218,8 +223,9 @@ const KnobBase = factory<{
         size,
         thumbSize: baseThumbSize,
         accentColor: markAccent,
+        hasMarks: marksNormalized.length > 0,
       }),
-    [appearance, variant, theme, resolvedBehavior, disabled, size, baseThumbSize, markAccent]
+    [appearance, variant, theme, resolvedBehavior, disabled, size, baseThumbSize, markAccent, marksNormalized.length]
   );
 
   const panningConfig = resolvedAppearance.panning;
@@ -276,11 +282,10 @@ const KnobBase = factory<{
     displayValue,
     pivotValue,
   ]);
-  const fillConfig = resolvedAppearance.fill;
-  const fillRadius = fillConfig
-    ? clamp(layoutState.radius + fillConfig.radiusOffset, 0, layoutState.radius)
+  const bodyConfig = resolvedAppearance.body;
+  const bodyRadius = bodyConfig
+    ? clamp(layoutState.radius + bodyConfig.radiusOffset, 0, layoutState.radius)
     : 0;
-  const fillDiameter = fillConfig ? fillRadius * 2 : 0;
   const ringBaseDiameter = ringRadius * 2 + ringThickness;
   const trackColor = resolvedAppearance.ring.color;
   const thumbColor = resolvedAppearance.thumb?.color ?? literalText(theme).secondary;
@@ -522,6 +527,7 @@ const KnobBase = factory<{
     theme,
     labelColor,
     activeMark,
+    variantPosition: getKnobVariantLabelPosition(variant),
   });
 
   // Positioned during render (not via a post-commit effect) so the thumb paints at the
@@ -592,9 +598,15 @@ const KnobBase = factory<{
 
   const surfaceLayersProps: SurfaceLayersProps = {
     layoutState,
-    fillConfig: fillConfig ?? undefined,
-    fillDiameter,
-    fillRadius,
+    bodyLayer: (
+      <BodyLayer
+        layoutState={layoutState}
+        body={bodyConfig}
+        bodyRadius={bodyRadius}
+        displayAngle={displayAngle}
+      />
+    ),
+    ringVisible: resolvedAppearance.ring.visible,
     ringBaseDiameter,
     ringSvgCenter,
     ringBackgroundColor: resolvedAppearance.ring.backgroundColor,
@@ -716,7 +728,7 @@ const createPartComponent = <P extends object>(
   return PartComponent as KnobPartComponent<P>;
 };
 
-const KnobFillPart = createPartComponent<KnobFillPartProps>('fill', 'Knob.Fill');
+const KnobBodyPart = createPartComponent<KnobBodyPartProps>('body', 'Knob.Body');
 const KnobRingPart = createPartComponent<KnobRingPartProps>('ring', 'Knob.Ring');
 const KnobRingSegmentPart = createPartComponent<KnobRingSegmentPartProps>(
   'ringSegment',
@@ -748,20 +760,20 @@ const buildAppearanceFromParts = (
   const nextAppearance: KnobAppearance = baseAppearance ? { ...baseAppearance } : {};
   let tickLayers = normalizeTickInput(baseAppearance?.ticks);
   let tickLayersMutated = false;
-  let ringSegments = baseAppearance?.ring?.segments ?? [];
+  let ringSegments = (baseAppearance?.ring || undefined)?.segments ?? [];
   let ringSegmentsMutated = false;
 
   sortedParts.forEach((entry) => {
     switch (entry.kind) {
-      case 'fill': {
+      case 'body': {
         const { visible, ...rest } = entry.props;
         if (visible === false) {
-          if (nextAppearance.fill !== undefined) {
-            delete nextAppearance.fill;
+          if (nextAppearance.body !== false) {
+            nextAppearance.body = false;
             mutated = true;
           }
         } else {
-          nextAppearance.fill = { ...(nextAppearance.fill ?? {}), ...rest };
+          nextAppearance.body = { ...(nextAppearance.body || {}), ...rest };
           mutated = true;
         }
         break;
@@ -769,12 +781,12 @@ const buildAppearanceFromParts = (
       case 'ring': {
         const { visible, ...rest } = entry.props;
         if (visible === false) {
-          if (nextAppearance.ring) {
-            delete nextAppearance.ring;
+          if (nextAppearance.ring !== false) {
+            nextAppearance.ring = false;
             mutated = true;
           }
         } else {
-          nextAppearance.ring = { ...(nextAppearance.ring ?? {}), ...rest };
+          nextAppearance.ring = { ...(nextAppearance.ring || {}), ...rest };
           mutated = true;
         }
         break;
@@ -860,7 +872,7 @@ const buildAppearanceFromParts = (
   // Written after the `ring` case so a `<Knob.Ring>` sibling cannot clobber the segments,
   // whichever order the two parts appear in.
   if (ringSegmentsMutated) {
-    nextAppearance.ring = { ...(nextAppearance.ring ?? {}), segments: ringSegments };
+    nextAppearance.ring = { ...(nextAppearance.ring || {}), segments: ringSegments };
     mutated = true;
   }
 
@@ -934,7 +946,7 @@ KnobRootComponent.displayName = 'Knob.Root';
 
 type KnobCompoundComponent = typeof KnobBase & {
   Root: React.FC<KnobRootProps>;
-  Fill: React.FC<KnobFillPartProps>;
+  Body: React.FC<KnobBodyPartProps>;
   Ring: React.FC<KnobRingPartProps>;
   RingSegment: React.FC<KnobRingSegmentPartProps>;
   Progress: React.FC<KnobProgressPartProps>;
@@ -946,7 +958,7 @@ type KnobCompoundComponent = typeof KnobBase & {
 
 export const Knob: KnobCompoundComponent = withStatics(KnobBase, {
   Root: KnobRootComponent,
-  Fill: KnobFillPart,
+  Body: KnobBodyPart,
   Ring: KnobRingPart,
   RingSegment: KnobRingSegmentPart,
   Progress: KnobProgressPart,

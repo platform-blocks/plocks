@@ -94,6 +94,7 @@ const StepperStep = factory<{ props: StepperStepProps; ref: View }>((
     onStepClick,
     orientation,
     iconPosition,
+    labelPosition,
     iconSize: contextIconSize,
     color: contextColor,
     completedIcon: contextCompletedIcon,
@@ -105,6 +106,8 @@ const StepperStep = factory<{ props: StepperStepProps; ref: View }>((
   const finalIconSize = contextIconSize || metrics.iconSize;
   const stepColor = resolveAccentColor(theme, color) ?? contextColor;
   const isVertical = orientation === 'vertical';
+  // Horizontal steps stack the body under the indicator unless the label sits beside it.
+  const labelBelow = !isVertical && labelPosition === 'bottom';
   const isCompleted = stepIndex < active;
   const isActive = stepIndex === active;
   const isClickable = !!onStepClick && allowStepSelect && (allowNextStepsSelect || stepIndex <= active);
@@ -118,8 +121,8 @@ const StepperStep = factory<{ props: StepperStepProps; ref: View }>((
     ? Math.max(3, Math.round(metrics.spacing * 0.35))
     : Math.max(4, Math.round(metrics.spacing * 0.5));
   const bodyGap = Math.max(6, Math.round(metrics.spacing * 0.75));
-  // Horizontal steps sit under their indicator; vertical ones hug the rail they belong to.
-  const bodyTextAlign: TextStyle['textAlign'] = !isVertical
+  // Stacked horizontal bodies sit under their indicator; inline ones hug the icon they belong to.
+  const bodyTextAlign: TextStyle['textAlign'] = labelBelow
     ? 'center'
     : iconPosition === 'right' ? 'right' : 'left';
 
@@ -237,7 +240,22 @@ const StepperStep = factory<{ props: StepperStepProps; ref: View }>((
       );
     }
 
-    return <View style={{ alignSelf: 'stretch', alignItems: 'center', marginTop: bodyGap }}>{body}</View>;
+    if (labelBelow) {
+      return <View style={{ alignSelf: 'stretch', alignItems: 'center', marginTop: bodyGap }}>{body}</View>;
+    }
+
+    // `labelPosition="right"`: the body sits beside the indicator and shrinks before the connector does.
+    return (
+      <View
+        style={{
+          flexShrink: 1,
+          marginStart: iconPosition === 'right' ? 0 : bodyGap,
+          marginEnd: iconPosition === 'right' ? bodyGap : 0,
+        }}
+      >
+        {body}
+      </View>
+    );
   };
 
   const renderVertical = () => {
@@ -267,6 +285,29 @@ const StepperStep = factory<{ props: StepperStepProps; ref: View }>((
     );
   };
 
+  // `labelPosition="right"`: indicator, body and a single connector that runs on to the next step.
+  const renderHorizontalInline = () => {
+    const indicator = <View style={stepIconStyle}>{renderStepIcon()}</View>;
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {iconPosition === 'right' ? renderStepBody() : indicator}
+        {iconPosition === 'right' ? indicator : renderStepBody()}
+        {!isLast && (
+          <View
+            style={{
+              flex: 1,
+              height: metrics.lineWidth,
+              borderRadius: metrics.lineWidth / 2,
+              marginHorizontal: railGap,
+              minWidth: metrics.spacing,
+              backgroundColor: isCompleted ? stepColor : mutedColor,
+            }}
+          />
+        )}
+      </View>
+    );
+  };
+
   const renderHorizontal = () => (
     <View style={{ alignItems: 'center' }}>
       {/* Indicator sits centered in an equal-width column, with the connector halves
@@ -284,7 +325,14 @@ const StepperStep = factory<{ props: StepperStepProps; ref: View }>((
   const itemProps = onStepClick && roving ? roving.getItemProps(stepIndex) : null;
   const mergedRef = useMergedRef<View>(ref, itemProps?.ref);
 
-  const rootStyle: ViewStyle = isVertical ? { alignSelf: 'stretch' } : { flex: 1, minWidth: 0 };
+  // Stacked steps share the width equally; inline steps let their connector fill the
+  // remaining space, and the last one (no connector) only takes what its body needs.
+  const rootStyle: ViewStyle = isVertical
+    ? { alignSelf: 'stretch' }
+    : !labelBelow && isLast
+      ? { flexShrink: 1, minWidth: 0 }
+      : { flex: 1, minWidth: 0 };
+  const renderStep = () => (isVertical ? renderVertical() : labelBelow ? renderHorizontal() : renderHorizontalInline());
   const accessibleName = ariaLabel || label || `Step ${stepIndex + 1}`;
   // `title` renders a native tooltip on web (react-native-web forwards it).
   const titleProps = title ? ({ title } as ViewProps) : null;
@@ -304,7 +352,7 @@ const StepperStep = factory<{ props: StepperStepProps; ref: View }>((
         {...titleProps}
         style={[rootStyle, style]}
       >
-        {isVertical ? renderVertical() : renderHorizontal()}
+        {renderStep()}
       </View>
     );
   }
@@ -326,7 +374,7 @@ const StepperStep = factory<{ props: StepperStepProps; ref: View }>((
       {...titleProps}
       style={({ pressed }) => [rootStyle, pressed && isClickable ? { opacity: 0.7 } : null, style]}
     >
-      {isVertical ? renderVertical() : renderHorizontal()}
+      {renderStep()}
     </Pressable>
   );
 }, { displayName: 'Stepper.Step' });
@@ -350,6 +398,7 @@ const StepperRoot = factory<{ props: StepperProps; ref: View }>((
     onStepClick,
     orientation = 'horizontal',
     iconPosition = 'left',
+    labelPosition = 'bottom',
     iconSize,
     size = 'md',
     color,
@@ -408,6 +457,7 @@ const StepperRoot = factory<{ props: StepperProps; ref: View }>((
       onStepClick,
       orientation,
       iconPosition,
+      labelPosition,
       iconSize: resolvedIconSize,
       size,
       metrics,
@@ -421,6 +471,7 @@ const StepperRoot = factory<{ props: StepperProps; ref: View }>((
       onStepClick,
       orientation,
       iconPosition,
+      labelPosition,
       resolvedIconSize,
       size,
       metrics,

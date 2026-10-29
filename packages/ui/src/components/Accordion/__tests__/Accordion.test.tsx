@@ -123,6 +123,46 @@ describe('Accordion - behavior', () => {
     expect(onExpandedChange).not.toHaveBeenCalled();
   });
 
+  it('keeps the open item open when disableCollapse is set (single)', () => {
+    const onExpandedChange = jest.fn();
+    const onItemToggle = jest.fn();
+    const { getAllByRole, getByText } = render(
+      <Accordion
+        items={baseItems}
+        disableCollapse
+        defaultExpanded={['alpha']}
+        autoPersist={false}
+        onExpandedChange={onExpandedChange}
+        onItemToggle={onItemToggle}
+      />
+    );
+
+    const triggers = getAllByRole('button');
+    fireEvent.press(triggers[0]);
+    expect(getByText('Panel alpha')).toBeTruthy();
+    expect(onExpandedChange).not.toHaveBeenCalled();
+    expect(onItemToggle).not.toHaveBeenCalled();
+
+    // Swapping to another item still works.
+    fireEvent.press(triggers[1]);
+    expect(getByText('Panel beta')).toBeTruthy();
+    expect(onExpandedChange).toHaveBeenLastCalledWith(['beta']);
+  });
+
+  it('keeps the last open item open when disableCollapse is set (multiple)', () => {
+    const { getAllByRole, getByText, queryByText } = render(
+      <Accordion items={baseItems} type="multiple" disableCollapse defaultExpanded={['alpha', 'beta']} autoPersist={false} />
+    );
+
+    const triggers = getAllByRole('button');
+    fireEvent.press(triggers[0]);
+    expect(queryByText('Panel alpha')).toBeNull();
+    expect(getByText('Panel beta')).toBeTruthy();
+
+    fireEvent.press(triggers[1]);
+    expect(getByText('Panel beta')).toBeTruthy();
+  });
+
   it('respects controlled expanded prop by delegating state outward', () => {
     const Controlled: React.FC = () => {
       const [expanded, setExpanded] = React.useState<string[]>(['alpha']);

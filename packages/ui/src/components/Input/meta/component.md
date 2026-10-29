@@ -15,7 +15,8 @@ props:
   placeholder: Placeholder text displayed when input is empty
   label: Label text displayed above the input
   error: Error message displayed below the input, announced and linked to it (`aria-describedby`)
-  helperText: Help text below the input (replaced by the error while there is one)
+  success: Success state — colors the frame with the theme's success color; a string or node also shows as a success message in the helper slot, linked to the input. `error` wins while both are set
+  helperText: Help text below the input (replaced by the error or success message while there is one)
   description: Text under the label
   disabled: Whether the input is disabled
   required: Whether the input is required
@@ -36,6 +37,7 @@ props:
   startSectionProps: View props applied to the startSection wrapper (style, accessibility, etc.)
   endSection: Content rendered after the input
   endSectionProps: View props applied to the endSection wrapper
+  visibilityToggleFocusable: "`PasswordInput` only — keep the show/hide toggle in the keyboard tab order (default false: clickable but skipped by Tab)"
 related:
   - PasswordInput
   - AutoComplete
@@ -45,6 +47,8 @@ examples:
   - Visual variants (default, filled, outline, unstyled)
   - Different input types (email, password, number, tel)
   - Validation, required, and disabled states
+  - Success state
+  - Focusable password visibility toggle
   - Multiline text input
   - Sections and slot styling (startSection, endSection, clearable)
 ---
