@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { View, Modal, Image, StatusBar, StyleSheet, Pressable, PanResponder } from 'react-native';
+import { View, Image, StatusBar, StyleSheet, Pressable, PanResponder } from 'react-native';
+import { ModalWindow, WindowDialog } from '../../core/overlay/ModalWindow';
 import type { GestureResponderEvent, ImageLoadEventData, NativeSyntheticEvent } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -454,8 +455,13 @@ export const Lightbox = factory<{ props: LightboxModalProps; ref: View }>((props
     );
   }
 
+  // Web: the dialog element spans the whole window, so floating content opened
+  // from inside the gallery (rendered by the OverlayHost beside it) stays inside
+  // the modal dialog. Native keeps the semantics on the gallery view.
+  const dialogA11y = a11yProps({ role: 'dialog', modal: true, label: accessibilityLabel ?? 'Image gallery' });
+
   return (
-    <Modal
+    <ModalWindow
       visible={opened}
       transparent
       animationType={noAnimation ? 'none' : 'fade'}
@@ -465,81 +471,83 @@ export const Lightbox = factory<{ props: LightboxModalProps; ref: View }>((props
       statusBarTranslucent
     >
       <StatusBar hidden />
-      <OverlayHost>
-        <LayerScope id={layerId}>
-          <View
-            ref={mergedDialogRef}
-            style={[styles.container, spacingStyles, style]}
-            testID={testID}
-            {...a11yProps({ role: 'dialog', modal: true, label: accessibilityLabel ?? 'Image gallery' })}
-            onFocus={() => setFocusWithin(true)}
-            onBlur={() => setFocusWithin(false)}
-            {...webProps({ onKeyDown: handleKeyDown })}
-          >
-            {/* The theme scrim's color at `overlayOpacity` (dark enough for the light media chrome). */}
-            <View style={[styles.overlay, { backgroundColor: resolveScrim(theme, overlayOpacity) }]}>
-              {/* Current slide */}
-              <View
-                ref={setStageNode}
-                style={[
-                  styles.stage,
-                  { width: screenWidth, height: screenHeight },
-                  zoomEnabled && webStyle({ touchAction: 'none', cursor: zoom.zoomed ? 'grab' : 'zoom-in' }),
-                ]}
-                testID={testID ? `${testID}-stage` : undefined}
-                {...panResponder.panHandlers}
-              >
-                <Pressable style={styles.imageWrapper} onPress={handleStagePress} accessible={false} testID={slideTestID}>
-                  {slide}
-                </Pressable>
-              </View>
-
-              {/* Controls */}
-              {showControls && (
-                <LightboxControls
-                  currentIndex={currentIndex}
-                  totalImages={images.length}
-                  onPrevious={goToPrevious}
-                  onNext={goToNext}
-                  onClose={() => handleClose()}
-                  onDownload={showDownloadButton ? handleDownload : undefined}
-                  showDownloadButton={showDownloadButton}
-                  image={currentItem}
-                  zoomed={zoom.zoomed}
-                  onToggleZoom={zoomEnabled ? toggleZoom : undefined}
-                />
-              )}
-
-              {/* Thumbnails */}
-              {showThumbnails && thumbnailsVisible && showControls && (
-                <View style={styles.thumbnailsContainer}>
-                  <LightboxThumbnails
-                    images={images}
-                    currentIndex={currentIndex}
-                    onThumbnailPress={goToImage}
-                    thumbnailSize={thumbnailSize}
-                  />
-                </View>
-              )}
-
-              {/* Metadata */}
-              {showMetadata && <LightboxMetadata image={currentItem} visible={metadataVisible} />}
-
-              {/* Metadata Toggle */}
-              {showMetadata && showControls && currentItem.metadata && (
-                <Pressable
-                  style={styles.metadataToggle}
-                  onPress={toggleMetadata}
-                  {...a11yProps({ role: 'button', expanded: metadataVisible })}
+      <WindowDialog a11y={isWeb ? dialogA11y : null}>
+        <OverlayHost>
+          <LayerScope id={layerId}>
+            <View
+              ref={mergedDialogRef}
+              style={[styles.container, spacingStyles, style]}
+              testID={testID}
+              {...(isWeb ? null : dialogA11y)}
+              onFocus={() => setFocusWithin(true)}
+              onBlur={() => setFocusWithin(false)}
+              {...webProps({ onKeyDown: handleKeyDown })}
+            >
+              {/* The theme scrim's color at `overlayOpacity` (dark enough for the light media chrome). */}
+              <View style={[styles.overlay, { backgroundColor: resolveScrim(theme, overlayOpacity) }]}>
+                {/* Current slide */}
+                <View
+                  ref={setStageNode}
+                  style={[
+                    styles.stage,
+                    { width: screenWidth, height: screenHeight },
+                    zoomEnabled && webStyle({ touchAction: 'none', cursor: zoom.zoomed ? 'grab' : 'zoom-in' }),
+                  ]}
+                  testID={testID ? `${testID}-stage` : undefined}
+                  {...panResponder.panHandlers}
                 >
-                  <Text style={styles.metadataToggleText}>{metadataVisible ? 'Hide Info' : 'Show Info'}</Text>
-                </Pressable>
-              )}
+                  <Pressable style={styles.imageWrapper} onPress={handleStagePress} accessible={false} testID={slideTestID}>
+                    {slide}
+                  </Pressable>
+                </View>
+
+                {/* Controls */}
+                {showControls && (
+                  <LightboxControls
+                    currentIndex={currentIndex}
+                    totalImages={images.length}
+                    onPrevious={goToPrevious}
+                    onNext={goToNext}
+                    onClose={() => handleClose()}
+                    onDownload={showDownloadButton ? handleDownload : undefined}
+                    showDownloadButton={showDownloadButton}
+                    image={currentItem}
+                    zoomed={zoom.zoomed}
+                    onToggleZoom={zoomEnabled ? toggleZoom : undefined}
+                  />
+                )}
+
+                {/* Thumbnails */}
+                {showThumbnails && thumbnailsVisible && showControls && (
+                  <View style={styles.thumbnailsContainer}>
+                    <LightboxThumbnails
+                      images={images}
+                      currentIndex={currentIndex}
+                      onThumbnailPress={goToImage}
+                      thumbnailSize={thumbnailSize}
+                    />
+                  </View>
+                )}
+
+                {/* Metadata */}
+                {showMetadata && <LightboxMetadata image={currentItem} visible={metadataVisible} />}
+
+                {/* Metadata Toggle */}
+                {showMetadata && showControls && currentItem.metadata && (
+                  <Pressable
+                    style={styles.metadataToggle}
+                    onPress={toggleMetadata}
+                    {...a11yProps({ role: 'button', expanded: metadataVisible })}
+                  >
+                    <Text style={styles.metadataToggleText}>{metadataVisible ? 'Hide Info' : 'Show Info'}</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
-          </View>
-        </LayerScope>
-      </OverlayHost>
-    </Modal>
+          </LayerScope>
+        </OverlayHost>
+      </WindowDialog>
+    </ModalWindow>
   );
 }, { displayName: 'Lightbox' });
 

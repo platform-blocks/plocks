@@ -927,6 +927,7 @@ const AutoCompleteInner = (props: AutoCompleteProps, ref: React.ForwardedRef<Aut
       descriptionProps={descriptionProps}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
+      labelFor
       style={[rootStyle, layoutStyles, spacingStyles, style]}
       testID={testID ? `${testID}-root` : undefined}
     >

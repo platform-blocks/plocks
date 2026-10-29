@@ -29,9 +29,18 @@ export interface FieldHeaderProps {
   labelId?: string;
   /** Id of the description element, referenced by the control's `aria-describedby`. */
   descriptionId?: string;
+  /**
+   * Web: id of a native form control (`<input>`, `<textarea>`) this label
+   * names. The label then renders inside an HTML `<label for>`, so the control
+   * is named by the label element itself as well as by `aria-labelledby`, and
+   * clicking the label focuses it.
+   */
+  labelFor?: string;
   /** Spoken in place of the asterisk on native. Default `'required'`. */
   requiredText?: string;
 }
+
+const LABEL_CONTENTS_STYLE = { display: 'contents' } as const;
 
 /**
  * Internal utility component to standardize label + description block across field components.
@@ -55,6 +64,7 @@ export const FieldHeader: React.FC<FieldHeaderProps> = ({
   descriptionProps,
   labelId,
   descriptionId,
+  labelFor,
   requiredText = 'required',
 }) => {
   // Built once per theme/size/disabled, not per keystroke of the field it heads.
@@ -91,13 +101,25 @@ export const FieldHeader: React.FC<FieldHeaderProps> = ({
     <Text style={styles.required}>{' *'}</Text>
   );
 
-  const labelElement = label ? (
+  const htmlLabelFor = isWeb && labelFor ? labelFor : undefined;
+  const labelText = label ? (
     // The default weight goes through `fw`, not the style, so `labelProps.fw` can override it.
-    <Text {...mergeSlotProps({ style: styles.label, fw: '600', id: labelId }, labelProps)}>
+    // Inside a <label> it renders as a <span> (a <p> isn't valid label content).
+    <Text
+      {...mergeSlotProps(
+        { style: styles.label, fw: '600', id: labelId, ...(htmlLabelFor ? { as: 'span' as const } : null) },
+        labelProps
+      )}
+    >
       {label}
       {asterisk}
     </Text>
   ) : null;
+  const labelElement = labelText && htmlLabelFor
+    ? // `display: contents` leaves the layout exactly as the bare Text: the
+      // <label> only adds the for-association.
+      React.createElement('label', { htmlFor: htmlLabelFor, style: LABEL_CONTENTS_STYLE }, labelText)
+    : labelText;
 
   // Native reads a Text's whole string (asterisk included), so a required
   // label is wrapped in one accessible node with a spoken name instead.

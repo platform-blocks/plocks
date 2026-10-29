@@ -12,4 +12,9 @@ describe('SafeArea', () => {
     expect(screen.getByText('Content')).toBeTruthy();
     expect(StyleSheet.flatten(screen.getByTestId('safe').props.style).backgroundColor).toBeTruthy();
   });
+
+  it('forwards edges to the safe area view', () => {
+    render(<SafeArea edges={['top', 'bottom']}><Text>Content</Text></SafeArea>);
+    expect(screen.UNSAFE_getByType(SafeAreaView).props.edges).toEqual(['top', 'bottom']);
+  });
 });

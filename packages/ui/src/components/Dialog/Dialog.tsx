@@ -1,6 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import type { Ref } from 'react';
-import { Modal, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ModalWindow, WindowDialog } from '../../core/overlay/ModalWindow';
 import type { GestureResponderEvent, LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, PanResponderGestureState, ViewStyle } from 'react-native';
 import Animated, {
   Easing,
@@ -407,6 +408,12 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
     labelledBy: hasHeader ? titleId : undefined,
     label: hasHeader ? undefined : accessibilityLabel,
   });
+  // Web: the dialog element spans the whole window, so floating content opened
+  // from inside it (tooltips, popovers, menus), which the OverlayHost renders
+  // beside the card, is still inside the modal dialog: not cut off by its
+  // aria-modal boundary nor left outside any landmark. Native keeps the card.
+  const windowA11y = isWeb ? dialogA11y : null;
+  const cardA11y = isWeb ? null : dialogA11y;
 
   const body = (
     <View ref={contentRef} style={[styles.content, bodyPadding, spacingStyles, style]}>
@@ -419,7 +426,7 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
       ref={mergedContainerRef}
       style={[styles.modalContainer, animatedStyle] as ViewStyle[]}
       testID={testID}
-      {...dialogA11y}
+      {...cardA11y}
       onLayout={variant === 'bottomsheet' ? handleSheetLayout : undefined}
       {...(bottomSheetSwipeZone === 'container' ? panHandlers : null)}
     >
@@ -466,8 +473,33 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
     </Animated.View>
   );
 
+  const host = (
+    <OverlayHost>
+      <View style={{ flex: 1 }}>
+        <LayerScope id={layerId}>
+          <Animated.View style={[styles.backdrop, backdropAnimatedStyle]}>
+            {backdrop && backdropClosable && (
+              <Pressable
+                testID="dialog-backdrop"
+                style={StyleSheet.absoluteFill}
+                onPress={() => handleClose()}
+                // The close button / Escape / back are the accessible ways out;
+                // the scrim is a pointer affordance only.
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                aria-hidden
+                tabIndex={-1}
+              />
+            )}
+            {content}
+          </Animated.View>
+        </LayerScope>
+      </View>
+    </OverlayHost>
+  );
+
   return (
-    <Modal
+    <ModalWindow
       visible
       transparent
       animationType="none"
@@ -478,29 +510,8 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
     >
       {/* Nested floating content (Select, Popover, Menu, Tooltip…) opened from
           inside the dialog renders in this host, above the dialog. */}
-      <OverlayHost>
-        <View style={{ flex: 1 }}>
-          <LayerScope id={layerId}>
-            <Animated.View style={[styles.backdrop, backdropAnimatedStyle]}>
-              {backdrop && backdropClosable && (
-                <Pressable
-                  testID="dialog-backdrop"
-                  style={StyleSheet.absoluteFill}
-                  onPress={() => handleClose()}
-                  // The close button / Escape / back are the accessible ways out;
-                  // the scrim is a pointer affordance only.
-                  accessibilityElementsHidden
-                  importantForAccessibility="no-hide-descendants"
-                  aria-hidden
-                  tabIndex={-1}
-                />
-              )}
-              {content}
-            </Animated.View>
-          </LayerScope>
-        </View>
-      </OverlayHost>
-    </Modal>
+      <WindowDialog a11y={windowA11y}>{host}</WindowDialog>
+    </ModalWindow>
   );
 }
 

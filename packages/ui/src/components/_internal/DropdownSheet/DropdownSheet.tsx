@@ -1,6 +1,7 @@
 import React, { useContext, useMemo, useRef, useSyncExternalStore } from 'react';
 import type { ReactNode, RefObject } from 'react';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ModalWindow, WindowDialog } from '../../../core/overlay/ModalWindow';
 import type { DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
@@ -228,8 +229,17 @@ export function DropdownSheet(props: DropdownSheetProps) {
     </ScrollView>
   ) : children;
 
+  // Web: the dialog element spans the whole window, so floating content opened
+  // from inside the sheet (rendered by the OverlayHost beside the card) stays
+  // inside the modal dialog. Native keeps the semantics on the card.
+  const dialogA11y = {
+    role: 'dialog' as const,
+    'aria-modal': true,
+    'aria-label': sheetLabel,
+  };
+
   return (
-    <Modal
+    <ModalWindow
       visible={opened}
       transparent
       animationType={animationType ?? (isBottom ? 'slide' : 'fade')}
@@ -241,38 +251,38 @@ export function DropdownSheet(props: DropdownSheetProps) {
       onDismiss={onDismiss}
       testID={testID}
     >
-      <OverlayHost>
-        <LayerScope id={layerId}>
-          <View style={FILL_FLEX}>
-            <Pressable
-              style={[FILL, { backgroundColor: backdropColor ?? resolveScrim(theme) }]}
-              onPress={closeOnBackdropPress ? onClose : undefined}
-              // The close button / Escape / back are the accessible ways out;
-              // the scrim is a pointer affordance only.
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              aria-hidden
-              tabIndex={-1}
-              testID={testID ? `${testID}-backdrop` : undefined}
-            />
-            {/* Presses outside the card fall through to the backdrop. */}
-            <View style={[styles.rootStyle, pointerEventsStyles.boxNone]}>
-              <View
-                ref={sheetRef}
-                role="dialog"
-                aria-modal
-                aria-label={sheetLabel}
-                accessibilityViewIsModal
-                style={[styles.cardStyle, contentStyle]}
-                testID={testID ? `${testID}-content` : undefined}
-              >
-                {header}
-                {body}
+      <WindowDialog a11y={isWeb ? dialogA11y : null}>
+        <OverlayHost>
+          <LayerScope id={layerId}>
+            <View style={FILL_FLEX}>
+              <Pressable
+                style={[FILL, { backgroundColor: backdropColor ?? resolveScrim(theme) }]}
+                onPress={closeOnBackdropPress ? onClose : undefined}
+                // The close button / Escape / back are the accessible ways out;
+                // the scrim is a pointer affordance only.
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                aria-hidden
+                tabIndex={-1}
+                testID={testID ? `${testID}-backdrop` : undefined}
+              />
+              {/* Presses outside the card fall through to the backdrop. */}
+              <View style={[styles.rootStyle, pointerEventsStyles.boxNone]}>
+                <View
+                  ref={sheetRef}
+                  {...(isWeb ? null : dialogA11y)}
+                  accessibilityViewIsModal
+                  style={[styles.cardStyle, contentStyle]}
+                  testID={testID ? `${testID}-content` : undefined}
+                >
+                  {header}
+                  {body}
+                </View>
               </View>
             </View>
-          </View>
-        </LayerScope>
-      </OverlayHost>
-    </Modal>
+          </LayerScope>
+        </OverlayHost>
+      </WindowDialog>
+    </ModalWindow>
   );
 }

@@ -321,6 +321,7 @@ export const TextInputBase = factory<{
       size={size}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
+      labelFor
       labelProps={labelProps}
       descriptionProps={descriptionProps}
       style={rootStyle}

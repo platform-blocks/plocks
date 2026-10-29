@@ -121,4 +121,13 @@ describe('Input (react-native-web DOM)', () => {
     expect(invalidInput.getAttribute('aria-invalid')).toBe('true');
     expect(screen.queryByText('Username is available')).toBeNull();
   });
+
+  it('renders its label as a <label for> the input, asterisk left out of the name', () => {
+    render(<Input id="email" label="Email" required />);
+    const input = screen.getByRole('textbox', { name: 'Email' });
+    const label = document.querySelector('label[for="email"]') as HTMLLabelElement | null;
+    expect(label).not.toBeNull();
+    expect(label?.querySelector('#email-label')).not.toBeNull();
+    expect((input as HTMLInputElement).labels?.[0]).toBe(label);
+  });
 });

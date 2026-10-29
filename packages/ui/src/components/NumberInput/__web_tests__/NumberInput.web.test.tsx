@@ -41,4 +41,14 @@ describe('NumberInput (react-native-web DOM)', () => {
     expect(spin.getAttribute('aria-invalid')).toBe('true');
     expect(spin.getAttribute('aria-describedby')).toBe('qty-error');
   });
+
+  it('is named by an HTML label element, not only aria-labelledby', () => {
+    render(<NumberInput label="Base note" description="MIDI number of the bottom-left key" defaultValue={36} />);
+    const spin = screen.getByRole('spinbutton', { name: 'Base note' });
+    const labelId = spin.getAttribute('aria-labelledby') as string;
+    expect(document.getElementById(labelId)?.textContent).toBe('Base note');
+    const label = document.querySelector(`label[for="${spin.id}"]`);
+    expect(label?.textContent).toBe('Base note');
+    expect(label?.contains(document.getElementById(labelId))).toBe(true);
+  });
 });

@@ -180,6 +180,7 @@ export const TextArea = factory<{
         size={size}
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
+        labelFor
         labelProps={labelProps}
         descriptionProps={descriptionProps}
         testID={testID}

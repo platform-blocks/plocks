@@ -116,6 +116,9 @@ describe('Dialog (react-native-web DOM)', () => {
     let common: HTMLElement | null = dropdown;
     while (common && !common.contains(dialogEl)) common = common.parentElement;
     expect(common).not.toBe(document.body);
+    // ...and inside the dialog element itself, so its aria-modal boundary
+    // doesn't hide the popover from assistive technology.
+    expect(dialogEl.contains(dropdown)).toBe(true);
 
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     await settle();
@@ -128,5 +131,34 @@ describe('Dialog (react-native-web DOM)', () => {
     await settle();
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('is the only dialog: the modal window around it carries no role or aria-modal', async () => {
+    render(<Harness />);
+    await openDialog();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    const modalLayers = Array.from(document.querySelectorAll('[aria-modal]'));
+    expect(modalLayers).toEqual([screen.getByRole('dialog', { name: 'Settings' })]);
+  });
+
+  it('keeps the window plain while a second dialog is stacked on top', async () => {
+    render(
+      <OverlayProvider>
+        <Dialog opened title="Pad" transitionDuration={0} onClose={() => {}}>
+          <Text>Pad settings</Text>
+        </Dialog>
+        <Dialog opened title="Sounds" transitionDuration={0} onClose={() => {}}>
+          <Text>Sound list</Text>
+        </Dialog>
+        <OverlayRenderer />
+      </OverlayProvider>
+    );
+    await settle();
+    expect(screen.getAllByRole('dialog').map((el) => el.getAttribute('aria-labelledby') && document.getElementById(el.getAttribute('aria-labelledby') as string)?.textContent)).toEqual(['Pad', 'Sounds']);
+    // react-native-web drops the role of the covered modal's window but keeps
+    // aria-modal; neither may surface.
+    for (const el of Array.from(document.querySelectorAll('[aria-modal]'))) {
+      expect(el.getAttribute('role')).toBe('dialog');
+    }
   });
 });

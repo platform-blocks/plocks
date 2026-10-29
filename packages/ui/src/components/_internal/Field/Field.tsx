@@ -57,6 +57,13 @@ export interface FieldProps {
   labelPosition?: FieldLabelPosition;
   /** Explicit accessible name for the control (replaces the label reference). */
   accessibilityLabel?: string;
+  /**
+   * The control is a native form element (`<input>` / `<textarea>` on web) that
+   * gets `controlProps.id`: render the label as an HTML `<label for>` it, so it
+   * is named by its label element (and clicking the label focuses it), not only
+   * through `aria-labelledby`.
+   */
+  labelFor?: boolean;
   /** Extra native hint for the control. */
   accessibilityHint?: string;
   labelProps?: Omit<TextProps, 'children'>;
@@ -128,6 +135,7 @@ export function Field({
   labelPosition = 'top',
   accessibilityLabel,
   accessibilityHint,
+  labelFor = false,
   labelProps,
   descriptionProps,
   children,
@@ -194,6 +202,7 @@ export function Field({
       descriptionProps={descriptionProps}
       labelId={hasContent(label) ? ids.label : undefined}
       descriptionId={hasContent(description) ? ids.description : undefined}
+      labelFor={labelFor && hasContent(label) ? ids.control : undefined}
       marginBottom={labelPosition === 'top' ? undefined : 0}
     />
   );
