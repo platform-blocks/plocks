@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en"><head><!--plocks-demo-seo--><title>The Daily Edition demo source | plocks</title><meta name="description" content="Browse the source code for the The Daily Edition demo built with plocks."/><link rel="canonical" href="https://plocks.dev/demos/daily-edition/source.html"/><!--/plocks-demo-seo--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>body{margin:0;background:#111319;color:#eef0f3;font:15px system-ui,sans-serif}header{padding:24px;position:sticky;top:0;background:#1b1e26;border-bottom:1px solid #353a46}h1{font-size:20px;margin:0 0 12px}nav{display:flex;gap:12px;flex-wrap:wrap}a{color:#9dbeff}main{max-width:1100px;margin:auto;padding:24px}section{margin-bottom:32px;scroll-margin-top:130px}h2{font-size:18px}pre{overflow:auto;background:#1b1e26;border:1px solid #353a46;border-radius:10px;padding:18px;line-height:1.5}code{font:13px ui-monospace,SFMono-Regular,monospace}</style>
+</head><body><header><h1>daily-edition source</h1><nav><a href="/demos/daily-edition/">Open live demo</a><a href="#file-0">App.tsx</a><a href="#file-1">index.ts</a></nav></header><main><section id="file-0"><h2>App.tsx</h2><pre><code>import { useEffect, useMemo, useState } from &#39;react&#39;;
+import { StatusBar, useWindowDimensions } from &#39;react-native&#39;;
+import AsyncStorage from &#39;@react-native-async-storage/async-storage&#39;;
+import { SafeAreaProvider } from &#39;react-native-safe-area-context&#39;;
+import { Chip, Input, ScrollArea, SafeArea, Image, Block, Icon, PlocksProvider, Text } from &#39;@plocks/ui&#39;;
+
+const C = {
+  paper: &#39;#F7F5F0&#39;,
+  white: &#39;#FFFFFF&#39;,
+  ink: &#39;#171B1D&#39;,
+  muted: &#39;#657074&#39;,
+  rule: &#39;#D8D9D4&#39;,
+  blue: &#39;#174C63&#39;,
+  pale: &#39;#E8EEF0&#39;,
+  gold: &#39;#C3A66A&#39;,
+};
+const ART = [
+  require(&#39;./assets/scene-city.webp&#39;),
+  require(&#39;./assets/scene-desert.webp&#39;),
+  require(&#39;./assets/scene-forest.webp&#39;),
+  require(&#39;./assets/scene-lake.webp&#39;),
+  require(&#39;./assets/scene-ocean.webp&#39;),
+];
+const SECTIONS = [&#39;All&#39;, &#39;World&#39;, &#39;U.S.&#39;, &#39;Business&#39;, &#39;Technology&#39;, &#39;Culture&#39;, &#39;Science&#39;, &#39;Food&#39;] as const;
+type Section = (typeof SECTIONS)[number];
+type Tab = &#39;Today&#39; | &#39;Latest&#39; | &#39;Sections&#39; | &#39;Saved&#39;;
+type Story = {
+  id: string;
+  section: Exclude&lt;Section, &#39;All&#39;&gt;;
+  title: string;
+  deck: string;
+  byline: string;
+  time: string;
+  minutes: number;
+  image: number;
+  caption: string;
+  body: string[];
+};
+const STORIES: Story[] = [
+  {
+    id: &#39;city-gardens&#39;,
+    section: &#39;U.S.&#39;,
+    title: &#39;The City Block That Became a Garden&#39;,
+    deck: &#39;Neighbors turned a vacant corner into a place to grow food, share tools and spend time together.&#39;,
+    byline: &#39;Mara Ellis&#39;,
+    time: &#39;Morning edition&#39;,
+    minutes: 6,
+    image: 0,
+    caption: &#39;An illustrated city scene from the demo artwork collection.&#39;,
+    body: [
+      &#39;The first planting day began with a few borrowed shovels and a folding table. By afternoon, residents from three nearby streets had signed up to help care for the new garden.&#39;,
+      &#39;The project is a fictional example of the small decisions that shape a neighborhood. Its organizers started by asking what people wanted from the empty lot. The most common answer was simple: a place to meet.&#39;,
+      &#39;Now a volunteer schedule, shared tool shelf and weekly open hours give the space a routine. The larger lesson is about participation. A public place lasts when the people around it can make it their own.&#39;,
+    ],
+  },
+  {
+    id: &#39;coastline&#39;,
+    section: &#39;World&#39;,
+    title: &#39;A Coastline Plans for a Changing Future&#39;,
+    deck: &#39;A long view of the shore is reshaping conversations about homes, parks and public access.&#39;,
+    byline: &#39;Alex Rivera&#39;,
+    time: &#39;2 hours ago&#39;,
+    minutes: 5,
+    image: 4,
+    caption: &#39;Illustrative coastal artwork for this fictional story.&#39;,
+    body: [
+      &#39;At the edge of a small harbor, a walking path bends toward the water. On clear mornings it looks timeless, but maps of the shoreline tell a story of steady change.&#39;,
+      &#39;In this fictional account, local planners are considering several paths at once: restoring natural buffers, protecting public routes and giving residents clearer information about future conditions.&#39;,
+      &#39;The choices are connected. A protected wetland can slow flooding while making room for wildlife, and a well designed path can keep the waterfront open to everyone.&#39;,
+    ],
+  },
+  {
+    id: &#39;repair&#39;,
+    section: &#39;Technology&#39;,
+    title: &#39;The Quiet Return of the Repair Shop&#39;,
+    deck: &#39;A new generation of makers is finding value in the devices people once threw away.&#39;,
+    byline: &#39;Morgan Lee&#39;,
+    time: &#39;3 hours ago&#39;,
+    minutes: 4,
+    image: 2,
+    caption: &#39;Illustrative landscape artwork used in this demo.&#39;,
+    body: [
+      &#39;Inside a shared workshop, drawers of small parts line one wall and a handwritten repair guide sits beside the workbench. The tools are ordinary; the change in attitude is more interesting.&#39;,
+      &#39;This fictional story imagines a growing network of community repair sessions. Volunteers teach visitors how to diagnose a problem before they decide whether to replace a device.&#39;,
+      &#39;Repair does not solve every problem, but it can extend the life of useful objects. It also turns a frustrating failure into an opportunity to learn how something works.&#39;,
+    ],
+  },
+  {
+    id: &#39;night-museum&#39;,
+    section: &#39;Culture&#39;,
+    title: &#39;After Hours, the Museum Feels Like a New Place&#39;,
+    deck: &#39;Late openings invite visitors to slow down and rediscover familiar rooms.&#39;,
+    byline: &#39;Taylor Brooks&#39;,
+    time: &#39;4 hours ago&#39;,
+    minutes: 5,
+    image: 0,
+    caption: &#39;Illustrative city artwork from the demo collection.&#39;,
+    body: [
+      &#39;The gallery is quieter after sunset. Visitors linger at a single painting, return to a room they passed too quickly and talk softly beside the windows.&#39;,
+      &#39;In this fictional arts feature, a museum experiments with evening admission and small guided walks. The goal is to make a familiar public building fit more kinds of schedules.&#39;,
+      &#39;The experience suggests that access is about more than a ticket. Time, comfort and a sense of belonging all affect who feels able to step inside.&#39;,
+    ],
+  },
+  {
+    id: &#39;small-business&#39;,
+    section: &#39;Business&#39;,
+    title: &#39;What a Main Street Market Can Teach About Local Trade&#39;,
+    deck: &#39;Independent shops are sharing ideas, deliveries and customers to stay flexible.&#39;,
+    byline: &#39;Nina Patel&#39;,
+    time: &#39;5 hours ago&#39;,
+    minutes: 7,
+    image: 3,
+    caption: &#39;Illustrative lakeside artwork used in this fictional business story.&#39;,
+    body: [
+      &#39;A weekend market begins before the first customer arrives. Merchants trade extension cords, check on neighboring stalls and compare notes about what sold the week before.&#39;,
+      &#39;This sample business story follows an imagined group of small shops that pool resources without losing their own identities. Shared storage and coordinated deliveries lower costs for everyone.&#39;,
+      &#39;The approach has limits, but it shows how cooperation can be a practical business tool. For these shopkeepers, independence does not mean working alone.&#39;,
+    ],
+  },
+  {
+    id: &#39;night-sky&#39;,
+    section: &#39;Science&#39;,
+    title: &#39;Looking Up: The Case for Darker Night Skies&#39;,
+    deck: &#39;Communities are rethinking outdoor lighting to make streets useful and the stars visible.&#39;,
+    byline: &#39;Samir Shah&#39;,
+    time: &#39;Yesterday&#39;,
+    minutes: 6,
+    image: 1,
+    caption: &#39;Illustrative desert artwork for a fictional science feature.&#39;,
+    body: [
+      &#39;Far from the brightest streets, the night sky can still feel vast. The effect is a reminder that artificial light changes the way we experience a place.&#39;,
+      &#39;This fictional science feature looks at communities testing more focused fixtures and timers. Their aim is to put light where people need it while reducing spill into homes and habitats.&#39;,
+      &#39;Good lighting is a design question rather than a contest between brightness and darkness. Careful placement can improve visibility and preserve more of the sky.&#39;,
+    ],
+  },
+  {
+    id: &#39;community-table&#39;,
+    section: &#39;Food&#39;,
+    title: &#39;The Sunday Table That Keeps Growing&#39;,
+    deck: &#39;A neighborhood supper club makes room for old recipes and new friendships.&#39;,
+    byline: &#39;Leah Chen&#39;,
+    time: &#39;Yesterday&#39;,
+    minutes: 4,
+    image: 3,
+    caption: &#39;Illustrative landscape artwork used in this sample food story.&#39;,
+    body: [
+      &#39;At first, dinner fit around one table. A month later, volunteers added a second, then a third. Each guest brought a dish or a story about one.&#39;,
+      &#39;In this fictional food story, the menu changes every week. What stays the same is the invitation: come as you are, eat what is shared and help clean up.&#39;,
+      &#39;The recipes matter, but the ritual matters more. A regular meal gives neighbors a reason to recognize one another beyond a passing hello.&#39;,
+    ],
+  },
+  {
+    id: &#39;desert-trails&#39;,
+    section: &#39;World&#39;,
+    title: &#39;A New Map for Old Desert Trails&#39;,
+    deck: &#39;Local guides are documenting routes and the stories that give them meaning.&#39;,
+    byline: &#39;Jonah Wells&#39;,
+    time: &#39;Yesterday&#39;,
+    minutes: 5,
+    image: 1,
+    caption: &#39;Illustrative desert artwork from the demo collection.&#39;,
+    body: [
+      &#39;The oldest routes across the desert are not always the easiest to see. Some follow washes, others rise over a ridge before turning toward the next source of shade.&#39;,
+      &#39;This fictional feature follows guides building a community map with local knowledge at its center. They record conditions, seasonal changes and the names people use for familiar places.&#39;,
+      &#39;A map can help visitors find a trail. It can also remind them that the landscape already holds stories worth listening to.&#39;,
+    ],
+  },
+];
+const STORAGE = &#39;plocks-daily-edition:v2&#39;;
+const TODAY = new Date().toLocaleDateString(&#39;en-US&#39;, { weekday: &#39;long&#39;, month: &#39;long&#39;, day: &#39;numeric&#39;, year: &#39;numeric&#39; });
+
+const TABS: Tab[] = [&#39;Today&#39;, &#39;Latest&#39;, &#39;Sections&#39;, &#39;Saved&#39;];
+const DATELINE = new Date().toLocaleDateString(&#39;en-US&#39;, { weekday: &#39;long&#39;, month: &#39;long&#39;, day: &#39;numeric&#39;, year: &#39;numeric&#39; });
+
+function Rule({ heavy = false }: { heavy?: boolean }) {
+  return &lt;Block gap={0} h={heavy ? 2 : 1} bg={heavy ? C.ink : C.rule} /&gt;;
+}
+function Kicker({ children, color = C.blue }: { children: string; color?: string }) {
+  return (
+    &lt;Text c={color} fw=&quot;bold&quot; size={10} lts={1.5}&gt;
+      {children.toUpperCase()}
+    &lt;/Text&gt;
+  );
+}
+function SectionHead({ children }: { children: string }) {
+  return (
+    &lt;Block gap={8}&gt;
+      &lt;Rule heavy /&gt;
+      &lt;Kicker color={C.ink}&gt;{children}&lt;/Kicker&gt;
+    &lt;/Block&gt;
+  );
+}
+function Art({ index, ratio, w = &#39;100%&#39; }: { index: number; ratio: number; w?: number | `${number}%` }) {
+  return (
+    &lt;Block gap={0} w={w} aspectRatio={ratio} bg={C.pale} overflow=&quot;hidden&quot;&gt;
+      &lt;Image source={ART[index]} w=&quot;100%&quot; h=&quot;100%&quot; resizeMode=&quot;cover&quot; /&gt;
+    &lt;/Block&gt;
+  );
+}
+function Ad({ compact = false }: { compact?: boolean }) {
+  return (
+    &lt;Block align=&quot;center&quot; py={compact ? 20 : 28} gap={8}&gt;
+      &lt;Text c={C.muted} size={9} lts={1.8}&gt;
+        ADVERTISEMENT
+      &lt;/Text&gt;
+      &lt;Block
+        w=&quot;100%&quot;
+        maw={compact ? 420 : 728}
+        mih={compact ? 96 : 120}
+        bg={C.pale}
+        borderWidth={1}
+        borderColor={C.rule}
+        p={18}
+        justify=&quot;center&quot;
+        align=&quot;center&quot;
+        gap={6}
+      &gt;
+        &lt;Text c={C.blue} fw=&quot;bold&quot; size={11} lts={2}&gt;
+          NORTHLINE
+        &lt;/Text&gt;
+        &lt;Text c={C.ink} size={compact ? 18 : 22} ff=&quot;Georgia&quot; ta=&quot;center&quot;&gt;
+          Make room for the next journey.
+        &lt;/Text&gt;
+        &lt;Text c={C.muted} size={10}&gt;
+          Fictional sponsor · Sample ad
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function NewsScreen() {
+  const { width } = useWindowDimensions();
+  const wide = width &gt;= 800;
+  const [tab, setTab] = useState&lt;Tab&gt;(&#39;Today&#39;);
+  const [section, setSection] = useState&lt;Section&gt;(&#39;All&#39;);
+  const [selected, setSelected] = useState&lt;string | null&gt;(null);
+  const [saved, setSaved] = useState&lt;string[]&gt;([]);
+  const [read, setRead] = useState&lt;string[]&gt;([]);
+  const [query, setQuery] = useState(&#39;&#39;);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [ready, setReady] = useState(false);
+  const active = STORIES.find((story) =&gt; story.id === selected);
+  const visible = useMemo(
+    () =&gt;
+      STORIES.filter((story) =&gt; {
+        if (tab === &#39;Saved&#39; &amp;&amp; !saved.includes(story.id)) return false;
+        if (section !== &#39;All&#39; &amp;&amp; story.section !== section) return false;
+        const text = `${story.title} ${story.deck} ${story.section}`.toLowerCase();
+        return !query.trim() || text.includes(query.trim().toLowerCase());
+      }),
+    [tab, section, saved, query],
+  );
+  useEffect(() =&gt; {
+    AsyncStorage.getItem(STORAGE)
+      .then((raw) =&gt; {
+        if (!raw) return;
+        const data = JSON.parse(raw) as { saved?: string[]; read?: string[] };
+        if (Array.isArray(data.saved)) setSaved(data.saved);
+        if (Array.isArray(data.read)) setRead(data.read);
+      })
+      .catch(() =&gt; {})
+      .finally(() =&gt; setReady(true));
+  }, []);
+  useEffect(() =&gt; {
+    if (ready) AsyncStorage.setItem(STORAGE, JSON.stringify({ saved, read })).catch(() =&gt; {});
+  }, [saved, read, ready]);
+  function openStory(story: Story) {
+    setSelected(story.id);
+    setRead((old) =&gt; (old.includes(story.id) ? old : [...old, story.id]));
+  }
+  function toggleSave(id: string) {
+    setSaved((old) =&gt; (old.includes(id) ? old.filter((item) =&gt; item !== id) : [...old, id]));
+  }
+  function chooseTab(next: Tab) {
+    setSelected(null);
+    setTab(next);
+    setSection(&#39;All&#39;);
+    setQuery(&#39;&#39;);
+    setSearchOpen(false);
+  }
+  const saveButton = (story: Story) =&gt; (
+    &lt;Block
+      gap={0}
+      onPress={() =&gt; toggleSave(story.id)}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={saved.includes(story.id) ? `Remove ${story.title} from saved` : `Save ${story.title}`}
+      p={8}
+      m={-8}
+    &gt;
+      &lt;Icon
+        name=&quot;bookmark&quot;
+        variant={saved.includes(story.id) ? &#39;filled&#39; : &#39;outlined&#39;}
+        color={saved.includes(story.id) ? C.blue : C.muted}
+        size={20}
+      /&gt;
+    &lt;/Block&gt;
+  );
+  const meta = (story: Story) =&gt; (
+    &lt;Text c={C.muted} size={11}&gt;
+      {story.time} · {story.minutes} min read
+    &lt;/Text&gt;
+  );
+  // The row and its bookmark are sibling buttons; nesting them is invalid on web.
+  const storyRow = (story: Story, index: number) =&gt; (
+    &lt;Block
+      key={story.id}
+      py={18}
+      borderTopWidth={index === 0 ? 0 : 1}
+      borderColor={C.rule}
+      direction=&quot;row&quot;
+      gap={wide ? 24 : 14}
+      align=&quot;flex-start&quot;
+    &gt;
+      &lt;Block
+        onPress={() =&gt; openStory(story)}
+        accessibilityRole=&quot;button&quot;
+        accessibilityLabel={`Read ${story.title}`}
+        flex={1}
+        direction=&quot;row&quot;
+        gap={wide ? 24 : 14}
+        align=&quot;flex-start&quot;
+      &gt;
+        &lt;Block flex={1} gap={6}&gt;
+          &lt;Kicker&gt;{story.section}&lt;/Kicker&gt;
+          &lt;Text c={read.includes(story.id) ? C.muted : C.ink} size={wide ? 22 : 18} ff=&quot;Georgia&quot; lh={wide ? 27 : 23}&gt;
+            {story.title}
+          &lt;/Text&gt;
+          {wide &amp;&amp; (
+            &lt;Text c={C.muted} size={14} numberOfLines={2} lh={20}&gt;
+              {story.deck}
+            &lt;/Text&gt;
+          )}
+          {meta(story)}
+        &lt;/Block&gt;
+        &lt;Art index={story.image} w={wide ? 168 : 96} ratio={wide ? 1.5 : 1} /&gt;
+      &lt;/Block&gt;
+      {saveButton(story)}
+    &lt;/Block&gt;
+  );
+  const storyCard = (story: Story) =&gt; (
+    &lt;Block
+      key={story.id}
+      onPress={() =&gt; openStory(story)}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={`Read ${story.title}`}
+      flex={1}
+      gap={8}
+    &gt;
+      &lt;Art index={story.image} ratio={1.5} /&gt;
+      &lt;Block gap={6} pt={4}&gt;
+        &lt;Kicker&gt;{story.section}&lt;/Kicker&gt;
+        &lt;Text c={read.includes(story.id) ? C.muted : C.ink} size={20} ff=&quot;Georgia&quot; lh={25}&gt;
+          {story.title}
+        &lt;/Text&gt;
+        &lt;Text c={C.muted} size={14} numberOfLines={3} lh={20}&gt;
+          {story.deck}
+        &lt;/Text&gt;
+        {meta(story)}
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+  const lead = STORIES[0];
+  const briefing = STORIES.slice(1, 5);
+  const explore = STORIES.slice(5);
+  return (
+    &lt;SafeArea gap={0} flex={1} bg={C.paper}&gt;
+      &lt;StatusBar barStyle=&quot;dark-content&quot; /&gt;
+      &lt;Block gap={0} bg={C.white} borderBottomWidth={1} borderBottomColor={C.rule}&gt;
+        &lt;Block gap={0} maw={1120} w=&quot;100%&quot; alignSelf=&quot;center&quot; px={wide ? 24 : 16}&gt;
+          &lt;Block gap={0} direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot; mih={wide ? 92 : 64}&gt;
+            &lt;Block gap={0} flex={1}&gt;
+              {wide &amp;&amp; (
+                &lt;Text c={C.muted} size={11}&gt;
+                  {DATELINE}
+                &lt;/Text&gt;
+              )}
+            &lt;/Block&gt;
+            &lt;Block
+              onPress={() =&gt; chooseTab(&#39;Today&#39;)}
+              accessibilityRole=&quot;button&quot;
+              accessibilityLabel=&quot;Go to today’s edition&quot;
+              direction=&quot;row&quot;
+              align=&quot;center&quot;
+              gap={9}
+            &gt;
+              &lt;Block gap={0} w={9} h={9} radius={5} bg={C.gold} /&gt;
+              &lt;Text c={C.ink} size={wide ? 40 : 26} fw=&quot;bold&quot; ff=&quot;Georgia&quot; lts={wide ? -1.2 : -0.8}&gt;
+                The Daily Edition
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+            &lt;Block gap={0} flex={1} align=&quot;flex-end&quot;&gt;
+              &lt;Block
+                gap={0}
+                onPress={() =&gt; {
+                  setSelected(null);
+                  setSearchOpen((old) =&gt; !old);
+                }}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel={searchOpen ? &#39;Close search&#39; : &#39;Search stories&#39;}
+                p={8}
+                mr={-8}
+              &gt;
+                &lt;Icon name={searchOpen ? &#39;x&#39; : &#39;search&#39;} color={C.ink} size={21} /&gt;
+              &lt;/Block&gt;
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+          &lt;Rule heavy /&gt;
+          &lt;Block gap={0} direction=&quot;row&quot; justify={wide ? &#39;center&#39; : &#39;space-between&#39;}&gt;
+            {TABS.map((item) =&gt; {
+              const current = tab === item &amp;&amp; !active;
+              return (
+                &lt;Block
+                  key={item}
+                  gap={0}
+                  onPress={() =&gt; chooseTab(item)}
+                  accessibilityRole=&quot;tab&quot;
+                  accessibilityState={{ selected: current }}
+                  px={wide ? 18 : 4}
+                  pt={12}
+                  pb={10}
+                  borderBottomWidth={2}
+                  borderBottomColor={current ? C.ink : &#39;transparent&#39;}
+                &gt;
+                  &lt;Text c={current ? C.ink : C.muted} fw={current ? &#39;bold&#39; : &#39;normal&#39;} size={13}&gt;
+                    {item === &#39;Saved&#39; &amp;&amp; saved.length ? `Saved (${saved.length})` : item}
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              );
+            })}
+          &lt;/Block&gt;
+          {searchOpen &amp;&amp; (
+            &lt;Block direction=&quot;row&quot; align=&quot;center&quot; borderTopWidth={1} borderTopColor={C.rule} py={6} gap={9}&gt;
+              &lt;Icon name=&quot;search&quot; color={C.muted} size={18} /&gt;
+              &lt;Input
+                variant=&quot;unstyled&quot;
+                value={query}
+                onChangeText={setQuery}
+                placeholder=&quot;Search the edition&quot;
+                placeholderTextColor={C.muted}
+                autoFocus
+                mb={0}
+                flex={1}
+                inputColor={C.ink}
+                inputFontSize={15}
+                accessibilityLabel=&quot;Search stories&quot;
+              /&gt;
+              {!!query &amp;&amp; (
+                &lt;Block gap={0} onPress={() =&gt; setQuery(&#39;&#39;)} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Clear search&quot;&gt;
+                  &lt;Text c={C.blue} size={13}&gt;
+                    Clear
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              )}
+            &lt;/Block&gt;
+          )}
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      &lt;ScrollArea
+        key={`${selected ?? tab}-${section}`}
+        contentProps={{ maw: 1120, w: &#39;100%&#39;, alignSelf: &#39;center&#39;, px: wide ? 24 : 16, pb: 40 }}
+      &gt;
+        {active ? (
+          &lt;Block w=&quot;100%&quot; maw={760} alignSelf=&quot;center&quot; pt={wide ? 28 : 18} gap={16}&gt;
+            &lt;Block
+              onPress={() =&gt; setSelected(null)}
+              accessibilityRole=&quot;button&quot;
+              accessibilityLabel=&quot;Back to stories&quot;
+              alignSelf=&quot;flex-start&quot;
+              direction=&quot;row&quot;
+              gap={6}
+              align=&quot;center&quot;
+            &gt;
+              &lt;Icon name=&quot;arrowLeft&quot; color={C.blue} size={16} /&gt;
+              &lt;Text c={C.blue} size={13}&gt;
+                {tab === &#39;Today&#39; ? &#39;Today’s Edition&#39; : tab}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+            &lt;Block gap={12} pt={wide ? 8 : 0}&gt;
+              &lt;Kicker&gt;{active.section}&lt;/Kicker&gt;
+              &lt;Text c={C.ink} size={wide ? 44 : 32} ff=&quot;Georgia&quot; lts={-0.6} lh={wide ? 50 : 38}&gt;
+                {active.title}
+              &lt;/Text&gt;
+              &lt;Text c={C.muted} size={wide ? 20 : 17} ff=&quot;Georgia&quot; lh={wide ? 28 : 24}&gt;
+                {active.deck}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+            &lt;Block gap={0} direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot; py={12} borderTopWidth={1} borderBottomWidth={1} borderColor={C.rule}&gt;
+              &lt;Block gap={2}&gt;
+                &lt;Text c={C.ink} fw=&quot;bold&quot; size={13}&gt;
+                  By {active.byline}
+                &lt;/Text&gt;
+                {meta(active)}
+              &lt;/Block&gt;
+              {saveButton(active)}
+            &lt;/Block&gt;
+            &lt;Block gap={8}&gt;
+              &lt;Art index={active.image} ratio={wide ? 1.8 : 1.4} /&gt;
+              &lt;Text c={C.muted} size={11} lh={16}&gt;
+                {active.caption}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+            &lt;Block w=&quot;100%&quot; maw={640} alignSelf=&quot;center&quot; gap={20} pt={12}&gt;
+              {active.body.map((paragraph, index) =&gt; (
+                &lt;Text key={index} c={C.ink} size={wide ? 19 : 17} ff=&quot;Georgia&quot; lh={wide ? 32 : 29}&gt;
+                  {paragraph}
+                &lt;/Text&gt;
+              ))}
+              &lt;Block gap={0} w={9} h={9} radius={5} bg={C.gold} alignSelf=&quot;center&quot; mt={4} /&gt;
+            &lt;/Block&gt;
+            &lt;Ad compact /&gt;
+            &lt;SectionHead&gt;More from The Daily Edition&lt;/SectionHead&gt;
+            &lt;Block gap={0}&gt;
+              {STORIES.filter((item) =&gt; item.id !== active.id)
+                .slice(0, 3)
+                .map(storyRow)}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        ) : tab === &#39;Today&#39; &amp;&amp; !query ? (
+          &lt;Block pt={wide ? 28 : 18} gap={wide ? 32 : 24}&gt;
+            &lt;Block direction={wide ? &#39;row&#39; : &#39;column&#39;} gap={wide ? 32 : 24}&gt;
+              &lt;Block
+                onPress={() =&gt; openStory(lead)}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel={`Read ${lead.title}`}
+                flex={wide ? 1.7 : undefined}
+                gap={12}
+              &gt;
+                &lt;Art index={lead.image} ratio={wide ? 1.6 : 1.3} /&gt;
+                &lt;Kicker&gt;{lead.section}&lt;/Kicker&gt;
+                &lt;Text c={C.ink} size={wide ? 40 : 30} ff=&quot;Georgia&quot; lts={-0.6} lh={wide ? 45 : 35}&gt;
+                  {lead.title}
+                &lt;/Text&gt;
+                &lt;Text c={C.muted} size={wide ? 17 : 15} ff=&quot;Georgia&quot; lh={wide ? 25 : 22}&gt;
+                  {lead.deck}
+                &lt;/Text&gt;
+                &lt;Text c={C.muted} size={11}&gt;
+                  By {lead.byline} · {lead.minutes} min read
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+              &lt;Block flex={wide ? 1 : undefined} gap={0} pl={wide ? 32 : 0} borderLeftWidth={wide ? 1 : 0} borderColor={C.rule}&gt;
+                &lt;SectionHead&gt;The Briefing&lt;/SectionHead&gt;
+                {briefing.map((story, index) =&gt; (
+                  &lt;Block
+                    key={story.id}
+                    onPress={() =&gt; openStory(story)}
+                    accessibilityRole=&quot;button&quot;
+                    accessibilityLabel={`Read ${story.title}`}
+                    direction=&quot;row&quot;
+                    gap={14}
+                    py={14}
+                    borderTopWidth={index === 0 ? 0 : 1}
+                    borderTopColor={C.rule}
+                  &gt;
+                    &lt;Text c={C.gold} size={24} ff=&quot;Georgia&quot; lh={26} w={18}&gt;
+                      {index + 1}
+                    &lt;/Text&gt;
+                    &lt;Block flex={1} gap={5}&gt;
+                      &lt;Kicker&gt;{story.section}&lt;/Kicker&gt;
+                      &lt;Text c={read.includes(story.id) ? C.muted : C.ink} size={19} ff=&quot;Georgia&quot; lh={24}&gt;
+                        {story.title}
+                      &lt;/Text&gt;
+                      {meta(story)}
+                    &lt;/Block&gt;
+                  &lt;/Block&gt;
+                ))}
+              &lt;/Block&gt;
+            &lt;/Block&gt;
+            &lt;Ad /&gt;
+            &lt;Block gap={wide ? 20 : 0}&gt;
+              &lt;SectionHead&gt;More to Explore&lt;/SectionHead&gt;
+              {wide ? &lt;Block direction=&quot;row&quot; gap={32}&gt;{explore.map(storyCard)}&lt;/Block&gt; : &lt;Block gap={0}&gt;{explore.map(storyRow)}&lt;/Block&gt;}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        ) : (
+          &lt;Block w=&quot;100%&quot; maw={820} alignSelf=&quot;center&quot; pt={wide ? 28 : 18} gap={16}&gt;
+            &lt;Block gap={0} direction=&quot;row&quot; align=&quot;flex-end&quot; justify=&quot;space-between&quot;&gt;
+              &lt;Text c={C.ink} size={wide ? 34 : 28} fw=&quot;bold&quot; ff=&quot;Georgia&quot; lts={-0.6}&gt;
+                {query ? &#39;Search results&#39; : tab}
+              &lt;/Text&gt;
+              &lt;Text c={C.muted} size={12} pb={4}&gt;
+                {visible.length} {visible.length === 1 ? &#39;story&#39; : &#39;stories&#39;}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+            &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} contentProps={{ gap: 8, pb: 2 }}&gt;
+              {SECTIONS.map((item) =&gt; (
+                &lt;Chip
+                  key={item}
+                  onPress={() =&gt; setSection(item)}
+                  pressed={section === item}
+                  variant={section === item ? &#39;filled&#39; : &#39;outline&#39;}
+                  color={C.ink}
+                  size=&quot;sm&quot;
+                &gt;
+                  {item}
+                &lt;/Chip&gt;
+              ))}
+            &lt;/ScrollArea&gt;
+            &lt;Rule heavy /&gt;
+            {visible.length ? (
+              &lt;Block gap={0}&gt;
+                {visible.map(storyRow)}
+                {visible.length &gt; 3 &amp;&amp; &lt;Ad compact /&gt;}
+              &lt;/Block&gt;
+            ) : (
+              &lt;Block align=&quot;center&quot; py={64} gap={8}&gt;
+                &lt;Icon name={tab === &#39;Saved&#39; ? &#39;bookmark&#39; : &#39;search&#39;} color={C.muted} size={26} /&gt;
+                &lt;Text c={C.ink} size={22} ff=&quot;Georgia&quot; ta=&quot;center&quot;&gt;
+                  {tab === &#39;Saved&#39; &amp;&amp; !query &amp;&amp; section === &#39;All&#39; ? &#39;Your reading list is empty&#39; : &#39;No stories found&#39;}
+                &lt;/Text&gt;
+                &lt;Text c={C.muted} size={13} ta=&quot;center&quot;&gt;
+                  {tab === &#39;Saved&#39; &amp;&amp; !query &amp;&amp; section === &#39;All&#39;
+                    ? &#39;Tap the bookmark on any story to keep it here.&#39;
+                    : &#39;Try a different section or search.&#39;}
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+            )}
+          &lt;/Block&gt;
+        )}
+        &lt;Block align=&quot;center&quot; py={32} mt={32} borderTopWidth={1} borderTopColor={C.rule} gap={6}&gt;
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={7}&gt;
+            &lt;Block gap={0} w={7} h={7} radius={4} bg={C.gold} /&gt;
+            &lt;Text c={C.ink} size={17} fw=&quot;bold&quot; ff=&quot;Georgia&quot;&gt;
+              The Daily Edition
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;Text c={C.muted} size={11} ta=&quot;center&quot;&gt;
+            Fictional stories, bylines and sponsors · Built with plocks
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      &lt;/ScrollArea&gt;
+    &lt;/SafeArea&gt;
+  );
+}
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;PlocksProvider theme={{ colorScheme: &#39;light&#39; }}&gt;
+        &lt;NewsScreen /&gt;
+      &lt;/PlocksProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</code></pre></section><section id="file-1"><h2>index.ts</h2><pre><code>import { registerRootComponent } from &#39;expo&#39;;
+
+import App from &#39;./App&#39;;
+
+registerRootComponent(App);
+</code></pre></section></main></body></html>

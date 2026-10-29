@@ -1,0 +1,2401 @@
+<!doctype html>
+<html lang="en"><head><!--plocks-demo-seo--><title>Sproutfolio demo source | plocks</title><meta name="description" content="Browse the source code for the Sproutfolio demo built with plocks."/><link rel="canonical" href="https://plocks.dev/demos/sproutfolio/source.html"/><!--/plocks-demo-seo--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>body{margin:0;background:#111319;color:#eef0f3;font:15px system-ui,sans-serif}header{padding:24px;position:sticky;top:0;background:#1b1e26;border-bottom:1px solid #353a46}h1{font-size:20px;margin:0 0 12px}nav{display:flex;gap:12px;flex-wrap:wrap}a{color:#9dbeff}main{max-width:1100px;margin:auto;padding:24px}section{margin-bottom:32px;scroll-margin-top:130px}h2{font-size:18px}pre{overflow:auto;background:#1b1e26;border:1px solid #353a46;border-radius:10px;padding:18px;line-height:1.5}code{font:13px ui-monospace,SFMono-Regular,monospace}</style>
+</head><body><header><h1>sproutfolio source</h1><nav><a href="/demos/sproutfolio/">Open live demo</a><a href="#file-0">App.tsx</a><a href="#file-1">components/AssetLogo.tsx</a><a href="#file-2">components/common.tsx</a><a href="#file-3">components/PriceChart.tsx</a><a href="#file-4">components/TradePanel.tsx</a><a href="#file-5">data.ts</a><a href="#file-6">index.ts</a><a href="#file-7">screens/AssetScreen.tsx</a><a href="#file-8">screens/TabScreens.tsx</a><a href="#file-9">theme.ts</a></nav></header><main><section id="file-0"><h2>App.tsx</h2><pre><code>import { useEffect, useMemo, useState, type ReactNode } from &#39;react&#39;;
+import { StatusBar, useWindowDimensions } from &#39;react-native&#39;;
+import AsyncStorage from &#39;@react-native-async-storage/async-storage&#39;;
+import { SafeAreaProvider } from &#39;react-native-safe-area-context&#39;;
+import { ChartThemeProvider } from &#39;@plocks/charts&#39;;
+import { Block, Icon, PlocksProvider, SafeArea, ScrollArea, Tabs, Text, useTheme } from &#39;@plocks/ui&#39;;
+import type { Side } from &#39;./components/TradePanel&#39;;
+import { findAsset, START_CASH, START_POSITIONS, START_WATCHLIST, type Position } from &#39;./data&#39;;
+import { AssetScreen } from &#39;./screens/AssetScreen&#39;;
+import { AccountScreen, HomeScreen, SearchScreen, WatchlistScreen, type Activity } from &#39;./screens/TabScreens&#39;;
+import { C } from &#39;./theme&#39;;
+
+type Tab = &#39;home&#39; | &#39;search&#39; | &#39;watchlist&#39; | &#39;account&#39;;
+const TABS: Tab[] = [&#39;home&#39;, &#39;search&#39;, &#39;watchlist&#39;, &#39;account&#39;];
+const TAB_ICONS: Record&lt;Tab, string&gt; = { home: &#39;home&#39;, search: &#39;search&#39;, watchlist: &#39;bookmark&#39;, account: &#39;avatar&#39; };
+const STORAGE = &#39;plocks-sproutfolio-example:v2&#39;;
+
+function SproutfolioScreen() {
+  const { width } = useWindowDimensions();
+  const wide = width &gt;= 860;
+  const [tab, setTab] = useState&lt;Tab&gt;(&#39;home&#39;);
+  const [positions, setPositions] = useState&lt;Record&lt;string, Position&gt;&gt;(START_POSITIONS);
+  const [cash, setCash] = useState(START_CASH);
+  const [watchlist, setWatchlist] = useState&lt;string[]&gt;(START_WATCHLIST);
+  const [activity, setActivity] = useState&lt;Activity[]&gt;([]);
+  const [selected, setSelected] = useState&lt;string | null&gt;(null);
+  const [query, setQuery] = useState(&#39;&#39;);
+  const [ready, setReady] = useState(false);
+  const asset = selected ? findAsset(selected) : undefined;
+  const equity = Object.entries(positions).reduce(
+    (sum, [ticker, position]) =&gt; sum + position.qty * (findAsset(ticker)?.price ?? 0),
+    0,
+  );
+
+  useEffect(() =&gt; {
+    AsyncStorage.getItem(STORAGE)
+      .then((raw) =&gt; {
+        if (!raw) return;
+        const data = JSON.parse(raw) as {
+          positions?: Record&lt;string, Position&gt;;
+          cash?: number;
+          watchlist?: string[];
+          activity?: Activity[];
+        };
+        if (data.positions &amp;&amp; typeof data.positions === &#39;object&#39;) setPositions(data.positions);
+        if (typeof data.cash === &#39;number&#39;) setCash(data.cash);
+        if (Array.isArray(data.watchlist)) setWatchlist(data.watchlist);
+        if (Array.isArray(data.activity)) setActivity(data.activity);
+      })
+      .catch(() =&gt; {})
+      .finally(() =&gt; setReady(true));
+  }, []);
+  useEffect(() =&gt; {
+    if (ready) AsyncStorage.setItem(STORAGE, JSON.stringify({ positions, cash, watchlist, activity })).catch(() =&gt; {});
+  }, [positions, cash, watchlist, activity, ready]);
+
+  function trade(side: Side, qty: number) {
+    if (!asset) return;
+    const total = qty * asset.price;
+    setPositions((old) =&gt; {
+      const current = old[asset.ticker] ?? { qty: 0, avgCost: 0 };
+      const nextQty = Math.round((current.qty + (side === &#39;Buy&#39; ? qty : -qty)) * 1e8) / 1e8;
+      const avgCost = side === &#39;Buy&#39; ? (current.qty * current.avgCost + total) / nextQty : current.avgCost;
+      const next = { ...old };
+      if (nextQty &gt; 0) next[asset.ticker] = { qty: nextQty, avgCost };
+      else delete next[asset.ticker];
+      return next;
+    });
+    setCash((old) =&gt; old + (side === &#39;Buy&#39; ? -total : total));
+    setActivity((old) =&gt; [{ id: `trade-${Date.now()}`, side, ticker: asset.ticker, qty, total }, ...old]);
+  }
+
+  const open = (ticker: string) =&gt; setSelected(ticker);
+  const nav = (
+    &lt;Tabs
+      navigationOnly
+      orientation={wide ? &#39;vertical&#39; : &#39;horizontal&#39;}
+      variant={wide ? &#39;chip&#39; : &#39;line&#39;}
+      color={C.darkGreen}
+      value={tab}
+      onChange={(item) =&gt; {
+        setTab(item as Tab);
+        setSelected(null);
+      }}
+      items={TABS.map((item) =&gt; ({
+        key: item,
+        label: item[0].toUpperCase() + item.slice(1),
+        icon: (
+          &lt;Icon
+            name={TAB_ICONS[item]}
+            color={tab === item &amp;&amp; wide ? C.white : tab === item ? C.darkGreen : C.muted}
+            size={wide ? 21 : 20}
+          /&gt;
+        ),
+        content: null,
+      }))}
+    /&gt;
+  );
+
+  return (
+    &lt;SafeArea gap={0} flex={1} bg={C.white}&gt;
+      &lt;StatusBar barStyle=&quot;dark-content&quot; /&gt;
+      &lt;Block gap={0} flex={1} direction={wide ? &#39;row&#39; : &#39;column&#39;} maw={1280} w=&quot;100%&quot; alignSelf=&quot;center&quot;&gt;
+        {wide &amp;&amp; (
+          &lt;Block w={218} p={18} borderRightWidth={1} borderRightColor={C.line} gap={26}&gt;
+            &lt;Text c={C.green} fw=&quot;bold&quot; size={28}&gt;
+              sprout ↗
+            &lt;/Text&gt;
+            {nav}
+            &lt;Block gap={0} flex={1} /&gt;
+            &lt;Text c={C.muted} size={11}&gt;
+              Simulated prices and trades
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        )}
+        &lt;Block gap={0} flex={1}&gt;
+          {asset ? (
+            &lt;AssetScreen
+              key={asset.ticker}
+              asset={asset}
+              position={positions[asset.ticker]}
+              cash={cash}
+              portfolioValue={cash + equity}
+              watched={watchlist.includes(asset.ticker)}
+              wide={wide}
+              onBack={() =&gt; setSelected(null)}
+              onToggleWatch={() =&gt;
+                setWatchlist((old) =&gt;
+                  old.includes(asset.ticker) ? old.filter((id) =&gt; id !== asset.ticker) : [...old, asset.ticker],
+                )
+              }
+              onOpen={open}
+              onOpenList={(list) =&gt; {
+                setQuery(list);
+                setTab(&#39;search&#39;);
+                setSelected(null);
+              }}
+              onTrade={trade}
+            /&gt;
+          ) : (
+            &lt;&gt;
+              {!wide &amp;&amp; (
+                &lt;Block
+                  gap={0}
+                  h={60}
+                  px={18}
+                  direction=&quot;row&quot;
+                  justify=&quot;space-between&quot;
+                  align=&quot;center&quot;
+                  borderBottomWidth={1}
+                  borderBottomColor={C.line}
+                &gt;
+                  &lt;Text c={C.green} fw=&quot;bold&quot; size={25}&gt;
+                    sprout ↗
+                  &lt;/Text&gt;
+                  &lt;Text c={C.muted} size={12}&gt;
+                    Demo portfolio
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              )}
+              &lt;ScrollArea key={tab} flex={1} contentProps={{ align: &#39;center&#39;, px: 20, pb: 35 }}&gt;
+                &lt;Block gap={0} w=&quot;100%&quot; maw={820}&gt;
+                  {tab === &#39;home&#39; &amp;&amp; (
+                    &lt;HomeScreen positions={positions} cash={cash} watchlist={watchlist} onOpen={open} wide={wide} /&gt;
+                  )}
+                  {tab === &#39;search&#39; &amp;&amp; &lt;SearchScreen query={query} setQuery={setQuery} onOpen={open} wide={wide} /&gt;}
+                  {tab === &#39;watchlist&#39; &amp;&amp; &lt;WatchlistScreen watchlist={watchlist} onOpen={open} /&gt;}
+                  {tab === &#39;account&#39; &amp;&amp; (
+                    &lt;AccountScreen positions={positions} cash={cash} activity={activity} onOpen={open} /&gt;
+                  )}
+                &lt;/Block&gt;
+              &lt;/ScrollArea&gt;
+            &lt;/&gt;
+          )}
+          {!wide &amp;&amp; !asset &amp;&amp; (
+            &lt;Block gap={0} borderTopWidth={1} borderTopColor={C.line} bg={C.white}&gt;
+              {nav}
+            &lt;/Block&gt;
+          )}
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+    &lt;/SafeArea&gt;
+  );
+}
+
+/** Chart labels inherit the app font and ink; without it SVG text falls back to the browser serif on web. */
+function ChartTheme({ children }: { children: ReactNode }) {
+  const theme = useTheme();
+  const bridge = useMemo(
+    () =&gt; ({
+      textPrimary: C.ink,
+      textSecondary: C.muted,
+      background: C.white,
+      grid: C.line,
+      fontFamily: theme.fontFamily,
+    }),
+    [theme.fontFamily],
+  );
+  return &lt;ChartThemeProvider hostThemeBridge={bridge}&gt;{children}&lt;/ChartThemeProvider&gt;;
+}
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;PlocksProvider theme={{ colorScheme: &#39;light&#39; }}&gt;
+        &lt;ChartTheme&gt;
+          &lt;SproutfolioScreen /&gt;
+        &lt;/ChartTheme&gt;
+      &lt;/PlocksProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</code></pre></section><section id="file-1"><h2>components/AssetLogo.tsx</h2><pre><code>import { BrandIcon } from &#39;@plocks/brands&#39;;
+import { Block, Text } from &#39;@plocks/ui&#39;;
+import type { Asset } from &#39;../data&#39;;
+import { C } from &#39;../theme&#39;;
+
+/**
+ * Company logo from @plocks/brands on a neutral disc. Coins have no registry
+ * logo, so they get their own color with the currency glyph instead.
+ */
+export function AssetLogo({ asset, size = 42 }: { asset: Asset; size?: number }) {
+  if (asset.brand) {
+    return (
+      &lt;Block
+        gap={0}
+        w={size}
+        h={size}
+        radius={size / 2}
+        bg={C.white}
+        borderWidth={1}
+        borderColor={C.line}
+        align=&quot;center&quot;
+        justify=&quot;center&quot;
+      &gt;
+        &lt;BrandIcon brand={asset.brand} size={Math.round(size * 0.56)} /&gt;
+      &lt;/Block&gt;
+    );
+  }
+  return (
+    &lt;Block gap={0} w={size} h={size} radius={size / 2} bg={asset.color} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+      &lt;Text c={C.white} fw=&quot;bold&quot; size={Math.round(size * 0.5)} lh={Math.round(size * 0.6)}&gt;
+        {asset.glyph ?? asset.ticker[0]}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-2"><h2>components/common.tsx</h2><pre><code>import type { ReactNode } from &#39;react&#39;;
+import { SparklineChart } from &#39;@plocks/charts&#39;;
+import { Block, Text } from &#39;@plocks/ui&#39;;
+import { sparkline, type Asset } from &#39;../data&#39;;
+import { C, pct, price, trend } from &#39;../theme&#39;;
+import { AssetLogo } from &#39;./AssetLogo&#39;;
+
+export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
+  return (
+    &lt;Block gap={0} direction=&quot;row&quot; justify=&quot;space-between&quot; align=&quot;center&quot; mt={34} mb={10}&gt;
+      &lt;Text c={C.ink} fw=&quot;bold&quot; size={21}&gt;
+        {children}
+      &lt;/Text&gt;
+      {action}
+    &lt;/Block&gt;
+  );
+}
+
+export interface Stat {
+  label: string;
+  value: string;
+}
+
+/** Label-over-value pairs, two per row on phones and four on wide screens. */
+export function StatGrid({ stats, columns = 2 }: { stats: Stat[]; columns?: number }) {
+  return (
+    &lt;Block gap={0} direction=&quot;row&quot; wrap&gt;
+      {stats.map((stat) =&gt; (
+        &lt;Block
+          key={stat.label}
+          gap={2}
+          w={`${100 / columns}%`}
+          py={11}
+          pr={12}
+          borderBottomWidth={1}
+          borderBottomColor={C.line}
+        &gt;
+          &lt;Text c={C.muted} size={12}&gt;
+            {stat.label}
+          &lt;/Text&gt;
+          &lt;Text c={C.ink} fw=&quot;semibold&quot; size={15} numberOfLines={1}&gt;
+            {stat.value}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      ))}
+    &lt;/Block&gt;
+  );
+}
+
+export function ChangeText({ value, size = 12 }: { value: number; size?: number }) {
+  return (
+    &lt;Text c={trend(value)} fw=&quot;semibold&quot; size={size}&gt;
+      {value &gt;= 0 ? &#39;▲&#39; : &#39;▼&#39;} {pct(Math.abs(value)).replace(&#39;+&#39;, &#39;&#39;)}
+    &lt;/Text&gt;
+  );
+}
+
+/** A list row: logo, ticker, intraday sparkline, price and change. */
+export function AssetRow({ asset, detail, onPress }: { asset: Asset; detail?: string; onPress: () =&gt; void }) {
+  return (
+    &lt;Block
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={`View ${asset.name}`}
+      direction=&quot;row&quot;
+      align=&quot;center&quot;
+      gap={12}
+      py={12}
+      borderBottomWidth={1}
+      borderBottomColor={C.line}
+    &gt;
+      &lt;AssetLogo asset={asset} /&gt;
+      &lt;Block gap={0} flex={1}&gt;
+        &lt;Text c={C.ink} fw=&quot;bold&quot; size={15}&gt;
+          {asset.ticker}
+        &lt;/Text&gt;
+        &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+          {detail ?? asset.name}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      &lt;Block gap={0} w={76} h={34}&gt;
+        &lt;SparklineChart
+          data={sparkline(asset)}
+          w={76}
+          h={34}
+          color={trend(asset.change)}
+          strokeWidth={1.6}
+          animation={{ enabled: false }}
+          accessibilityLabel={`${asset.ticker} intraday trend`}
+        /&gt;
+      &lt;/Block&gt;
+      &lt;Block gap={0} align=&quot;flex-end&quot; miw={86}&gt;
+        &lt;Text c={C.ink} fw=&quot;semibold&quot; size={14}&gt;
+          {price(asset.price)}
+        &lt;/Text&gt;
+        &lt;ChangeText value={asset.change} /&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+
+/** Compact card for horizontal strips such as movers and &quot;people also own&quot;. */
+export function AssetCard({ asset, onPress }: { asset: Asset; onPress: () =&gt; void }) {
+  return (
+    &lt;Block
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={`View ${asset.name}`}
+      w={148}
+      p={14}
+      gap={8}
+      radius={16}
+      borderWidth={1}
+      borderColor={C.line}
+      bg={C.white}
+    &gt;
+      &lt;Block gap={0} direction=&quot;row&quot; justify=&quot;space-between&quot; align=&quot;center&quot;&gt;
+        &lt;AssetLogo asset={asset} size={34} /&gt;
+        &lt;ChangeText value={asset.change} /&gt;
+      &lt;/Block&gt;
+      &lt;Block gap={0}&gt;
+        &lt;Text c={C.ink} fw=&quot;bold&quot; size={15}&gt;
+          {asset.ticker}
+        &lt;/Text&gt;
+        &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+          {asset.name}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      &lt;SparklineChart
+        data={sparkline(asset)}
+        w={118}
+        h={30}
+        color={trend(asset.change)}
+        fill
+        fillOpacity={0.12}
+        strokeWidth={1.5}
+        animation={{ enabled: false }}
+        accessibilityLabel={`${asset.ticker} intraday trend`}
+      /&gt;
+      &lt;Text c={C.ink} fw=&quot;semibold&quot; size={14}&gt;
+        {price(asset.price)}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-3"><h2>components/PriceChart.tsx</h2><pre><code>import { AreaChart, CandlestickChart, LineChart } from &#39;@plocks/charts&#39;;
+import { Block } from &#39;@plocks/ui&#39;;
+import type { History, Range } from &#39;../data&#39;;
+import { C, money, price } from &#39;../theme&#39;;
+
+export type ChartMode = &#39;line&#39; | &#39;candles&#39;;
+
+/**
+ * The stock-page price chart: a scrubbable line by default, OHLC candles on
+ * request. Green or red follows the move over the selected range, and the
+ * dashed baseline marks where the range opened (yesterday&#39;s close on 1D).
+ */
+export function PriceChart({
+  history,
+  range,
+  mode,
+  height = 240,
+  label,
+}: {
+  history: History;
+  range: Range;
+  mode: ChartMode;
+  height?: number;
+  label: string;
+}) {
+  const up = history.end &gt;= history.start;
+  const color = up ? C.green : C.red;
+  const baseline = { y: history.start, color: C.muted, dashed: true };
+  return (
+    &lt;Block gap={0} w=&quot;100%&quot; h={height}&gt;
+      {mode === &#39;line&#39; ? (
+        &lt;LineChart
+          key={`line-${range}`}
+          data={history.points}
+          h={height}
+          lineColor={color}
+          lineThickness={2.5}
+          showPoints={false}
+          xAxis={{ show: false }}
+          yAxis={{ show: false }}
+          grid={{ show: false }}
+          referenceLines={[baseline]}
+          enableCrosshair
+          liveTooltip
+          tooltip={{
+            show: true,
+            formatter: (point) =&gt; `${price(point.y)} · ${point.label ?? &#39;&#39;}`,
+          }}
+          accessibilityLabel={`${label} price over ${range}`}
+        /&gt;
+      ) : (
+        &lt;CandlestickChart
+          key={`candles-${range}`}
+          h={height}
+          series={[
+            {
+              id: &#39;price&#39;,
+              name: label,
+              data: history.candles,
+              colorBull: C.green,
+              colorBear: C.red,
+              wickColor: C.muted,
+            },
+          ]}
+          xAxis={{ show: false }}
+          yAxis={{ show: true, labelFormatter: (value) =&gt; money(value, value &gt;= 1000 ? 0 : 2), labelColor: C.muted }}
+          grid={{ show: true, color: C.line }}
+          enableCrosshair
+          liveTooltip
+          tooltip={{
+            show: true,
+            formatter: (candle) =&gt;
+              `O ${price(candle.open)}  H ${price(candle.high)}  L ${price(candle.low)}  C ${price(candle.close)}`,
+          }}
+          accessibilityLabel={`${label} candlestick chart over ${range}`}
+        /&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+/** Portfolio value over time, as a filled area. */
+export function PortfolioChart({
+  values,
+  labels,
+  height = 200,
+}: {
+  values: number[];
+  labels: string[];
+  height?: number;
+}) {
+  const up = values[values.length - 1] &gt;= values[0];
+  const color = up ? C.green : C.red;
+  return (
+    &lt;Block gap={0} w=&quot;100%&quot; h={height}&gt;
+      &lt;AreaChart
+        data={values.map((y, x) =&gt; ({ x, y, label: labels[x] }))}
+        h={height}
+        lineColor={color}
+        lineThickness={2.5}
+        fillColor={color}
+        fillOpacity={0.24}
+        showPoints={false}
+        xAxis={{ show: false }}
+        yAxis={{ show: false }}
+        grid={{ show: false }}
+        referenceLines={[{ y: values[0], color: C.muted, dashed: true }]}
+        enableCrosshair
+        liveTooltip
+        tooltip={{ show: true, formatter: (point) =&gt; `${money(point.y)} · ${point.label ?? &#39;&#39;}` }}
+        accessibilityLabel=&quot;Portfolio value chart&quot;
+      /&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-4"><h2>components/TradePanel.tsx</h2><pre><code>import { useState } from &#39;react&#39;;
+import { Block, Button, Input, SegmentedControl, Text } from &#39;@plocks/ui&#39;;
+import type { Asset, Position } from &#39;../data&#39;;
+import { C, money, quantity } from &#39;../theme&#39;;
+
+export type Side = &#39;Buy&#39; | &#39;Sell&#39;;
+
+/**
+ * Order ticket. Stocks trade in whole shares; coins in fractional amounts. Used
+ * inline beside the stock page on wide screens and in a bottom sheet on phones.
+ */
+export function TradePanel({
+  asset,
+  position,
+  cash,
+  initialSide = &#39;Buy&#39;,
+  onSubmit,
+  onCancel,
+}: {
+  asset: Asset;
+  position?: Position;
+  cash: number;
+  initialSide?: Side;
+  onSubmit: (side: Side, qty: number) =&gt; void;
+  onCancel?: () =&gt; void;
+}) {
+  const [side, setSide] = useState&lt;Side&gt;(initialSide);
+  const [amount, setAmount] = useState(asset.kind === &#39;crypto&#39; ? &#39;0.01&#39; : &#39;1&#39;);
+  const crypto = asset.kind === &#39;crypto&#39;;
+  const owned = position?.qty ?? 0;
+  const qty = Number(amount);
+  const total = qty * asset.price;
+  const unit = crypto ? asset.ticker : qty === 1 ? &#39;share&#39; : &#39;shares&#39;;
+  const validAmount = Number.isFinite(qty) &amp;&amp; qty &gt; 0 &amp;&amp; (crypto || Number.isInteger(qty));
+  const valid = validAmount &amp;&amp; (side === &#39;Buy&#39; ? total &lt;= cash : qty &lt;= owned + 1e-9);
+  return (
+    &lt;Block gap={12}&gt;
+      &lt;SegmentedControl
+        data={[
+          { value: &#39;Buy&#39;, label: &#39;Buy&#39; },
+          { value: &#39;Sell&#39;, label: &#39;Sell&#39;, disabled: !owned },
+        ]}
+        value={side}
+        onChange={(value) =&gt; setSide(value as Side)}
+        color={side === &#39;Buy&#39; ? C.green : C.red}
+        fullWidth
+        size=&quot;sm&quot;
+        accessibilityLabel=&quot;Order side&quot;
+      /&gt;
+      &lt;Text c={C.ink} fw=&quot;bold&quot; size={18}&gt;
+        {side} {asset.ticker}
+      &lt;/Text&gt;
+      &lt;Block gap={0} direction=&quot;row&quot; justify=&quot;space-between&quot;&gt;
+        &lt;Text c={C.muted} size={13}&gt;
+          Market price
+        &lt;/Text&gt;
+        &lt;Text c={C.ink} fw=&quot;semibold&quot; size={13}&gt;
+          {money(asset.price)}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      &lt;Input
+        variant=&quot;outline&quot;
+        label={crypto ? `Amount (${asset.ticker})` : &#39;Shares&#39;}
+        value={amount}
+        onChangeText={setAmount}
+        keyboardType={crypto ? &#39;decimal-pad&#39; : &#39;number-pad&#39;}
+        placeholder={crypto ? &#39;0.00&#39; : &#39;Number of shares&#39;}
+        mb={0}
+        radius={10}
+        inputColor={C.ink}
+      /&gt;
+      &lt;Block gap={0} direction=&quot;row&quot; justify=&quot;space-between&quot;&gt;
+        &lt;Text c={C.muted} size={13}&gt;
+          Estimated {side === &#39;Buy&#39; ? &#39;cost&#39; : &#39;credit&#39;}
+        &lt;/Text&gt;
+        &lt;Text c={C.ink} fw=&quot;bold&quot; size={13}&gt;
+          {validAmount ? money(total) : &#39;—&#39;}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      &lt;Text c={C.muted} size={12}&gt;
+        {side === &#39;Buy&#39;
+          ? `${money(cash)} buying power available`
+          : `${quantity(owned)} ${crypto ? asset.ticker : &#39;shares&#39;} available`}
+      &lt;/Text&gt;
+      &lt;Button
+        title={valid ? `Review ${side.toLowerCase()} · ${quantity(qty)} ${unit}` : `${side} ${asset.ticker}`}
+        color={side === &#39;Buy&#39; ? C.green : C.red}
+        disabled={!valid}
+        fullWidth
+        onPress={() =&gt; {
+          onSubmit(side, qty);
+          setAmount(crypto ? &#39;0.01&#39; : &#39;1&#39;);
+        }}
+      /&gt;
+      {onCancel &amp;&amp; &lt;Button title=&quot;Cancel&quot; variant=&quot;subtle&quot; color={C.ink} fullWidth onPress={onCancel} /&gt;}
+      &lt;Text c={C.muted} size={11}&gt;
+        Simulated order with sample prices. No real trade is placed.
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-5"><h2>data.ts</h2><pre><code>import type { BrandName } from &#39;@plocks/brands&#39;;
+
+/**
+ * Every number in this file is fictional sample data, generated locally from a
+ * seeded random walk so the app renders the same charts on every launch. Company
+ * names and logos identify real businesses; their prices and statistics do not.
+ */
+
+export type AssetKind = &#39;stock&#39; | &#39;crypto&#39;;
+export type Range = &#39;1D&#39; | &#39;1W&#39; | &#39;1M&#39; | &#39;3M&#39; | &#39;1Y&#39; | &#39;5Y&#39;;
+export const RANGES: Range[] = [&#39;1D&#39;, &#39;1W&#39;, &#39;1M&#39;, &#39;3M&#39;, &#39;1Y&#39;, &#39;5Y&#39;];
+
+export interface Asset {
+  ticker: string;
+  name: string;
+  kind: AssetKind;
+  price: number;
+  /** Percent change today (24h for crypto). */
+  change: number;
+  sector: string;
+  color: string;
+  brand?: BrandName;
+  /** Fallback mark for assets without a registry logo. */
+  glyph?: string;
+  about: string;
+  lists: string[];
+  // Stocks
+  ceo?: string;
+  employees?: number;
+  hq?: string;
+  founded?: number;
+  /** Shares outstanding, billions. */
+  sharesOut?: number;
+  pe?: number;
+  dividendYield?: number;
+  // Crypto
+  circulating?: number;
+  maxSupply?: number | null;
+  launched?: number;
+  consensus?: string;
+}
+
+export const ASSETS: Asset[] = [
+  {
+    ticker: &#39;AAPL&#39;,
+    name: &#39;Apple&#39;,
+    kind: &#39;stock&#39;,
+    price: 231.48,
+    change: 1.24,
+    sector: &#39;Technology&#39;,
+    color: &#39;#111111&#39;,
+    brand: &#39;apple&#39;,
+    about:
+      &#39;Apple designs consumer electronics, software, and services, including the iPhone, Mac, iPad, Apple Watch, and a growing subscription business spanning music, cloud storage, and payments.&#39;,
+    lists: [&#39;Big Tech&#39;, &#39;Hardware&#39;],
+    ceo: &#39;Tim Cook&#39;,
+    employees: 164000,
+    hq: &#39;Cupertino, CA&#39;,
+    founded: 1976,
+    sharesOut: 15.1,
+    pe: 34.2,
+    dividendYield: 0.44,
+  },
+  {
+    ticker: &#39;MSFT&#39;,
+    name: &#39;Microsoft&#39;,
+    kind: &#39;stock&#39;,
+    price: 428.16,
+    change: 0.62,
+    sector: &#39;Technology&#39;,
+    color: &#39;#00A4EF&#39;,
+    brand: &#39;microsoft&#39;,
+    about:
+      &#39;Microsoft builds productivity software, the Windows platform, Azure cloud infrastructure, gaming hardware and content, and AI tooling for businesses and developers.&#39;,
+    lists: [&#39;Big Tech&#39;, &#39;Cloud&#39;],
+    ceo: &#39;Satya Nadella&#39;,
+    employees: 228000,
+    hq: &#39;Redmond, WA&#39;,
+    founded: 1975,
+    sharesOut: 7.43,
+    pe: 36.8,
+    dividendYield: 0.72,
+  },
+  {
+    ticker: &#39;AMZN&#39;,
+    name: &#39;Amazon&#39;,
+    kind: &#39;stock&#39;,
+    price: 189.72,
+    change: -0.85,
+    sector: &#39;Consumer&#39;,
+    color: &#39;#FF9900&#39;,
+    brand: &#39;amazon&#39;,
+    about:
+      &#39;Amazon runs a global online marketplace and logistics network, the AWS cloud platform, streaming media, devices, and a fast-growing advertising business.&#39;,
+    lists: [&#39;Big Tech&#39;, &#39;Cloud&#39;, &#39;E-commerce&#39;],
+    ceo: &#39;Andy Jassy&#39;,
+    employees: 1550000,
+    hq: &#39;Seattle, WA&#39;,
+    founded: 1994,
+    sharesOut: 10.5,
+    pe: 41.5,
+  },
+  {
+    ticker: &#39;GOOGL&#39;,
+    name: &#39;Alphabet&#39;,
+    kind: &#39;stock&#39;,
+    price: 172.35,
+    change: 2.11,
+    sector: &#39;Communication&#39;,
+    color: &#39;#4285F4&#39;,
+    brand: &#39;google&#39;,
+    about:
+      &#39;Alphabet is the parent of Google, operating Search, YouTube, Android, Chrome, and Google Cloud, along with longer-term bets in autonomous driving and life sciences.&#39;,
+    lists: [&#39;Big Tech&#39;, &#39;Cloud&#39;, &#39;Advertising&#39;],
+    ceo: &#39;Sundar Pichai&#39;,
+    employees: 183000,
+    hq: &#39;Mountain View, CA&#39;,
+    founded: 1998,
+    sharesOut: 12.3,
+    pe: 24.9,
+    dividendYield: 0.46,
+  },
+  {
+    ticker: &#39;META&#39;,
+    name: &#39;Meta Platforms&#39;,
+    kind: &#39;stock&#39;,
+    price: 562.9,
+    change: -1.47,
+    sector: &#39;Communication&#39;,
+    color: &#39;#0866FF&#39;,
+    brand: &#39;meta&#39;,
+    about:
+      &#39;Meta operates Facebook, Instagram, WhatsApp, Messenger, and Threads, and invests heavily in AI models and mixed-reality hardware through Reality Labs.&#39;,
+    lists: [&#39;Big Tech&#39;, &#39;Social Media&#39;, &#39;Advertising&#39;],
+    ceo: &#39;Mark Zuckerberg&#39;,
+    employees: 72000,
+    hq: &#39;Menlo Park, CA&#39;,
+    founded: 2004,
+    sharesOut: 2.53,
+    pe: 27.3,
+    dividendYield: 0.36,
+  },
+  {
+    ticker: &#39;SPOT&#39;,
+    name: &#39;Spotify&#39;,
+    kind: &#39;stock&#39;,
+    price: 412.55,
+    change: 3.38,
+    sector: &#39;Communication&#39;,
+    color: &#39;#1DB954&#39;,
+    brand: &#39;spotify&#39;,
+    about:
+      &#39;Spotify is an audio streaming service offering music, podcasts, and audiobooks through free ad-supported and premium subscription tiers in more than 180 markets.&#39;,
+    lists: [&#39;Streaming&#39;, &#39;Subscriptions&#39;],
+    ceo: &#39;Alex Norström &amp; Gustav Söderström&#39;,
+    employees: 7300,
+    hq: &#39;Stockholm, Sweden&#39;,
+    founded: 2006,
+    sharesOut: 0.204,
+    pe: 68.4,
+  },
+  {
+    ticker: &#39;RDDT&#39;,
+    name: &#39;Reddit&#39;,
+    kind: &#39;stock&#39;,
+    price: 128.4,
+    change: 4.92,
+    sector: &#39;Communication&#39;,
+    color: &#39;#FF4500&#39;,
+    brand: &#39;reddit&#39;,
+    about:
+      &#39;Reddit hosts thousands of interest-based communities where people post, discuss, and vote on content, and earns revenue from advertising and data licensing.&#39;,
+    lists: [&#39;Social Media&#39;, &#39;Advertising&#39;],
+    ceo: &#39;Steve Huffman&#39;,
+    employees: 2200,
+    hq: &#39;San Francisco, CA&#39;,
+    founded: 2005,
+    sharesOut: 0.18,
+    pe: 92.1,
+  },
+  {
+    ticker: &#39;PYPL&#39;,
+    name: &#39;PayPal&#39;,
+    kind: &#39;stock&#39;,
+    price: 71.26,
+    change: -0.38,
+    sector: &#39;Financials&#39;,
+    color: &#39;#003087&#39;,
+    brand: &#39;paypal&#39;,
+    about:
+      &#39;PayPal runs digital payment platforms for consumers and merchants, including PayPal checkout, Venmo, Braintree, and Xoom cross-border transfers.&#39;,
+    lists: [&#39;Payments&#39;, &#39;Fintech&#39;],
+    ceo: &#39;Enrique Lores&#39;,
+    employees: 24500,
+    hq: &#39;San Jose, CA&#39;,
+    founded: 1998,
+    sharesOut: 1.0,
+    pe: 16.8,
+    dividendYield: 0.7,
+  },
+  {
+    ticker: &#39;V&#39;,
+    name: &#39;Visa&#39;,
+    kind: &#39;stock&#39;,
+    price: 296.84,
+    change: 0.41,
+    sector: &#39;Financials&#39;,
+    color: &#39;#1A1F71&#39;,
+    brand: &#39;visa&#39;,
+    about:
+      &#39;Visa operates one of the largest electronic payment networks in the world, connecting cardholders, merchants, and financial institutions across more than 200 countries.&#39;,
+    lists: [&#39;Payments&#39;],
+    ceo: &#39;Ryan McInerney&#39;,
+    employees: 31600,
+    hq: &#39;San Francisco, CA&#39;,
+    founded: 1958,
+    sharesOut: 1.95,
+    pe: 31.2,
+    dividendYield: 0.78,
+  },
+  {
+    ticker: &#39;MA&#39;,
+    name: &#39;Mastercard&#39;,
+    kind: &#39;stock&#39;,
+    price: 512.37,
+    change: 0.27,
+    sector: &#39;Financials&#39;,
+    color: &#39;#EB001B&#39;,
+    brand: &#39;mastercard&#39;,
+    about:
+      &#39;Mastercard runs a global payments network and offers fraud prevention, data analytics, and open-banking services to banks, merchants, and governments.&#39;,
+    lists: [&#39;Payments&#39;],
+    ceo: &#39;Michael Miebach&#39;,
+    employees: 35300,
+    hq: &#39;Purchase, NY&#39;,
+    founded: 1966,
+    sharesOut: 0.92,
+    pe: 36.5,
+    dividendYield: 0.58,
+  },
+  {
+    ticker: &#39;AXP&#39;,
+    name: &#39;American Express&#39;,
+    kind: &#39;stock&#39;,
+    price: 268.91,
+    change: -0.66,
+    sector: &#39;Financials&#39;,
+    color: &#39;#006FCF&#39;,
+    brand: &#39;amex&#39;,
+    about:
+      &#39;American Express issues charge and credit cards, runs its own payment network, and provides travel and lifestyle services to consumers and businesses.&#39;,
+    lists: [&#39;Payments&#39;, &#39;Banks&#39;],
+    ceo: &#39;Stephen Squeri&#39;,
+    employees: 75100,
+    hq: &#39;New York, NY&#39;,
+    founded: 1850,
+    sharesOut: 0.7,
+    pe: 19.4,
+    dividendYield: 1.12,
+  },
+  {
+    ticker: &#39;PINS&#39;,
+    name: &#39;Pinterest&#39;,
+    kind: &#39;stock&#39;,
+    price: 33.18,
+    change: 1.95,
+    sector: &#39;Communication&#39;,
+    color: &#39;#E60023&#39;,
+    brand: &#39;pinterest&#39;,
+    about:
+      &#39;Pinterest is a visual discovery platform where people save and shop ideas for home, style, food, and travel, funded by advertising.&#39;,
+    lists: [&#39;Social Media&#39;, &#39;Advertising&#39;],
+    ceo: &#39;Bill Ready&#39;,
+    employees: 4700,
+    hq: &#39;San Francisco, CA&#39;,
+    founded: 2008,
+    sharesOut: 0.68,
+    pe: 28.6,
+  },
+  {
+    ticker: &#39;SNAP&#39;,
+    name: &#39;Snap&#39;,
+    kind: &#39;stock&#39;,
+    price: 11.42,
+    change: -2.74,
+    sector: &#39;Communication&#39;,
+    color: &#39;#FFFC00&#39;,
+    brand: &#39;snapchat&#39;,
+    about:
+      &#39;Snap makes Snapchat, a camera and messaging app built around disappearing photos and stories, plus Spectacles augmented-reality glasses.&#39;,
+    lists: [&#39;Social Media&#39;],
+    ceo: &#39;Evan Spiegel&#39;,
+    employees: 4900,
+    hq: &#39;Santa Monica, CA&#39;,
+    founded: 2011,
+    sharesOut: 1.68,
+  },
+  {
+    ticker: &#39;ZM&#39;,
+    name: &#39;Zoom Communications&#39;,
+    kind: &#39;stock&#39;,
+    price: 76.05,
+    change: 0.88,
+    sector: &#39;Technology&#39;,
+    color: &#39;#0B5CFF&#39;,
+    brand: &#39;zoom&#39;,
+    about:
+      &#39;Zoom provides video meetings, team chat, phone, contact-center, and AI companion tools used by businesses, schools, and individuals.&#39;,
+    lists: [&#39;Cloud&#39;, &#39;Subscriptions&#39;],
+    ceo: &#39;Eric Yuan&#39;,
+    employees: 7400,
+    hq: &#39;San Jose, CA&#39;,
+    founded: 2011,
+    sharesOut: 0.31,
+    pe: 23.7,
+  },
+  {
+    ticker: &#39;BTC&#39;,
+    name: &#39;Bitcoin&#39;,
+    kind: &#39;crypto&#39;,
+    price: 68420.15,
+    change: 2.36,
+    sector: &#39;Crypto&#39;,
+    color: &#39;#F7931A&#39;,
+    glyph: &#39;₿&#39;,
+    about:
+      &#39;Bitcoin is the first decentralized digital currency. Transactions are verified by a global network of miners and recorded on a public ledger, with issuance capped at 21 million coins.&#39;,
+    lists: [&#39;Crypto&#39;],
+    circulating: 19.79e6,
+    maxSupply: 21e6,
+    launched: 2009,
+    consensus: &#39;Proof of work&#39;,
+  },
+  {
+    ticker: &#39;ETH&#39;,
+    name: &#39;Ethereum&#39;,
+    kind: &#39;crypto&#39;,
+    price: 3384.62,
+    change: -1.18,
+    sector: &#39;Crypto&#39;,
+    color: &#39;#627EEA&#39;,
+    glyph: &#39;Ξ&#39;,
+    about:
+      &#39;Ethereum is a programmable blockchain for smart contracts and decentralized applications. Ether pays for computation and secures the network through staking.&#39;,
+    lists: [&#39;Crypto&#39;],
+    circulating: 120.4e6,
+    maxSupply: null,
+    launched: 2015,
+    consensus: &#39;Proof of stake&#39;,
+  },
+  {
+    ticker: &#39;SOL&#39;,
+    name: &#39;Solana&#39;,
+    kind: &#39;crypto&#39;,
+    price: 162.48,
+    change: 5.71,
+    sector: &#39;Crypto&#39;,
+    color: &#39;#9945FF&#39;,
+    glyph: &#39;◎&#39;,
+    about:
+      &#39;Solana is a high-throughput blockchain designed for fast, low-cost transactions, popular for payments, trading, and consumer apps.&#39;,
+    lists: [&#39;Crypto&#39;],
+    circulating: 470e6,
+    maxSupply: null,
+    launched: 2020,
+    consensus: &#39;Proof of stake + history&#39;,
+  },
+];
+
+export const STOCKS = ASSETS.filter((asset) =&gt; asset.kind === &#39;stock&#39;);
+export const CRYPTO = ASSETS.filter((asset) =&gt; asset.kind === &#39;crypto&#39;);
+export const findAsset = (ticker: string) =&gt; ASSETS.find((asset) =&gt; asset.ticker === ticker);
+
+export interface Position {
+  qty: number;
+  avgCost: number;
+}
+export const START_POSITIONS: Record&lt;string, Position&gt; = {
+  AAPL: { qty: 12, avgCost: 168.4 },
+  MSFT: { qty: 4, avgCost: 352.1 },
+  GOOGL: { qty: 10, avgCost: 141.2 },
+  SPOT: { qty: 6, avgCost: 288.75 },
+  V: { qty: 5, avgCost: 271.3 },
+  PINS: { qty: 30, avgCost: 38.9 },
+  BTC: { qty: 0.085, avgCost: 52310 },
+  ETH: { qty: 1.4, avgCost: 2875 },
+};
+export const START_CASH = 2450;
+export const START_WATCHLIST = [&#39;META&#39;, &#39;RDDT&#39;, &#39;MA&#39;, &#39;SOL&#39;];
+
+// ---------------------------------------------------------------------------
+// Seeded randomness
+
+function hash(text: string) {
+  let h = 2166136261;
+  for (let i = 0; i &lt; text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h &gt;&gt;&gt; 0;
+}
+
+export function rng(seed: string) {
+  let a = hash(seed);
+  return () =&gt; {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a &gt;&gt;&gt; 15), 1 | a);
+    t = (t + Math.imul(t ^ (t &gt;&gt;&gt; 7), 61 | t)) ^ t;
+    return ((t ^ (t &gt;&gt;&gt; 14)) &gt;&gt;&gt; 0) / 4294967296;
+  };
+}
+
+function gauss(next: () =&gt; number) {
+  const u = Math.max(next(), 1e-9);
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * next());
+}
+
+const between = (next: () =&gt; number, min: number, max: number) =&gt; min + (max - min) * next();
+
+// ---------------------------------------------------------------------------
+// Price history
+
+/** Fixed &quot;now&quot; so every launch draws the same timeline. */
+const NOW = Date.UTC(2026, 9, 29, 20, 0);
+const DAY = 86400000;
+
+interface RangeSpec {
+  candles: number;
+  steps: number;
+  sigma: number;
+  span: number;
+  returns: [number, number];
+}
+const SPECS: Record&lt;Range, RangeSpec&gt; = {
+  &#39;1D&#39;: { candles: 26, steps: 3, sigma: 0.012, span: 0.27 * DAY, returns: [0, 0] },
+  &#39;1W&#39;: { candles: 28, steps: 3, sigma: 0.03, span: 7 * DAY, returns: [-0.05, 0.07] },
+  &#39;1M&#39;: { candles: 22, steps: 3, sigma: 0.055, span: 30 * DAY, returns: [-0.08, 0.12] },
+  &#39;3M&#39;: { candles: 26, steps: 3, sigma: 0.09, span: 91 * DAY, returns: [-0.12, 0.2] },
+  &#39;1Y&#39;: { candles: 26, steps: 3, sigma: 0.16, span: 365 * DAY, returns: [-0.2, 0.55] },
+  &#39;5Y&#39;: { candles: 30, steps: 3, sigma: 0.3, span: 1826 * DAY, returns: [-0.25, 2.4] },
+};
+
+export interface PricePoint {
+  x: number;
+  y: number;
+  label: string;
+}
+export interface Candle {
+  x: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+export interface History {
+  points: PricePoint[];
+  candles: Candle[];
+  start: number;
+  end: number;
+}
+
+const MONTHS = [&#39;Jan&#39;, &#39;Feb&#39;, &#39;Mar&#39;, &#39;Apr&#39;, &#39;May&#39;, &#39;Jun&#39;, &#39;Jul&#39;, &#39;Aug&#39;, &#39;Sep&#39;, &#39;Oct&#39;, &#39;Nov&#39;, &#39;Dec&#39;];
+const WEEKDAYS = [&#39;Sun&#39;, &#39;Mon&#39;, &#39;Tue&#39;, &#39;Wed&#39;, &#39;Thu&#39;, &#39;Fri&#39;, &#39;Sat&#39;];
+function clock(date: Date) {
+  const hours = date.getUTCHours();
+  const minutes = date.getUTCMinutes();
+  return `${hours % 12 || 12}:${String(minutes).padStart(2, &#39;0&#39;)} ${hours &gt;= 12 ? &#39;PM&#39; : &#39;AM&#39;}`;
+}
+function timeLabel(range: Range, time: number) {
+  // Labels are written in market time (ET), four hours behind the UTC clock.
+  const date = new Date(time - 4 * 3600000);
+  if (range === &#39;1D&#39;) return clock(date);
+  if (range === &#39;1W&#39;) return `${WEEKDAYS[date.getUTCDay()]} ${clock(date)}`;
+  return `${MONTHS[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
+}
+
+const historyCache = new Map&lt;string, History&gt;();
+
+/** A seeded bridge walk that starts at the range&#39;s opening price and ends at today&#39;s price. */
+export function getHistory(asset: Asset, range: Range): History {
+  const key = `${asset.ticker}:${range}`;
+  const cached = historyCache.get(key);
+  if (cached) return cached;
+  const spec = SPECS[range];
+  const next = rng(key);
+  const crypto = asset.kind === &#39;crypto&#39;;
+  const vol = crypto ? 2 : 1;
+  const end = asset.price;
+  const rangeReturn = range === &#39;1D&#39; ? asset.change / 100 : between(next, spec.returns[0] * vol, spec.returns[1] * vol);
+  const start = end / (1 + rangeReturn);
+  const count = spec.candles * spec.steps;
+  const stepSigma = (spec.sigma * vol) / Math.sqrt(count);
+  const walk = [0];
+  for (let i = 1; i &lt;= count; i++) walk.push(walk[i - 1] + gauss(next) * stepSigma);
+  const logStart = Math.log(start);
+  const logEnd = Math.log(end);
+  const span = crypto &amp;&amp; range === &#39;1D&#39; ? DAY : spec.span;
+  const values = walk.map((value, i) =&gt; {
+    const t = i / count;
+    return Math.exp(logStart + (logEnd - logStart) * t + value - t * walk[count]);
+  });
+  const points = values.map((y, i) =&gt; ({ x: i, y, label: timeLabel(range, NOW - span * (1 - i / count)) }));
+  const baseVolume = averageVolume(asset) / (range === &#39;1D&#39; ? spec.candles : 1);
+  const candles: Candle[] = [];
+  for (let c = 0; c &lt; spec.candles; c++) {
+    const chunk = values.slice(c * spec.steps, (c + 1) * spec.steps + 1);
+    const open = chunk[0];
+    const close = chunk[chunk.length - 1];
+    const wick = 1 + stepSigma * 0.6 * next();
+    candles.push({
+      x: c,
+      open,
+      close,
+      high: Math.max(...chunk) * wick,
+      low: Math.min(...chunk) / wick,
+      volume: baseVolume * between(next, 0.55, 1.6) * (range === &#39;1D&#39; &amp;&amp; (c &lt; 3 || c &gt; spec.candles - 4) ? 1.8 : 1),
+    });
+  }
+  const history = { points, candles, start, end };
+  historyCache.set(key, history);
+  return history;
+}
+
+/** Twenty-odd intraday points for list-row sparklines. */
+export function sparkline(asset: Asset) {
+  return getHistory(asset, &#39;1D&#39;)
+    .points.filter((_, i) =&gt; i % 3 === 0)
+    .map((point) =&gt; point.y);
+}
+
+// ---------------------------------------------------------------------------
+// Statistics
+
+export function averageVolume(asset: Asset) {
+  const next = rng(`${asset.ticker}:volume`);
+  if (asset.kind === &#39;crypto&#39;) return marketCap(asset) * between(next, 0.025, 0.06);
+  return (asset.sharesOut ?? 1) * 1e9 * between(next, 0.003, 0.012);
+}
+
+export function marketCap(asset: Asset) {
+  if (asset.kind === &#39;crypto&#39;) return (asset.circulating ?? 0) * asset.price;
+  return (asset.sharesOut ?? 1) * 1e9 * asset.price;
+}
+
+export interface KeyStats {
+  open: number;
+  high: number;
+  low: number;
+  volume: number;
+  avgVolume: number;
+  marketCap: number;
+  low52: number;
+  high52: number;
+  prevClose: number;
+}
+
+export function keyStats(asset: Asset): KeyStats {
+  const day = getHistory(asset, &#39;1D&#39;);
+  const year = getHistory(asset, &#39;1Y&#39;);
+  const next = rng(`${asset.ticker}:stats`);
+  const avgVolume = averageVolume(asset);
+  return {
+    open: day.candles[0].open,
+    high: Math.max(...day.candles.map((candle) =&gt; candle.high)),
+    low: Math.min(...day.candles.map((candle) =&gt; candle.low)),
+    volume: avgVolume * between(next, 0.7, 1.4),
+    avgVolume,
+    marketCap: marketCap(asset),
+    low52: Math.min(...year.candles.map((candle) =&gt; candle.low)),
+    high52: Math.max(...year.candles.map((candle) =&gt; candle.high)),
+    prevClose: day.start,
+  };
+}
+
+export interface Ratings {
+  buy: number;
+  hold: number;
+  sell: number;
+  targetLow: number;
+  targetAvg: number;
+  targetHigh: number;
+}
+
+export function analystRatings(asset: Asset): Ratings {
+  const next = rng(`${asset.ticker}:ratings`);
+  const total = Math.round(between(next, 24, 58));
+  const buyShare = between(next, 0.35, 0.9);
+  const buy = Math.round(total * buyShare);
+  const sell = Math.round((total - buy) * between(next, 0, 0.35));
+  const targetAvg = asset.price * between(next, 1.02, 1.22);
+  return {
+    buy,
+    hold: total - buy - sell,
+    sell,
+    targetLow: asset.price * between(next, 0.72, 0.92),
+    targetAvg,
+    targetHigh: targetAvg * between(next, 1.12, 1.3),
+  };
+}
+
+export interface Quarter {
+  label: string;
+  estimate: number;
+  actual: number;
+  revenue: number;
+  margin: number;
+}
+const QUARTERS = [&quot;Q4 &#39;25&quot;, &quot;Q1 &#39;26&quot;, &quot;Q2 &#39;26&quot;, &quot;Q3 &#39;26&quot;];
+
+export function earnings(asset: Asset) {
+  const next = rng(`${asset.ticker}:earnings`);
+  const annualEps = asset.pe ? asset.price / asset.pe : -asset.price * 0.02;
+  const revenueBase = marketCap(asset) / between(next, 5, 11) / 4;
+  const baseMargin = asset.pe ? between(next, 12, 34) : between(next, -8, 2);
+  const quarters: Quarter[] = QUARTERS.map((label, i) =&gt; {
+    const estimate = (annualEps / 4) * (0.9 + i * 0.04) * between(next, 0.94, 1.06);
+    const beat = next() &lt; 0.75 ? between(next, 0.01, 0.09) : -between(next, 0.01, 0.05);
+    return {
+      label,
+      estimate,
+      actual: estimate + Math.abs(estimate) * beat,
+      revenue: revenueBase * (0.9 + i * 0.035) * between(next, 0.97, 1.03),
+      margin: baseMargin + i * 0.4 + between(next, -1.5, 1.5),
+    };
+  });
+  const last = quarters[quarters.length - 1];
+  return {
+    quarters,
+    next: { label: &quot;Q4 &#39;26&quot;, date: &#39;Jan 28, 2027&#39;, estimate: last.estimate * between(next, 1.01, 1.08) },
+  };
+}
+
+export interface NewsItem {
+  id: string;
+  source: string;
+  age: string;
+  title: string;
+  move: number;
+}
+const SOURCES = [&#39;Market Wire&#39;, &#39;The Ledger&#39;, &#39;Sprout Daily&#39;, &#39;Ticker Tape&#39;, &#39;Capital Brief&#39;];
+const STOCK_HEADLINES = [
+  &#39;{name} shares move after analysts revisit price targets&#39;,
+  &#39;What to watch from {name} ahead of next quarter&#39;,
+  &#39;{name} expands buyback program, sample filing shows&#39;,
+  &#39;Options traders lean bullish on {ticker} into the close&#39;,
+  &#39;Is {name} still a long-term hold? Three charts to consider&#39;,
+];
+const CRYPTO_HEADLINES = [
+  &#39;{name} climbs as on-chain activity hits a monthly high&#39;,
+  &#39;Funds tracking {name} see another week of inflows&#39;,
+  &#39;Why {ticker} volatility is cooling this month&#39;,
+  &#39;{name} developers outline the next network upgrade&#39;,
+  &#39;Miners and stakers: who is holding {ticker} now&#39;,
+];
+
+export function news(asset: Asset): NewsItem[] {
+  const next = rng(`${asset.ticker}:news`);
+  const templates = asset.kind === &#39;crypto&#39; ? CRYPTO_HEADLINES : STOCK_HEADLINES;
+  return templates.slice(0, 4).map((template, i) =&gt; ({
+    id: `${asset.ticker}-news-${i}`,
+    source: SOURCES[Math.floor(next() * SOURCES.length)],
+    age: i === 0 ? `${1 + Math.floor(next() * 50)}m` : `${i * 3 + Math.floor(next() * 3)}h`,
+    title: template.replace(&#39;{name}&#39;, asset.name).replace(&#39;{ticker}&#39;, asset.ticker),
+    move: asset.change + between(next, -1.2, 1.2),
+  }));
+}
+
+/** Assets that share a list with this one, ordered by overlap. */
+export function peopleAlsoOwn(asset: Asset) {
+  return ASSETS.filter((other) =&gt; other.ticker !== asset.ticker &amp;&amp; other.kind === asset.kind)
+    .map((other) =&gt; ({
+      other,
+      score:
+        other.lists.filter((list) =&gt; asset.lists.includes(list)).length + (other.sector === asset.sector ? 0.5 : 0),
+    }))
+    .sort((a, b) =&gt; b.score - a.score || a.other.ticker.localeCompare(b.other.ticker))
+    .slice(0, 6)
+    .map((item) =&gt; item.other);
+}
+
+export const LISTS = Array.from(new Set(ASSETS.flatMap((asset) =&gt; asset.lists)));
+export const assetsInList = (list: string) =&gt; ASSETS.filter((asset) =&gt; asset.lists.includes(list));
+
+// ---------------------------------------------------------------------------
+// Market-wide
+
+export const SECTORS = [
+  &#39;Technology&#39;,
+  &#39;Communication&#39;,
+  &#39;Financials&#39;,
+  &#39;Consumer&#39;,
+  &#39;Healthcare&#39;,
+  &#39;Energy&#39;,
+  &#39;Industrials&#39;,
+  &#39;Utilities&#39;,
+  &#39;Real Estate&#39;,
+];
+export const SECTOR_PERIODS = [&#39;1D&#39;, &#39;1W&#39;, &#39;1M&#39;, &#39;3M&#39;, &#39;YTD&#39;, &#39;1Y&#39;];
+const PERIOD_SCALE = [1.2, 2.6, 4.5, 7, 11, 14];
+
+export const SECTOR_RETURNS: number[][] = SECTORS.map((sector) =&gt; {
+  const next = rng(`sector:${sector}`);
+  const bias = between(next, -0.4, 0.9);
+  return PERIOD_SCALE.map((scale) =&gt; Math.round((bias + between(next, -1, 1)) * scale * 10) / 10);
+});
+
+export const INDEXES = [
+  { name: &#39;S&amp;P 500&#39;, value: 5864.21, change: 0.74 },
+  { name: &#39;Nasdaq&#39;, value: 18512.6, change: 1.12 },
+  { name: &#39;Dow&#39;, value: 42390.8, change: 0.21 },
+];
+
+/** Twelve months of dividend income from the demo positions. */
+export const DIVIDENDS = (() =&gt; {
+  const next = rng(&#39;dividends&#39;);
+  return [&#39;Nov&#39;, &#39;Dec&#39;, &#39;Jan&#39;, &#39;Feb&#39;, &#39;Mar&#39;, &#39;Apr&#39;, &#39;May&#39;, &#39;Jun&#39;, &#39;Jul&#39;, &#39;Aug&#39;, &#39;Sep&#39;, &#39;Oct&#39;].map((month, i) =&gt; ({
+    category: month,
+    value: Math.round((i % 3 === 2 ? between(next, 9, 14) : between(next, 1.5, 5)) * 100) / 100,
+  }));
+})();
+</code></pre></section><section id="file-6"><h2>index.ts</h2><pre><code>import { registerRootComponent } from &#39;expo&#39;;
+import App from &#39;./App&#39;;
+
+registerRootComponent(App);
+</code></pre></section><section id="file-7"><h2>screens/AssetScreen.tsx</h2><pre><code>import { useState } from &#39;react&#39;;
+import { BulletChart, ComboChart, GroupedBarChart, RadialBarChart } from &#39;@plocks/charts&#39;;
+import { Badge, Block, Button, Dialog, IconButton, Progress, ScrollArea, SegmentedControl, Text } from &#39;@plocks/ui&#39;;
+import { AssetLogo } from &#39;../components/AssetLogo&#39;;
+import { AssetCard, SectionTitle, StatGrid, type Stat } from &#39;../components/common&#39;;
+import { PriceChart, type ChartMode } from &#39;../components/PriceChart&#39;;
+import { TradePanel, type Side } from &#39;../components/TradePanel&#39;;
+import {
+  analystRatings,
+  earnings,
+  getHistory,
+  keyStats,
+  news,
+  peopleAlsoOwn,
+  RANGES,
+  type Asset,
+  type Position,
+  type Range,
+} from &#39;../data&#39;;
+import { C, compact, money, pct, price, quantity, signed, trend } from &#39;../theme&#39;;
+
+const RANGE_WORDS: Record&lt;Range, string&gt; = {
+  &#39;1D&#39;: &#39;Today&#39;,
+  &#39;1W&#39;: &#39;Past week&#39;,
+  &#39;1M&#39;: &#39;Past month&#39;,
+  &#39;3M&#39;: &#39;Past 3 months&#39;,
+  &#39;1Y&#39;: &#39;Past year&#39;,
+  &#39;5Y&#39;: &#39;Past 5 years&#39;,
+};
+
+export function AssetScreen({
+  asset,
+  position,
+  cash,
+  portfolioValue,
+  watched,
+  wide,
+  onBack,
+  onToggleWatch,
+  onOpen,
+  onOpenList,
+  onTrade,
+}: {
+  asset: Asset;
+  position?: Position;
+  cash: number;
+  portfolioValue: number;
+  watched: boolean;
+  wide: boolean;
+  onBack: () =&gt; void;
+  onToggleWatch: () =&gt; void;
+  onOpen: (ticker: string) =&gt; void;
+  onOpenList: (list: string) =&gt; void;
+  onTrade: (side: Side, qty: number) =&gt; void;
+}) {
+  const [range, setRange] = useState&lt;Range&gt;(&#39;1D&#39;);
+  const [mode, setMode] = useState&lt;ChartMode&gt;(&#39;line&#39;);
+  const [ticket, setTicket] = useState&lt;Side | null&gt;(null);
+  const crypto = asset.kind === &#39;crypto&#39;;
+  const history = getHistory(asset, range);
+  const move = history.end - history.start;
+  const movePct = (move / history.start) * 100;
+  const stats = keyStats(asset);
+  const owned = position &amp;&amp; position.qty &gt; 0 ? position : undefined;
+  const columns = wide ? 3 : 2;
+
+  const header = (
+    &lt;Block
+      gap={0}
+      h={56}
+      px={8}
+      direction=&quot;row&quot;
+      align=&quot;center&quot;
+      justify=&quot;space-between&quot;
+      borderBottomWidth={1}
+      borderBottomColor={C.line}
+    &gt;
+      &lt;IconButton
+        icon=&quot;chevronLeft&quot;
+        variant=&quot;ghost&quot;
+        iconColor={C.ink}
+        accessibilityLabel=&quot;Back to list&quot;
+        onPress={onBack}
+      /&gt;
+      &lt;Text c={C.ink} fw=&quot;bold&quot; size={15}&gt;
+        {asset.ticker}
+      &lt;/Text&gt;
+      &lt;IconButton
+        icon=&quot;bookmark&quot;
+        iconVariant={watched ? &#39;filled&#39; : &#39;outlined&#39;}
+        variant=&quot;ghost&quot;
+        iconColor={C.darkGreen}
+        accessibilityLabel={watched ? &#39;Remove from watchlist&#39; : &#39;Add to watchlist&#39;}
+        onPress={onToggleWatch}
+      /&gt;
+    &lt;/Block&gt;
+  );
+
+  const content = (
+    &lt;Block gap={0} w=&quot;100%&quot; maw={760}&gt;
+      &lt;Block gap={12} pt={22} direction=&quot;row&quot; align=&quot;center&quot;&gt;
+        &lt;AssetLogo asset={asset} size={48} /&gt;
+        &lt;Block gap={0} flex={1}&gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={24} numberOfLines={1}&gt;
+            {asset.name}
+          &lt;/Text&gt;
+          &lt;Text c={C.muted} size={13}&gt;
+            {asset.ticker} · {crypto ? &#39;Cryptocurrency&#39; : asset.sector}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      &lt;Text c={C.ink} fw=&quot;bold&quot; size={36} mt={16}&gt;
+        {price(asset.price)}
+      &lt;/Text&gt;
+      &lt;Text c={trend(move)} fw=&quot;semibold&quot; size={14}&gt;
+        {signed(move)} ({pct(movePct)}) {RANGE_WORDS[range]}
+      &lt;/Text&gt;
+      {range !== &#39;1D&#39; &amp;&amp; (
+        &lt;Text c={trend(asset.change)} size={12} mt={2}&gt;
+          {pct(asset.change)} {crypto ? &#39;past 24 hours&#39; : &#39;today&#39;}
+        &lt;/Text&gt;
+      )}
+
+      &lt;Block gap={0} mt={18}&gt;
+        &lt;PriceChart history={history} range={range} mode={mode} label={asset.name} height={wide ? 280 : 230} /&gt;
+      &lt;/Block&gt;
+      &lt;Block gap={10} mt={10} direction=&quot;row&quot; align=&quot;center&quot;&gt;
+        &lt;Block gap={0} flex={1}&gt;
+          &lt;SegmentedControl
+            data={RANGES}
+            value={range}
+            onChange={(value) =&gt; setRange(value as Range)}
+            color={trend(move)}
+            variant=&quot;ghost&quot;
+            size=&quot;sm&quot;
+            fullWidth
+            accessibilityLabel=&quot;Chart time range&quot;
+          /&gt;
+        &lt;/Block&gt;
+        &lt;SegmentedControl
+          data={[
+            { value: &#39;line&#39;, label: &#39;Line&#39; },
+            { value: &#39;candles&#39;, label: &#39;Candles&#39; },
+          ]}
+          value={mode}
+          onChange={(value) =&gt; setMode(value as ChartMode)}
+          size=&quot;sm&quot;
+          color={C.ink}
+          accessibilityLabel=&quot;Chart style&quot;
+        /&gt;
+      &lt;/Block&gt;
+
+      {owned &amp;&amp; (
+        &lt;PositionSection asset={asset} position={owned} prevClose={stats.prevClose} portfolioValue={portfolioValue} /&gt;
+      )}
+
+      &lt;SectionTitle&gt;About&lt;/SectionTitle&gt;
+      &lt;Text c={C.ink} size={14} lh={21}&gt;
+        {asset.about}
+      &lt;/Text&gt;
+      &lt;StatGrid
+        columns={wide &amp;&amp; !crypto ? 4 : columns}
+        stats={
+          crypto
+            ? [
+                { label: &#39;Launched&#39;, value: String(asset.launched) },
+                { label: &#39;Consensus&#39;, value: asset.consensus ?? &#39;—&#39; },
+                { label: &#39;Category&#39;, value: asset.lists.join(&#39;, &#39;) },
+              ]
+            : [
+                { label: &#39;CEO&#39;, value: asset.ceo ?? &#39;—&#39; },
+                { label: &#39;Employees&#39;, value: (asset.employees ?? 0).toLocaleString(&#39;en-US&#39;) },
+                { label: &#39;Headquarters&#39;, value: asset.hq ?? &#39;—&#39; },
+                { label: &#39;Founded&#39;, value: String(asset.founded) },
+              ]
+        }
+      /&gt;
+
+      &lt;SectionTitle&gt;Key statistics&lt;/SectionTitle&gt;
+      &lt;StatGrid columns={columns} stats={crypto ? cryptoStats(asset, stats) : stockStats(asset, stats)} /&gt;
+      &lt;Text c={C.muted} fw=&quot;semibold&quot; size={12} mt={20} mb={8}&gt;
+        52-WEEK RANGE
+      &lt;/Text&gt;
+      &lt;BulletChart
+        h={wide ? 70 : 64}
+        min={stats.low52}
+        max={stats.high52}
+        value={asset.price}
+        target={owned &amp;&amp; owned.avgCost &gt;= stats.low52 &amp;&amp; owned.avgCost &lt;= stats.high52 ? owned.avgCost : undefined}
+        ranges={[{ value: stats.high52, color: C.pale, label: &#39;52-week range&#39; }]}
+        color={C.green}
+        targetColor={C.ink}
+        barThickness={0.4}
+        withAxis
+        ticks={4}
+        valueFormatter={(value) =&gt; money(value, value &gt;= 1000 ? 0 : 2)}
+        accessibilityLabel={`52-week range ${money(stats.low52)} to ${money(stats.high52)}, now ${money(asset.price)}`}
+      /&gt;
+      &lt;Text c={C.muted} size={12} mt={4}&gt;
+        Bar shows today&#39;s price
+        {owned &amp;&amp; owned.avgCost &gt;= stats.low52 &amp;&amp; owned.avgCost &lt;= stats.high52 ? &#39;; tick marks your average cost&#39; : &#39;&#39;}
+        .
+      &lt;/Text&gt;
+      {crypto &amp;&amp; &lt;SupplySection asset={asset} /&gt;}
+
+      {!crypto &amp;&amp; &lt;RatingsSection asset={asset} /&gt;}
+      {!crypto &amp;&amp; &lt;EarningsSection asset={asset} wide={wide} /&gt;}
+
+      &lt;SectionTitle&gt;News&lt;/SectionTitle&gt;
+      {news(asset).map((item) =&gt; (
+        &lt;Block key={item.id} gap={4} py={13} borderBottomWidth={1} borderBottomColor={C.line}&gt;
+          &lt;Text c={C.muted} fw=&quot;semibold&quot; size={12}&gt;
+            {item.source} · {item.age}
+          &lt;/Text&gt;
+          &lt;Text c={C.ink} fw=&quot;semibold&quot; size={15} lh={21}&gt;
+            {item.title}
+          &lt;/Text&gt;
+          &lt;Text c={trend(item.move)} size={12}&gt;
+            {asset.ticker} {pct(item.move)}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      ))}
+
+      &lt;SectionTitle&gt;People also own&lt;/SectionTitle&gt;
+      &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} contentProps={{ direction: &#39;row&#39;, gap: 10, pb: 4 }}&gt;
+        {peopleAlsoOwn(asset).map((other) =&gt; (
+          &lt;AssetCard key={other.ticker} asset={other} onPress={() =&gt; onOpen(other.ticker)} /&gt;
+        ))}
+      &lt;/ScrollArea&gt;
+
+      &lt;SectionTitle&gt;Related lists&lt;/SectionTitle&gt;
+      &lt;Block gap={8} direction=&quot;row&quot; wrap&gt;
+        {asset.lists.map((list) =&gt; (
+          &lt;Badge key={list} color={C.darkGreen} variant=&quot;light&quot; size=&quot;lg&quot; onPress={() =&gt; onOpenList(list)}&gt;
+            {list}
+          &lt;/Badge&gt;
+        ))}
+      &lt;/Block&gt;
+      &lt;Text c={C.muted} size={11} mt={30}&gt;
+        Sample data for a UI demo. Prices, statistics, ratings, and headlines are generated locally and are not real
+        market information.
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+
+  return (
+    &lt;Block gap={0} flex={1}&gt;
+      {header}
+      &lt;Block gap={0} flex={1} direction=&quot;row&quot;&gt;
+        &lt;ScrollArea key={asset.ticker} flex={1} contentProps={{ align: &#39;center&#39;, px: 20, pb: 40 }}&gt;
+          {content}
+        &lt;/ScrollArea&gt;
+        {wide &amp;&amp; (
+          &lt;Block gap={0} w={300} p={18} borderLeftWidth={1} borderLeftColor={C.line}&gt;
+            &lt;TradePanel key={asset.ticker} asset={asset} position={position} cash={cash} onSubmit={onTrade} /&gt;
+          &lt;/Block&gt;
+        )}
+      &lt;/Block&gt;
+      {!wide &amp;&amp; (
+        &lt;Block
+          gap={12}
+          px={18}
+          py={12}
+          direction=&quot;row&quot;
+          align=&quot;center&quot;
+          borderTopWidth={1}
+          borderTopColor={C.line}
+          bg={C.white}
+        &gt;
+          &lt;Block gap={0} flex={1}&gt;
+            &lt;Text c={C.muted} size={11}&gt;
+              {owned ? &#39;Your position&#39; : &#39;Buying power&#39;}
+            &lt;/Text&gt;
+            &lt;Text c={C.ink} fw=&quot;bold&quot; size={15}&gt;
+              {owned ? money(owned.qty * asset.price) : money(cash)}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          {!!owned &amp;&amp; &lt;Button title=&quot;Sell&quot; variant=&quot;outline&quot; color={C.red} onPress={() =&gt; setTicket(&#39;Sell&#39;)} /&gt;}
+          &lt;Button title=&quot;Buy&quot; color={C.green} onPress={() =&gt; setTicket(&#39;Buy&#39;)} /&gt;
+        &lt;/Block&gt;
+      )}
+      {!wide &amp;&amp; !!ticket &amp;&amp; (
+        &lt;Dialog
+          opened
+          variant=&quot;bottomsheet&quot;
+          accessibilityLabel={`${ticket} ${asset.ticker}`}
+          onClose={() =&gt; setTicket(null)}
+        &gt;
+          &lt;Block gap={0} p={20}&gt;
+            &lt;TradePanel
+              asset={asset}
+              position={position}
+              cash={cash}
+              initialSide={ticket}
+              onSubmit={(side, qty) =&gt; {
+                onTrade(side, qty);
+                setTicket(null);
+              }}
+              onCancel={() =&gt; setTicket(null)}
+            /&gt;
+          &lt;/Block&gt;
+        &lt;/Dialog&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+function stockStats(asset: Asset, stats: ReturnType&lt;typeof keyStats&gt;): Stat[] {
+  return [
+    { label: &#39;Market cap&#39;, value: compact(stats.marketCap) },
+    { label: &#39;P/E ratio&#39;, value: asset.pe ? asset.pe.toFixed(2) : &#39;—&#39; },
+    { label: &#39;Dividend yield&#39;, value: asset.dividendYield ? `${asset.dividendYield.toFixed(2)}%` : &#39;—&#39; },
+    { label: &#39;Average volume&#39;, value: compact(stats.avgVolume) },
+    { label: &#39;Volume&#39;, value: compact(stats.volume) },
+    { label: &#39;Open&#39;, value: money(stats.open) },
+    { label: &quot;Today&#39;s high&quot;, value: money(stats.high) },
+    { label: &quot;Today&#39;s low&quot;, value: money(stats.low) },
+    { label: &#39;52-week high&#39;, value: money(stats.high52) },
+    { label: &#39;52-week low&#39;, value: money(stats.low52) },
+    { label: &#39;Previous close&#39;, value: money(stats.prevClose) },
+    { label: &#39;Shares outstanding&#39;, value: compact((asset.sharesOut ?? 0) * 1e9) },
+  ];
+}
+
+function cryptoStats(asset: Asset, stats: ReturnType&lt;typeof keyStats&gt;): Stat[] {
+  return [
+    { label: &#39;Market cap&#39;, value: compact(stats.marketCap) },
+    { label: &#39;Volume (24h)&#39;, value: compact(stats.volume) },
+    { label: &#39;Avg volume (30d)&#39;, value: compact(stats.avgVolume) },
+    { label: &#39;Circulating supply&#39;, value: `${compact(asset.circulating ?? 0)} ${asset.ticker}` },
+    { label: &#39;Max supply&#39;, value: asset.maxSupply ? `${compact(asset.maxSupply)} ${asset.ticker}` : &#39;No cap&#39; },
+    { label: &#39;Fully diluted value&#39;, value: asset.maxSupply ? compact(asset.maxSupply * asset.price) : &#39;—&#39; },
+    { label: &#39;24h high&#39;, value: money(stats.high) },
+    { label: &#39;24h low&#39;, value: money(stats.low) },
+    { label: &#39;24h open&#39;, value: money(stats.open) },
+    { label: &#39;52-week high&#39;, value: money(stats.high52) },
+    { label: &#39;52-week low&#39;, value: money(stats.low52) },
+    { label: &#39;Trading&#39;, value: &#39;24/7&#39; },
+  ];
+}
+
+function PositionSection({
+  asset,
+  position,
+  prevClose,
+  portfolioValue,
+}: {
+  asset: Asset;
+  position: Position;
+  prevClose: number;
+  portfolioValue: number;
+}) {
+  const value = position.qty * asset.price;
+  const cost = position.qty * position.avgCost;
+  const today = position.qty * (asset.price - prevClose);
+  const total = value - cost;
+  const rows = [
+    {
+      label: &quot;Today&#39;s return&quot;,
+      value: `${signed(today)} (${pct((asset.price / prevClose - 1) * 100)})`,
+      color: trend(today),
+    },
+    { label: &#39;Total return&#39;, value: `${signed(total)} (${pct((total / cost) * 100)})`, color: trend(total) },
+  ];
+  return (
+    &lt;&gt;
+      &lt;SectionTitle&gt;Your position&lt;/SectionTitle&gt;
+      &lt;Block gap={0} bg={C.panel} radius={16} p={16}&gt;
+        &lt;Block gap={0} direction=&quot;row&quot;&gt;
+          &lt;Block gap={2} flex={1}&gt;
+            &lt;Text c={C.muted} size={12}&gt;
+              {asset.kind === &#39;crypto&#39; ? &#39;Quantity&#39; : &#39;Shares&#39;}
+            &lt;/Text&gt;
+            &lt;Text c={C.ink} fw=&quot;bold&quot; size={20}&gt;
+              {quantity(position.qty)}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;Block gap={2} flex={1}&gt;
+            &lt;Text c={C.muted} size={12}&gt;
+              Market value
+            &lt;/Text&gt;
+            &lt;Text c={C.ink} fw=&quot;bold&quot; size={20}&gt;
+              {money(value)}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+        &lt;Block gap={0} direction=&quot;row&quot; mt={14}&gt;
+          &lt;Block gap={2} flex={1}&gt;
+            &lt;Text c={C.muted} size={12}&gt;
+              Average cost
+            &lt;/Text&gt;
+            &lt;Text c={C.ink} fw=&quot;semibold&quot; size={15}&gt;
+              {price(position.avgCost)}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;Block gap={2} flex={1}&gt;
+            &lt;Text c={C.muted} size={12}&gt;
+              Portfolio diversity
+            &lt;/Text&gt;
+            &lt;Text c={C.ink} fw=&quot;semibold&quot; size={15}&gt;
+              {((value / portfolioValue) * 100).toFixed(2)}%
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+        {rows.map((row) =&gt; (
+          &lt;Block
+            key={row.label}
+            gap={0}
+            direction=&quot;row&quot;
+            justify=&quot;space-between&quot;
+            mt={14}
+            pt={12}
+            borderTopWidth={1}
+            borderTopColor={C.line}
+          &gt;
+            &lt;Text c={C.muted} size={13}&gt;
+              {row.label}
+            &lt;/Text&gt;
+            &lt;Text c={row.color} fw=&quot;semibold&quot; size={13}&gt;
+              {row.value}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        ))}
+      &lt;/Block&gt;
+    &lt;/&gt;
+  );
+}
+
+function SupplySection({ asset }: { asset: Asset }) {
+  const circulating = asset.circulating ?? 0;
+  return (
+    &lt;&gt;
+      &lt;SectionTitle&gt;Supply&lt;/SectionTitle&gt;
+      {asset.maxSupply ? (
+        &lt;Block gap={8}&gt;
+          &lt;Progress value={(circulating / asset.maxSupply) * 100} color={asset.color} size={10} radius=&quot;xl&quot; /&gt;
+          &lt;Text c={C.muted} size={13}&gt;
+            {((circulating / asset.maxSupply) * 100).toFixed(1)}% of the {compact(asset.maxSupply)} {asset.ticker} cap
+            is in circulation. {compact(asset.maxSupply - circulating)} {asset.ticker} remain to be issued.
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      ) : (
+        &lt;Text c={C.muted} size={13}&gt;
+          {asset.name} has no fixed maximum supply. {compact(circulating)} {asset.ticker} are in circulation, with new
+          issuance paid to validators.
+        &lt;/Text&gt;
+      )}
+    &lt;/&gt;
+  );
+}
+
+function RatingsSection({ asset }: { asset: Asset }) {
+  const ratings = analystRatings(asset);
+  const total = ratings.buy + ratings.hold + ratings.sell;
+  const share = (count: number) =&gt; Math.round((count / total) * 100);
+  return (
+    &lt;&gt;
+      &lt;SectionTitle&gt;Analyst ratings&lt;/SectionTitle&gt;
+      &lt;Block gap={16} direction=&quot;row&quot; align=&quot;center&quot; wrap&gt;
+        &lt;Block gap={0} w={170} h={170}&gt;
+          &lt;RadialBarChart
+            w={170}
+            h={170}
+            data={[{ value: share(ratings.buy), max: 100, label: &#39;Buy&#39;, color: C.green, trackColor: C.pale }]}
+            barThickness={12}
+            showValueLabels={false}
+            centerLabel={`${share(ratings.buy)}%`}
+            centerSubLabel=&quot;Buy&quot;
+            accessibilityLabel={`${share(ratings.buy)} percent of ${total} analysts rate ${asset.ticker} a buy`}
+          /&gt;
+        &lt;/Block&gt;
+        &lt;Block gap={10} flex={1} miw={200}&gt;
+          {[
+            { label: &#39;Buy&#39;, count: ratings.buy, color: C.green },
+            { label: &#39;Hold&#39;, count: ratings.hold, color: &#39;#9AA6A3&#39; },
+            { label: &#39;Sell&#39;, count: ratings.sell, color: C.red },
+          ].map((row) =&gt; (
+            &lt;Block key={row.label} gap={10} direction=&quot;row&quot; align=&quot;center&quot;&gt;
+              &lt;Text c={C.ink} fw=&quot;semibold&quot; size={13} w={36}&gt;
+                {row.label}
+              &lt;/Text&gt;
+              &lt;Block gap={0} flex={1}&gt;
+                &lt;Progress value={share(row.count)} color={row.color} size={10} radius=&quot;xl&quot; /&gt;
+              &lt;/Block&gt;
+              &lt;Text c={C.ink} fw=&quot;semibold&quot; size={13} ta=&quot;right&quot; w={40}&gt;
+                {share(row.count)}%
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          ))}
+          &lt;Text c={C.muted} size={12}&gt;
+            Based on {total} sample analyst ratings
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      &lt;Text c={C.muted} fw=&quot;semibold&quot; size={12} mt={20} mb={4}&gt;
+        12-MONTH PRICE TARGETS
+      &lt;/Text&gt;
+      &lt;BulletChart
+        h={64}
+        min={Math.floor(Math.min(ratings.targetLow, asset.price) * 0.97)}
+        max={Math.ceil(ratings.targetHigh * 1.02)}
+        value={asset.price}
+        target={ratings.targetAvg}
+        ranges={[
+          { value: ratings.targetLow, color: &#39;#F2F5F4&#39;, label: &#39;Below low target&#39; },
+          { value: ratings.targetHigh, color: C.pale, label: &#39;Analyst target range&#39; },
+          { value: Math.ceil(ratings.targetHigh * 1.02), color: &#39;#F2F5F4&#39;, label: &#39;Above high target&#39; },
+        ]}
+        color={C.ink}
+        targetColor={C.green}
+        barThickness={0.4}
+        withAxis
+        ticks={4}
+        valueFormatter={(value) =&gt; money(value, 0)}
+        accessibilityLabel={`Price targets from ${money(ratings.targetLow)} to ${money(ratings.targetHigh)}, average ${money(ratings.targetAvg)}`}
+      /&gt;
+      &lt;Text c={C.muted} size={12} mt={4}&gt;
+        Bar shows today&#39;s price ({money(asset.price, 0)}); green tick is the average target (
+        {money(ratings.targetAvg, 0)}), shaded band spans low to high targets.
+      &lt;/Text&gt;
+    &lt;/&gt;
+  );
+}
+
+function EarningsSection({ asset, wide }: { asset: Asset; wide: boolean }) {
+  const { quarters, next } = earnings(asset);
+  const beats = quarters.filter((quarter) =&gt; quarter.actual &gt;= quarter.estimate).length;
+  return (
+    &lt;&gt;
+      &lt;SectionTitle&gt;Earnings&lt;/SectionTitle&gt;
+      &lt;GroupedBarChart
+        h={210}
+        series={[
+          {
+            id: &#39;estimate&#39;,
+            name: &#39;Estimated EPS&#39;,
+            color: &#39;#B6C2BF&#39;,
+            data: quarters.map((q) =&gt; ({ category: q.label, value: round(q.estimate) })),
+          },
+          {
+            id: &#39;actual&#39;,
+            name: &#39;Actual EPS&#39;,
+            color: C.green,
+            data: quarters.map((q) =&gt; ({ category: q.label, value: round(q.actual) })),
+          },
+        ]}
+        legend={{ show: true, position: &#39;bottom&#39; }}
+        yAxis={{ show: true, labelFormatter: (value) =&gt; `$${value.toFixed(2)}`, labelColor: C.muted }}
+        xAxis={{ show: true, labelColor: C.muted }}
+        grid={{ show: true, color: C.line }}
+        liveTooltip
+        accessibilityLabel={`${asset.ticker} estimated versus actual earnings per share for the last four quarters`}
+      /&gt;
+      &lt;Text c={C.muted} size={13} mt={6}&gt;
+        Beat estimates in {beats} of the last 4 quarters. {next.label} report expected {next.date} · est. EPS{&#39; &#39;}
+        {money(next.estimate)}.
+      &lt;/Text&gt;
+
+      &lt;Text c={C.ink} fw=&quot;bold&quot; size={17} mt={26} mb={6}&gt;
+        Revenue and net margin
+      &lt;/Text&gt;
+      &lt;ComboChart
+        h={wide ? 220 : 200}
+        layers={[
+          {
+            type: &#39;bar&#39;,
+            id: &#39;revenue&#39;,
+            name: &#39;Revenue&#39;,
+            color: &#39;#2F7DD3&#39;,
+            data: quarters.map((q, x) =&gt; ({ x, y: q.revenue })),
+          },
+          {
+            type: &#39;line&#39;,
+            id: &#39;margin&#39;,
+            name: &#39;Net margin&#39;,
+            color: C.amber,
+            targetAxis: &#39;right&#39;,
+            showPoints: true,
+            data: quarters.map((q, x) =&gt; ({ x, y: Math.round(q.margin * 10) / 10 })),
+          },
+        ]}
+        xDomain={[-0.6, quarters.length - 0.4]}
+        yDomain={[0, Math.max(...quarters.map((q) =&gt; q.revenue)) * 1.15]}
+        yDomainRight={[
+          Math.min(0, ...quarters.map((q) =&gt; q.margin)) * 1.3,
+          Math.max(5, ...quarters.map((q) =&gt; q.margin)) * 1.5,
+        ]}
+        xAxis={{
+          show: true,
+          ticks: quarters.map((_, x) =&gt; x),
+          labelFormatter: (x) =&gt; quarters[Math.round(x)]?.label ?? &#39;&#39;,
+          labelColor: C.muted,
+        }}
+        yAxis={{ show: true, labelFormatter: (value) =&gt; `$${compact(value)}`, labelColor: C.muted }}
+        yAxisRight={{ show: true, labelFormatter: (value) =&gt; `${value.toFixed(0)}%`, labelColor: C.muted }}
+        grid={{ show: true, color: C.line }}
+        legend={{ show: true, position: &#39;bottom&#39; }}
+        multiTooltip
+        accessibilityLabel={`${asset.ticker} quarterly revenue and net margin`}
+      /&gt;
+    &lt;/&gt;
+  );
+}
+
+const round = (value: number) =&gt; Math.round(value * 100) / 100;
+</code></pre></section><section id="file-8"><h2>screens/TabScreens.tsx</h2><pre><code>import { useState } from &#39;react&#39;;
+import { BarChart, DonutChart, HeatmapChart, WaffleChart } from &#39;@plocks/charts&#39;;
+import { Badge, Block, Icon, Input, ScrollArea, SegmentedControl, Text } from &#39;@plocks/ui&#39;;
+import { AssetLogo } from &#39;../components/AssetLogo&#39;;
+import { AssetCard, AssetRow, ChangeText, SectionTitle } from &#39;../components/common&#39;;
+import { PortfolioChart } from &#39;../components/PriceChart&#39;;
+import {
+  ASSETS,
+  CRYPTO,
+  DIVIDENDS,
+  getHistory,
+  INDEXES,
+  LISTS,
+  RANGES,
+  SECTOR_PERIODS,
+  SECTOR_RETURNS,
+  SECTORS,
+  STOCKS,
+  type Asset,
+  type Position,
+  type Range,
+} from &#39;../data&#39;;
+import { C, compact, money, pct, quantity, signed, SLICE_COLORS, trend } from &#39;../theme&#39;;
+
+export type Activity = { id: string; side: &#39;Buy&#39; | &#39;Sell&#39;; ticker: string; qty: number; total: number };
+
+interface PortfolioProps {
+  positions: Record&lt;string, Position&gt;;
+  cash: number;
+  onOpen: (ticker: string) =&gt; void;
+}
+
+const heldValue = (asset: Asset, positions: Record&lt;string, Position&gt;) =&gt;
+  (positions[asset.ticker]?.qty ?? 0) * asset.price;
+const holdingDetail = (asset: Asset, position: Position) =&gt;
+  `${quantity(position.qty)} ${asset.kind === &#39;crypto&#39; ? asset.ticker : position.qty === 1 ? &#39;share&#39; : &#39;shares&#39;}`;
+
+export function HomeScreen({
+  positions,
+  cash,
+  watchlist,
+  onOpen,
+  wide,
+}: PortfolioProps &amp; { watchlist: string[]; wide: boolean }) {
+  const [range, setRange] = useState&lt;Range&gt;(&#39;1D&#39;);
+  const held = ASSETS.filter((asset) =&gt; (positions[asset.ticker]?.qty ?? 0) &gt; 0);
+  const reference = getHistory(STOCKS[0], range).points;
+  const labels = reference.map((point) =&gt; point.label);
+  const values = reference.map(
+    (_, i) =&gt;
+      cash + held.reduce((sum, asset) =&gt; sum + positions[asset.ticker].qty * getHistory(asset, range).points[i].y, 0),
+  );
+  const total = values[values.length - 1];
+  const move = total - values[0];
+  const slices = [
+    ...held
+      .map((asset) =&gt; ({ label: asset.ticker, value: heldValue(asset, positions) }))
+      .sort((a, b) =&gt; b.value - a.value),
+    { label: &#39;Cash&#39;, value: cash },
+  ].map((slice, i) =&gt; ({
+    ...slice,
+    value: Math.round(slice.value * 100) / 100,
+    color: SLICE_COLORS[Math.min(i, SLICE_COLORS.length - 1)],
+  }));
+  const stocksHeld = held.filter((asset) =&gt; asset.kind === &#39;stock&#39;);
+  const cryptoHeld = held.filter((asset) =&gt; asset.kind === &#39;crypto&#39;);
+  const stockValue = stocksHeld.reduce((sum, asset) =&gt; sum + heldValue(asset, positions), 0);
+  const cryptoValue = cryptoHeld.reduce((sum, asset) =&gt; sum + heldValue(asset, positions), 0);
+  const movers = [...STOCKS].sort((a, b) =&gt; Math.abs(b.change) - Math.abs(a.change)).slice(0, 6);
+
+  return (
+    &lt;Block gap={0}&gt;
+      &lt;Block gap={0} pt={26}&gt;
+        &lt;Text c={C.muted} fw=&quot;semibold&quot; size={13}&gt;
+          Investing
+        &lt;/Text&gt;
+        &lt;Text c={C.ink} fw=&quot;bold&quot; size={38} mt={2}&gt;
+          {money(total)}
+        &lt;/Text&gt;
+        &lt;Text c={trend(move)} fw=&quot;semibold&quot; size={13}&gt;
+          {signed(move)} ({pct((move / values[0]) * 100)}) {range === &#39;1D&#39; ? &#39;today&#39; : `past ${range}`}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      &lt;Block gap={0} my={18}&gt;
+        &lt;PortfolioChart values={values} labels={labels} height={wide ? 240 : 190} /&gt;
+      &lt;/Block&gt;
+      &lt;SegmentedControl
+        data={RANGES}
+        value={range}
+        onChange={(value) =&gt; setRange(value as Range)}
+        color={trend(move)}
+        variant=&quot;ghost&quot;
+        size=&quot;sm&quot;
+        fullWidth
+        accessibilityLabel=&quot;Portfolio time range&quot;
+      /&gt;
+      &lt;Block gap={0} bg={C.panel} radius={15} p={17} mt={20} direction=&quot;row&quot; justify=&quot;space-between&quot; align=&quot;center&quot;&gt;
+        &lt;Block gap={0}&gt;
+          &lt;Text c={C.muted} size={12}&gt;
+            Buying power
+          &lt;/Text&gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={20}&gt;
+            {money(cash)}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+        &lt;Icon name=&quot;chevronRight&quot; color={C.muted} size={20} /&gt;
+      &lt;/Block&gt;
+      &lt;Block gap={10} direction=&quot;row&quot; mt={14}&gt;
+        {INDEXES.map((index) =&gt; (
+          &lt;Block key={index.name} gap={2} flex={1} p={12} radius={12} borderWidth={1} borderColor={C.line}&gt;
+            &lt;Text c={C.muted} size={11} numberOfLines={1}&gt;
+              {index.name}
+            &lt;/Text&gt;
+            &lt;Text c={C.ink} fw=&quot;semibold&quot; size={13} numberOfLines={1}&gt;
+              {index.value.toLocaleString(&#39;en-US&#39;, { maximumFractionDigits: 0 })}
+            &lt;/Text&gt;
+            &lt;ChangeText value={index.change} size={11} /&gt;
+          &lt;/Block&gt;
+        ))}
+      &lt;/Block&gt;
+
+      &lt;SectionTitle&gt;Stocks&lt;/SectionTitle&gt;
+      {stocksHeld.map((asset) =&gt; (
+        &lt;AssetRow
+          key={asset.ticker}
+          asset={asset}
+          detail={holdingDetail(asset, positions[asset.ticker])}
+          onPress={() =&gt; onOpen(asset.ticker)}
+        /&gt;
+      ))}
+      {!stocksHeld.length &amp;&amp; &lt;Text c={C.muted}&gt;No stocks yet.&lt;/Text&gt;}
+
+      &lt;SectionTitle&gt;Crypto&lt;/SectionTitle&gt;
+      {cryptoHeld.map((asset) =&gt; (
+        &lt;AssetRow
+          key={asset.ticker}
+          asset={asset}
+          detail={holdingDetail(asset, positions[asset.ticker])}
+          onPress={() =&gt; onOpen(asset.ticker)}
+        /&gt;
+      ))}
+      {!cryptoHeld.length &amp;&amp; &lt;Text c={C.muted}&gt;No crypto yet.&lt;/Text&gt;}
+
+      &lt;SectionTitle&gt;Allocation&lt;/SectionTitle&gt;
+      &lt;Block gap={20} direction={wide ? &#39;row&#39; : &#39;column&#39;} align=&quot;center&quot;&gt;
+        &lt;Block gap={0} w={220} h={220}&gt;
+          &lt;DonutChart
+            size={220}
+            w={220}
+            h={220}
+            padding={{ top: 0, right: 0, bottom: 0, left: 0 }}
+            data={slices}
+            innerRadiusRatio={0.68}
+            padAngle={1.2}
+            centerLabel={(_, __, focused) =&gt; focused?.label ?? &#39;Total&#39;}
+            centerValueFormatter={(value) =&gt; `$${compact(value)}`}
+            legend={{ show: false }}
+            accessibilityLabel=&quot;Portfolio allocation by holding&quot;
+          /&gt;
+        &lt;/Block&gt;
+        &lt;Block gap={0} flex={wide ? 1 : undefined} w={wide ? undefined : &#39;100%&#39;}&gt;
+          {slices.map((slice) =&gt; (
+            &lt;Block
+              key={slice.label}
+              gap={10}
+              direction=&quot;row&quot;
+              align=&quot;center&quot;
+              py={7}
+              borderBottomWidth={1}
+              borderBottomColor={C.line}
+            &gt;
+              &lt;Block gap={0} w={10} h={10} radius={5} bg={slice.color} /&gt;
+              &lt;Text c={C.ink} fw=&quot;semibold&quot; size={13} flex={1}&gt;
+                {slice.label}
+              &lt;/Text&gt;
+              &lt;Text c={C.muted} size={13}&gt;
+                {money(slice.value)}
+              &lt;/Text&gt;
+              &lt;Text c={C.ink} fw=&quot;semibold&quot; size={13} ta=&quot;right&quot; w={52}&gt;
+                {((slice.value / total) * 100).toFixed(1)}%
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          ))}
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      &lt;Text c={C.muted} fw=&quot;semibold&quot; size={12} mt={22} mb={8}&gt;
+        ASSET MIX · EACH SQUARE IS 1% OF YOUR PORTFOLIO
+      &lt;/Text&gt;
+      &lt;WaffleChart
+        h={wide ? 170 : 150}
+        maw={wide ? 360 : undefined}
+        rows={5}
+        columns={20}
+        gap={3}
+        cellRadius={3}
+        data={[
+          { name: &#39;Stocks&#39;, value: stockValue, color: SLICE_COLORS[0] },
+          { name: &#39;Crypto&#39;, value: cryptoValue, color: SLICE_COLORS[3] },
+          { name: &#39;Cash&#39;, value: cash, color: SLICE_COLORS[8] },
+        ]}
+        legend={{ show: true, position: &#39;bottom&#39; }}
+        accessibilityLabel={`Asset mix: stocks ${Math.round((stockValue / total) * 100)}%, crypto ${Math.round((cryptoValue / total) * 100)}%, cash ${Math.round((cash / total) * 100)}%`}
+      /&gt;
+
+      &lt;SectionTitle&gt;Top movers&lt;/SectionTitle&gt;
+      &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} contentProps={{ direction: &#39;row&#39;, gap: 10, pb: 4 }}&gt;
+        {movers.map((asset) =&gt; (
+          &lt;AssetCard key={asset.ticker} asset={asset} onPress={() =&gt; onOpen(asset.ticker)} /&gt;
+        ))}
+      &lt;/ScrollArea&gt;
+
+      &lt;SectionTitle&gt;Watchlist&lt;/SectionTitle&gt;
+      {watchlist.length ? (
+        ASSETS.filter((asset) =&gt; watchlist.includes(asset.ticker)).map((asset) =&gt; (
+          &lt;AssetRow key={asset.ticker} asset={asset} onPress={() =&gt; onOpen(asset.ticker)} /&gt;
+        ))
+      ) : (
+        &lt;Text c={C.muted}&gt;Open a stock or coin and tap the bookmark to add it here.&lt;/Text&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+export function SearchScreen({
+  query,
+  setQuery,
+  onOpen,
+  wide,
+}: {
+  query: string;
+  setQuery: (value: string) =&gt; void;
+  onOpen: (ticker: string) =&gt; void;
+  wide: boolean;
+}) {
+  const term = query.trim().toLowerCase();
+  const results = ASSETS.filter((asset) =&gt;
+    `${asset.ticker} ${asset.name} ${asset.sector} ${asset.lists.join(&#39; &#39;)}`.toLowerCase().includes(term),
+  );
+  return (
+    &lt;Block gap={0} pt={24}&gt;
+      &lt;Text c={C.ink} fw=&quot;bold&quot; size={26}&gt;
+        Search
+      &lt;/Text&gt;
+      &lt;Input
+        variant=&quot;filled&quot;
+        value={query}
+        onChangeText={setQuery}
+        placeholder=&quot;Search stocks, crypto, and lists&quot;
+        radius={12}
+        mt={18}
+        mb={14}
+        inputColor={C.ink}
+        inputFontSize={15}
+        clearable
+      /&gt;
+      &lt;Block gap={8} direction=&quot;row&quot; wrap mb={8}&gt;
+        {LISTS.map((list) =&gt; (
+          &lt;Badge
+            key={list}
+            color={C.darkGreen}
+            variant={query === list ? &#39;filled&#39; : &#39;light&#39;}
+            size=&quot;lg&quot;
+            onPress={() =&gt; setQuery(query === list ? &#39;&#39; : list)}
+          &gt;
+            {list}
+          &lt;/Badge&gt;
+        ))}
+      &lt;/Block&gt;
+      {term ? (
+        &lt;&gt;
+          &lt;Text c={C.muted} fw=&quot;bold&quot; size={12} mt={14}&gt;
+            {results.length} RESULTS
+          &lt;/Text&gt;
+          {results.map((asset) =&gt; (
+            &lt;AssetRow key={asset.ticker} asset={asset} onPress={() =&gt; onOpen(asset.ticker)} /&gt;
+          ))}
+        &lt;/&gt;
+      ) : (
+        &lt;&gt;
+          &lt;SectionTitle&gt;Sector performance&lt;/SectionTitle&gt;
+          &lt;HeatmapChart
+            h={wide ? 400 : 360}
+            data={{ rows: SECTORS, cols: SECTOR_PERIODS, values: SECTOR_RETURNS }}
+            gap={3}
+            cellCornerRadius={4}
+            colorScale={{ type: &#39;diverging&#39;, colors: [C.red, &#39;#F3F5F4&#39;, C.green], midpoint: 0, domain: [-12, 12] }}
+            showCellLabels
+            valueFormatter={({ value }) =&gt; `${value &gt; 0 ? &#39;+&#39; : &#39;&#39;}${value.toFixed(1)}`}
+            xAxis={{ show: true, labelColor: C.muted }}
+            yAxis={{ show: true, labelColor: C.ink }}
+            grid={{ show: false }}
+            legend={{ show: false }}
+            tooltip={{ show: true }}
+            accessibilityLabel=&quot;Sample sector returns by period, in percent&quot;
+          /&gt;
+          &lt;Text c={C.muted} size={12} mt={4}&gt;
+            Percent change by sector and period (sample data)
+          &lt;/Text&gt;
+          &lt;SectionTitle&gt;Stocks&lt;/SectionTitle&gt;
+          {STOCKS.map((asset) =&gt; (
+            &lt;AssetRow key={asset.ticker} asset={asset} onPress={() =&gt; onOpen(asset.ticker)} /&gt;
+          ))}
+          &lt;SectionTitle&gt;Crypto&lt;/SectionTitle&gt;
+          {CRYPTO.map((asset) =&gt; (
+            &lt;AssetRow key={asset.ticker} asset={asset} onPress={() =&gt; onOpen(asset.ticker)} /&gt;
+          ))}
+        &lt;/&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+export function WatchlistScreen({ watchlist, onOpen }: { watchlist: string[]; onOpen: (ticker: string) =&gt; void }) {
+  return (
+    &lt;Block gap={0} pt={24}&gt;
+      &lt;Text c={C.ink} fw=&quot;bold&quot; size={26}&gt;
+        Watchlist
+      &lt;/Text&gt;
+      &lt;Text c={C.muted} size={13} mt={5} mb={14}&gt;
+        Keep an eye on what interests you.
+      &lt;/Text&gt;
+      {watchlist.length ? (
+        ASSETS.filter((asset) =&gt; watchlist.includes(asset.ticker)).map((asset) =&gt; (
+          &lt;AssetRow key={asset.ticker} asset={asset} onPress={() =&gt; onOpen(asset.ticker)} /&gt;
+        ))
+      ) : (
+        &lt;Text c={C.muted}&gt;Open a stock or coin and tap the bookmark to add it here.&lt;/Text&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+export function AccountScreen({ positions, cash, activity, onOpen }: PortfolioProps &amp; { activity: Activity[] }) {
+  const equity = ASSETS.reduce((sum, asset) =&gt; sum + heldValue(asset, positions), 0);
+  const cost = ASSETS.reduce(
+    (sum, asset) =&gt; sum + (positions[asset.ticker]?.qty ?? 0) * (positions[asset.ticker]?.avgCost ?? 0),
+    0,
+  );
+  const dividendTotal = DIVIDENDS.reduce((sum, item) =&gt; sum + item.value, 0);
+  return (
+    &lt;Block gap={0} pt={24}&gt;
+      &lt;Text c={C.ink} fw=&quot;bold&quot; size={26}&gt;
+        Account
+      &lt;/Text&gt;
+      &lt;Block bg={C.panel} radius={16} p={18} mt={20} gap={8}&gt;
+        &lt;Text c={C.muted} size={12}&gt;
+          Demo account
+        &lt;/Text&gt;
+        &lt;Text c={C.ink} fw=&quot;bold&quot; size={24}&gt;
+          {money(cash + equity)}
+        &lt;/Text&gt;
+        &lt;Text c={C.muted} size={13}&gt;
+          Invested {money(equity)} · Cash {money(cash)}
+        &lt;/Text&gt;
+        &lt;Text c={trend(equity - cost)} fw=&quot;semibold&quot; size={13}&gt;
+          Total return {signed(equity - cost)} ({pct(cost ? ((equity - cost) / cost) * 100 : 0)})
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+
+      &lt;SectionTitle&gt;Dividend income&lt;/SectionTitle&gt;
+      &lt;Text c={C.muted} size={13} mb={8}&gt;
+        {money(dividendTotal)} received over the past 12 months
+      &lt;/Text&gt;
+      &lt;BarChart
+        h={190}
+        data={DIVIDENDS}
+        barColor={C.green}
+        barBorderRadius={4}
+        xAxis={{ show: true, labelColor: C.muted }}
+        yAxis={{ show: true, labelFormatter: (value) =&gt; `$${value.toFixed(0)}`, labelColor: C.muted }}
+        grid={{ show: true, color: C.line }}
+        tooltip={{ show: true, formatter: (datum) =&gt; `${datum.category}: ${money(datum.value)}` }}
+        accessibilityLabel=&quot;Monthly dividend income, sample data&quot;
+      /&gt;
+
+      &lt;SectionTitle&gt;Recent activity&lt;/SectionTitle&gt;
+      {activity.length ? (
+        activity.map((item) =&gt; {
+          const asset = ASSETS.find((candidate) =&gt; candidate.ticker === item.ticker);
+          return (
+            &lt;Block
+              key={item.id}
+              gap={12}
+              direction=&quot;row&quot;
+              align=&quot;center&quot;
+              py={12}
+              borderBottomWidth={1}
+              borderBottomColor={C.line}
+              onPress={asset ? () =&gt; onOpen(asset.ticker) : undefined}
+            &gt;
+              {asset &amp;&amp; &lt;AssetLogo asset={asset} size={34} /&gt;}
+              &lt;Text c={C.ink} fw=&quot;semibold&quot; flex={1}&gt;
+                {item.side} {quantity(item.qty)} {item.ticker}
+              &lt;/Text&gt;
+              &lt;Text c={C.muted}&gt;{money(item.total)}&lt;/Text&gt;
+            &lt;/Block&gt;
+          );
+        })
+      ) : (
+        &lt;Text c={C.muted}&gt;No trades yet. Open a stock or coin to try a simulated order.&lt;/Text&gt;
+      )}
+      &lt;Text c={C.muted} size={12} mt={30}&gt;
+        Educational UI example. Prices are fictional sample data ({compact(ASSETS.length)} assets) and no real orders
+        are placed.
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-9"><h2>theme.ts</h2><pre><code>export const C = {
+  ink: &#39;#101616&#39;,
+  muted: &#39;#6F7C79&#39;,
+  green: &#39;#00B67A&#39;,
+  darkGreen: &#39;#007C56&#39;,
+  line: &#39;#E6ECE9&#39;,
+  pale: &#39;#E9F8F1&#39;,
+  panel: &#39;#F7FAF8&#39;,
+  white: &#39;#FFF&#39;,
+  red: &#39;#D45B5B&#39;,
+  amber: &#39;#C98A12&#39;,
+};
+
+/** Allocation palette, fixed order so a slice keeps its color between renders. */
+export const SLICE_COLORS = [
+  &#39;#00B67A&#39;,
+  &#39;#2F7DD3&#39;,
+  &#39;#8B5CF6&#39;,
+  &#39;#E08A1E&#39;,
+  &#39;#0EA5A4&#39;,
+  &#39;#D45B5B&#39;,
+  &#39;#64748B&#39;,
+  &#39;#C2A013&#39;,
+  &#39;#B6C2BF&#39;,
+];
+
+export const money = (value: number, digits = 2) =&gt;
+  (value &lt; 0 ? &#39;-$&#39; : &#39;$&#39;) +
+  Math.abs(value).toLocaleString(&#39;en-US&#39;, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+
+/** Sub-dollar coins and tokens need more precision than whole-dollar stocks. */
+export const price = (value: number) =&gt; money(value, value &lt; 1 ? 4 : 2);
+
+export const signed = (value: number) =&gt; (value &gt;= 0 ? &#39;+&#39; : &#39;-&#39;) + money(Math.abs(value));
+
+export const pct = (value: number) =&gt; `${value &gt;= 0 ? &#39;+&#39; : &#39;&#39;}${value.toFixed(2)}%`;
+
+export const compact = (value: number) =&gt; {
+  const abs = Math.abs(value);
+  if (abs &gt;= 1e12) return `${(value / 1e12).toFixed(2)}T`;
+  if (abs &gt;= 1e9) return `${(value / 1e9).toFixed(2)}B`;
+  if (abs &gt;= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+  if (abs &gt;= 1e3) return `${(value / 1e3).toFixed(1)}K`;
+  return value.toFixed(0);
+};
+
+export const quantity = (value: number) =&gt;
+  value.toLocaleString(&#39;en-US&#39;, { maximumFractionDigits: Number.isInteger(value) ? 0 : 6 });
+
+export const trend = (value: number) =&gt; (value &gt;= 0 ? C.darkGreen : C.red);
+</code></pre></section></main></body></html>

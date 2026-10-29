@@ -1,0 +1,1414 @@
+<!doctype html>
+<html lang="en"><head><!--plocks-demo-seo--><title>Music player demo source | plocks</title><meta name="description" content="Browse the source code for the Music player demo built with plocks."/><link rel="canonical" href="https://plocks.dev/demos/music/source.html"/><!--/plocks-demo-seo--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>body{margin:0;background:#111319;color:#eef0f3;font:15px system-ui,sans-serif}header{padding:24px;position:sticky;top:0;background:#1b1e26;border-bottom:1px solid #353a46}h1{font-size:20px;margin:0 0 12px}nav{display:flex;gap:12px;flex-wrap:wrap}a{color:#9dbeff}main{max-width:1100px;margin:auto;padding:24px}section{margin-bottom:32px;scroll-margin-top:130px}h2{font-size:18px}pre{overflow:auto;background:#1b1e26;border:1px solid #353a46;border-radius:10px;padding:18px;line-height:1.5}code{font:13px ui-monospace,SFMono-Regular,monospace}</style>
+</head><body><header><h1>music source</h1><nav><a href="/demos/music/">Open live demo</a><a href="#file-0">App.tsx</a><a href="#file-1">catalog.ts</a><a href="#file-2">index.ts</a></nav></header><main><section id="file-0"><h2>App.tsx</h2><pre><code>import { useEffect, useMemo, useState } from &#39;react&#39;;
+import type { ReactNode } from &#39;react&#39;;
+import { StatusBar, useWindowDimensions } from &#39;react-native&#39;;
+import AsyncStorage from &#39;@react-native-async-storage/async-storage&#39;;
+import {
+  IconArrowLeft,
+  IconArrowsShuffle,
+  IconArrowsSort,
+  IconBooks,
+  IconChevronDown,
+  IconCircleCheckFilled,
+  IconCirclePlus,
+  IconDevicesPc,
+  IconDots,
+  IconDownload,
+  IconHeartFilled,
+  IconHome,
+  IconHomeFilled,
+  IconLayoutGrid,
+  IconList,
+  IconListDetails,
+  IconPinFilled,
+  IconPlayerPauseFilled,
+  IconPlayerPlayFilled,
+  IconPlayerSkipBackFilled,
+  IconPlayerSkipForwardFilled,
+  IconPlus,
+  IconRepeat,
+  IconRepeatOnce,
+  IconSearch,
+  IconShare,
+  IconVolume,
+  IconX,
+} from &#39;@tabler/icons-react-native&#39;;
+import { useAudioPlaylist, useAudioPlaylistStatus } from &#39;expo-audio&#39;;
+import { SafeAreaProvider, useSafeAreaInsets } from &#39;react-native-safe-area-context&#39;;
+import {
+  Block,
+  BottomAppBar,
+  Gradient,
+  IconButton,
+  Input,
+  PlocksProvider,
+  Row,
+  ScrollArea,
+  Slider,
+  Text,
+} from &#39;@plocks/ui&#39;;
+
+import {
+  ALL_COLLECTIONS,
+  ARTISTS,
+  COLLECTIONS,
+  LIBRARY,
+  TRACKS,
+  USER_PLAYLISTS,
+  formatTime,
+  type ArtworkStyle,
+  type Collection,
+  type CollectionKind,
+  type Track,
+} from &#39;./catalog&#39;;
+
+const C = {
+  background: &#39;#121212&#39;,
+  black: &#39;#000000&#39;,
+  elevated: &#39;#1F1F1F&#39;,
+  tile: &#39;#2A2A2A&#39;,
+  highlight: &#39;#3E3E3E&#39;,
+  green: &#39;#1ED760&#39;,
+  white: &#39;#FFFFFF&#39;,
+  muted: &#39;#B3B3B3&#39;,
+  subdued: &#39;#7C7C7C&#39;,
+};
+const THEME = { colorScheme: &#39;dark&#39; as const };
+const ALL_INDICES = TRACKS.map((_, index) =&gt; index);
+const SOURCES = TRACKS.map((track) =&gt; track.source);
+const LIKES_KEY = &#39;plocks-music-app:likes&#39;;
+// BottomAppBar&#39;s rendered height with labels: 6px item padding ×2 + 26px icon in a 6px pill ×2 + label.
+const NAV_HEIGHT = 64;
+const MINI_GAP = 6;
+const MINI_HEIGHT = 56;
+const LIKED_ID = &#39;liked&#39;;
+const LIKED_ART: ArtworkStyle = { background: &#39;#5038A0&#39;, accent: &#39;#8C7FE0&#39;, detail: &#39;#FFFFFF&#39;, glyph: &#39;♥&#39; };
+const KIND_LABEL: Record&lt;CollectionKind, string&gt; = { playlist: &#39;Playlist&#39;, album: &#39;Album&#39;, artist: &#39;Artist&#39; };
+const FILTERS = [
+  { key: &#39;playlist&#39;, label: &#39;Playlists&#39; },
+  { key: &#39;artist&#39;, label: &#39;Artists&#39; },
+  { key: &#39;album&#39;, label: &#39;Albums&#39; },
+  { key: &#39;downloaded&#39;, label: &#39;Downloaded&#39; },
+] as const;
+const HOME_CHIPS = [&#39;All&#39;, &#39;Music&#39;, &#39;Artists&#39;] as const;
+
+type Section = &#39;home&#39; | &#39;search&#39; | &#39;library&#39;;
+type LibraryFilter = (typeof FILTERS)[number][&#39;key&#39;] | null;
+type RepeatMode = &#39;none&#39; | &#39;all&#39; | &#39;single&#39;;
+
+/** Darken a #RRGGBB color toward black by `amount` (0–1). */
+function shade(hex: string, amount: number) {
+  const value = parseInt(hex.slice(1), 16);
+  const channel = (shift: number) =&gt; Math.round(((value &gt;&gt; shift) &amp; 255) * (1 - amount));
+  return `#${((1 &lt;&lt; 24) | (channel(16) &lt;&lt; 16) | (channel(8) &lt;&lt; 8) | channel(0)).toString(16).slice(1)}`;
+}
+
+function subtitleFor(item: Collection) {
+  if (item.kind === &#39;artist&#39;) return &#39;Artist&#39;;
+  return `${KIND_LABEL[item.kind]} · ${item.owner}`;
+}
+
+function tracksOf(item: Collection) {
+  return item.trackIds.map((id) =&gt; TRACKS.find((track) =&gt; track.id === id)!);
+}
+
+function Artwork({
+  art,
+  size,
+  label,
+  round = false,
+  radius = 4,
+}: {
+  art: ArtworkStyle;
+  size: number;
+  label: string;
+  round?: boolean;
+  radius?: number;
+}) {
+  return (
+    &lt;Block
+      p={0}
+      bg={art.background}
+      radius={round ? size : radius}
+      accessibilityLabel={`${label} artwork`}
+      w={size}
+      h={size}
+      overflow=&quot;hidden&quot;
+      shrink={0}
+    &gt;
+      &lt;Block
+        direction=&quot;row&quot;
+        position=&quot;absolute&quot;
+        w={size * 0.86}
+        h={size * 0.86}
+        radius={size}
+        bg={art.accent}
+        top={-size * 0.28}
+        right={-size * 0.24}
+        opacity={0.86}
+      /&gt;
+      &lt;Block
+        direction=&quot;row&quot;
+        position=&quot;absolute&quot;
+        w={size * 0.7}
+        h={size * 0.7}
+        radius={size}
+        borderWidth={Math.max(2, size * 0.025)}
+        borderColor={art.detail}
+        bottom={-size * 0.18}
+        left={-size * 0.14}
+        opacity={0.75}
+      /&gt;
+      &lt;Text
+        c={art.detail}
+        size={Math.max(14, size * 0.38)}
+        fw=&quot;bold&quot;
+        position=&quot;absolute&quot;
+        bottom={size * 0.1}
+        right={size * 0.13}
+        lh={size * 0.48}
+      &gt;
+        {art.glyph}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function LikedArt({ size }: { size: number }) {
+  return (
+    &lt;Gradient
+      colors={[&#39;#450AF5&#39;, &#39;#8E8EE5&#39;]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      w={size}
+      h={size}
+      radius={4}
+      align=&quot;center&quot;
+      justify=&quot;center&quot;
+      accessibilityLabel=&quot;Liked Songs artwork&quot;
+    &gt;
+      &lt;IconHeartFilled size={size * 0.38} color={C.white} /&gt;
+    &lt;/Gradient&gt;
+  );
+}
+
+function Avatar({ size = 32 }: { size?: number }) {
+  return (
+    &lt;Block bg=&quot;#F59B23&quot; radius={size} w={size} h={size} p={0} align=&quot;center&quot; justify=&quot;center&quot; shrink={0}&gt;
+      &lt;Text c={C.black} fw=&quot;bold&quot; size={size * 0.45}&gt;
+        A
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function Pill({ label, active, onPress }: { label: string; active: boolean; onPress: () =&gt; void }) {
+  return (
+    &lt;Block
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      bg={active ? C.green : C.tile}
+      radius={16}
+      px={14}
+      h={32}
+      justify=&quot;center&quot;
+      p={0}
+      shrink={0}
+    &gt;
+      &lt;Text c={active ? C.black : C.white} size={13} fw=&quot;medium&quot;&gt;
+        {label}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function PlayButton({
+  playing,
+  label,
+  onPress,
+  size = 48,
+}: {
+  playing: boolean;
+  label: string;
+  onPress: () =&gt; void;
+  size?: number;
+}) {
+  return (
+    &lt;IconButton
+      icon={playing ? IconPlayerPauseFilled : IconPlayerPlayFilled}
+      variant=&quot;filled&quot;
+      color={C.green}
+      iconColor={C.black}
+      radius=&quot;full&quot;
+      size={size}
+      iconSize={Math.round(size * 0.45)}
+      accessibilityLabel={`${playing ? &#39;Pause&#39; : &#39;Play&#39;} ${label}`}
+      onPress={onPress}
+    /&gt;
+  );
+}
+
+function Ghost({
+  icon,
+  label,
+  onPress,
+  color = C.muted,
+  size = 24,
+}: {
+  icon: Parameters&lt;typeof IconButton&gt;[0][&#39;icon&#39;];
+  label: string;
+  onPress?: () =&gt; void;
+  color?: string;
+  size?: number;
+}) {
+  return (
+    &lt;IconButton
+      icon={icon}
+      variant=&quot;ghost&quot;
+      iconColor={color}
+      iconSize={size}
+      accessibilityLabel={label}
+      onPress={onPress ?? (() =&gt; {})}
+    /&gt;
+  );
+}
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return (
+    &lt;Text c={C.white} fw=&quot;bold&quot; size={22} px={16}&gt;
+      {children}
+    &lt;/Text&gt;
+  );
+}
+
+function TrackRow({
+  track,
+  index,
+  active,
+  liked,
+  showArt,
+  numbered,
+  onPlay,
+  onLike,
+}: {
+  track: Track;
+  index: number;
+  active: boolean;
+  liked: boolean;
+  showArt: boolean;
+  numbered: boolean;
+  onPlay: () =&gt; void;
+  onLike: () =&gt; void;
+}) {
+  return (
+    &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={4} pl={16} pr={4} h={64}&gt;
+      &lt;Block
+        onPress={onPlay}
+        accessibilityRole=&quot;button&quot;
+        accessibilityLabel={`Play ${track.title} by ${track.artist}`}
+        direction=&quot;row&quot;
+        align=&quot;center&quot;
+        gap={12}
+        flex={1}
+        miw={0}
+        h=&quot;100%&quot;
+      &gt;
+        {numbered &amp;&amp; (
+          &lt;Text c={active ? C.green : C.muted} size={15} w={20} ta=&quot;center&quot;&gt;
+            {String(index + 1)}
+          &lt;/Text&gt;
+        )}
+        {showArt &amp;&amp; &lt;Artwork art={track.art} size={48} label={track.title} radius={2} /&gt;}
+        &lt;Block direction=&quot;column&quot; gap={2} flex={1} miw={0}&gt;
+          &lt;Text c={active ? C.green : C.white} size={16} numberOfLines={1}&gt;
+            {track.title}
+          &lt;/Text&gt;
+          &lt;Row align=&quot;center&quot; gap={6}&gt;
+            {active &amp;&amp; &lt;IconVolume size={14} color={C.green} /&gt;}
+            &lt;Text c={C.muted} size={13} numberOfLines={1}&gt;
+              {track.artist}
+            &lt;/Text&gt;
+          &lt;/Row&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      &lt;Ghost
+        icon={liked ? IconCircleCheckFilled : IconCirclePlus}
+        color={liked ? C.green : C.muted}
+        label={liked ? `Remove ${track.title} from Liked Songs` : `Save ${track.title} to Liked Songs`}
+        onPress={onLike}
+      /&gt;
+      &lt;Ghost icon={IconDots} label={`More options for ${track.title}`} size={20} /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function CollectionTile({
+  item,
+  size,
+  onPress,
+}: {
+  item: Collection;
+  size: number;
+  onPress: () =&gt; void;
+}) {
+  const round = item.kind === &#39;artist&#39;;
+  return (
+    &lt;Block
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={`Open ${item.title}`}
+      w={size}
+      gap={8}
+      direction=&quot;column&quot;
+    &gt;
+      &lt;Artwork art={item.art} size={size} label={item.title} round={round} /&gt;
+      &lt;Text c={round ? C.white : C.muted} fw={round ? &#39;semibold&#39; : &#39;normal&#39;} size={13} numberOfLines={2} ta={round ? &#39;center&#39; : &#39;left&#39;}&gt;
+        {round ? item.title : `${item.subtitle}`}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function Shelf({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    &lt;Block direction=&quot;column&quot; gap={12}&gt;
+      &lt;SectionTitle&gt;{title}&lt;/SectionTitle&gt;
+      &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} contentProps={{ direction: &#39;row&#39;, gap: 16, px: 16 }}&gt;
+        {children}
+      &lt;/ScrollArea&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function MusicScreen() {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const desktop = width &gt;= 800;
+  const pageWidth = desktop ? Math.min(width - 260 - 16, 1040) : width;
+  const playlist = useAudioPlaylist({ sources: SOURCES, updateInterval: 350, loop: &#39;all&#39; });
+  const status = useAudioPlaylistStatus(playlist);
+  const [queue, setQueue] = useState&lt;number[]&gt;(ALL_INDICES);
+  const [contextId, setContextId] = useState&lt;string&gt;(COLLECTIONS[0].id);
+  const [section, setSection] = useState&lt;Section&gt;(&#39;home&#39;);
+  const [collectionId, setCollectionId] = useState&lt;string | null&gt;(null);
+  const [query, setQuery] = useState(&#39;&#39;);
+  const [homeChip, setHomeChip] = useState&lt;(typeof HOME_CHIPS)[number]&gt;(&#39;All&#39;);
+  const [filter, setFilter] = useState&lt;LibraryFilter&gt;(null);
+  const [sortAlpha, setSortAlpha] = useState(false);
+  const [grid, setGrid] = useState(false);
+  const [saved, setSaved] = useState&lt;Set&lt;string&gt;&gt;(() =&gt; new Set([&#39;road-trip&#39;]));
+  const [liked, setLiked] = useState&lt;Set&lt;string&gt;&gt;(() =&gt; new Set([&#39;golden-hour&#39;, &#39;blue-apartment&#39;]));
+  const [likesReady, setLikesReady] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [seekPreview, setSeekPreview] = useState&lt;number | null&gt;(null);
+  const [shuffle, setShuffle] = useState(false);
+  const [repeat, setRepeat] = useState&lt;RepeatMode&gt;(&#39;all&#39;);
+
+  useEffect(() =&gt; {
+    AsyncStorage.getItem(LIKES_KEY)
+      .then((stored) =&gt; {
+        if (stored) {
+          const ids: unknown = JSON.parse(stored);
+          if (Array.isArray(ids)) setLiked(new Set(ids.filter((id): id is string =&gt; typeof id === &#39;string&#39;)));
+        }
+      })
+      .catch(() =&gt; {})
+      .finally(() =&gt; setLikesReady(true));
+  }, []);
+  useEffect(() =&gt; {
+    if (likesReady) AsyncStorage.setItem(LIKES_KEY, JSON.stringify([...liked])).catch(() =&gt; {});
+  }, [liked, likesReady]);
+
+  const activeIndex = queue[status.currentIndex] ?? 0;
+  const activeTrack = TRACKS[activeIndex];
+  const likedTracks = TRACKS.filter((track) =&gt; liked.has(track.id));
+  const likedCollection: Collection = {
+    id: LIKED_ID,
+    kind: &#39;playlist&#39;,
+    title: &#39;Liked Songs&#39;,
+    owner: &#39;You&#39;,
+    subtitle: `${likedTracks.length} songs`,
+    description: &#39;Songs you saved.&#39;,
+    trackIds: likedTracks.map((track) =&gt; track.id),
+    art: LIKED_ART,
+  };
+  const collection =
+    collectionId === LIKED_ID ? likedCollection : ALL_COLLECTIONS.find((item) =&gt; item.id === collectionId) ?? null;
+  const contextTitle =
+    contextId === LIKED_ID ? &#39;Liked Songs&#39; : ALL_COLLECTIONS.find((item) =&gt; item.id === contextId)?.title ?? &#39;Your music&#39;;
+  const duration = status.duration &gt; 0 ? status.duration : activeTrack.seconds;
+  const currentTime = Math.min(status.currentTime, duration);
+  const progress = Math.max(0, Math.min(100, (currentTime / Math.max(duration, 1)) * 100));
+
+  const searchResults = useMemo(() =&gt; {
+    const term = query.trim().toLowerCase();
+    return term
+      ? TRACKS.filter((track) =&gt;
+          [track.title, track.artist, track.album, track.genre].some((value) =&gt; value.toLowerCase().includes(term)),
+        )
+      : [];
+  }, [query]);
+
+  const libraryItems = useMemo(() =&gt; {
+    const items = LIBRARY.filter((item) =&gt;
+      !filter ? true : filter === &#39;downloaded&#39; ? item.downloaded : item.kind === filter,
+    );
+    return sortAlpha ? [...items].sort((a, b) =&gt; a.title.localeCompare(b.title)) : items;
+  }, [filter, sortAlpha]);
+
+  function selectSection(next: string) {
+    setSection(next as Section);
+    setCollectionId(null);
+    setExpanded(false);
+  }
+
+  function playTrack(index: number, context: number[] = ALL_INDICES, id = &#39;all&#39;) {
+    const sameQueue = context.length === queue.length &amp;&amp; context.every((item, position) =&gt; item === queue[position]);
+    if (!sameQueue) {
+      playlist.clear();
+      context.forEach((item) =&gt; playlist.add(TRACKS[item].source));
+      setQueue(context);
+    }
+    setContextId(id);
+    const nextIndex = context.indexOf(index);
+    if (nextIndex &gt;= 0) {
+      if (sameQueue &amp;&amp; nextIndex === status.currentIndex) void playlist.seekTo(0);
+      else playlist.skipTo(nextIndex);
+      playlist.play();
+      setSeekPreview(null);
+    }
+  }
+
+  function isPlaying(id: string) {
+    return contextId === id &amp;&amp; status.playing;
+  }
+
+  /** Play a collection from the top (or a random track when shuffling), or pause/resume it if it&#39;s current. */
+  function playCollection(item: Collection) {
+    if (contextId === item.id) return togglePlay();
+    const indices = tracksOf(item).map((track) =&gt; TRACKS.indexOf(track));
+    if (!indices.length) return;
+    const start = shuffle ? indices[Math.floor(Math.random() * indices.length)] : indices[0];
+    playTrack(start, indices, item.id);
+  }
+
+  function togglePlay() {
+    if (status.playing) playlist.pause();
+    else playlist.play();
+  }
+
+  function nextTrack() {
+    if (shuffle &amp;&amp; queue.length &gt; 1) {
+      const options = queue.map((_, position) =&gt; position).filter((position) =&gt; position !== status.currentIndex);
+      playlist.skipTo(options[Math.floor(Math.random() * options.length)]);
+    } else playlist.next();
+    playlist.play();
+    setSeekPreview(null);
+  }
+
+  function previousTrack() {
+    if (status.currentTime &gt; 3) void playlist.seekTo(0);
+    else playlist.previous();
+    playlist.play();
+    setSeekPreview(null);
+  }
+
+  function cycleRepeat() {
+    const next: RepeatMode = repeat === &#39;none&#39; ? &#39;all&#39; : repeat === &#39;all&#39; ? &#39;single&#39; : &#39;none&#39;;
+    playlist.loop = next;
+    setRepeat(next);
+  }
+
+  function toggleIn(setter: typeof setLiked, id: string) {
+    setter((current) =&gt; {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function renderTracks(tracks: Track[], contextKey: string, options: { showArt?: boolean; numbered?: boolean } = {}) {
+    const indices = tracks.map((track) =&gt; TRACKS.indexOf(track));
+    return tracks.map((track, index) =&gt; (
+      &lt;TrackRow
+        key={track.id}
+        track={track}
+        index={index}
+        active={activeIndex === indices[index] &amp;&amp; contextId === contextKey}
+        liked={liked.has(track.id)}
+        showArt={options.showArt ?? true}
+        numbered={options.numbered ?? false}
+        onPlay={() =&gt; playTrack(indices[index], indices, contextKey)}
+        onLike={() =&gt; toggleIn(setLiked, track.id)}
+      /&gt;
+    ));
+  }
+
+  function renderCollection(item: Collection) {
+    const tracks = tracksOf(item);
+    const artist = item.kind === &#39;artist&#39;;
+    const seconds = tracks.reduce((total, track) =&gt; total + track.seconds, 0);
+    const artSize = Math.min(pageWidth - 140, 260);
+    return (
+      &lt;Block direction=&quot;column&quot; gap={0}&gt;
+        &lt;Gradient colors={[shade(item.art.background, 0.25), C.background]} pt={8} pb={16} px={16} gap={16}&gt;
+          &lt;Row&gt;
+            &lt;Ghost icon={IconArrowLeft} color={C.white} label=&quot;Back&quot; onPress={() =&gt; setCollectionId(null)} /&gt;
+          &lt;/Row&gt;
+          &lt;Row justify=&quot;center&quot;&gt;
+            {item.id === LIKED_ID ? (
+              &lt;LikedArt size={artSize} /&gt;
+            ) : (
+              &lt;Artwork art={item.art} size={artSize} label={item.title} round={artist} /&gt;
+            )}
+          &lt;/Row&gt;
+          &lt;Block direction=&quot;column&quot; gap={8}&gt;
+            &lt;Text c={C.white} fw=&quot;bold&quot; size={artist ? 32 : 24} ta={artist ? &#39;center&#39; : &#39;left&#39;}&gt;
+              {item.title}
+            &lt;/Text&gt;
+            {artist ? (
+              &lt;Text c={C.muted} size={13} ta=&quot;center&quot;&gt;
+                {(12_400 + item.title.length * 3_115).toLocaleString(&#39;en-US&#39;)} monthly listeners
+              &lt;/Text&gt;
+            ) : (
+              &lt;&gt;
+                {item.kind === &#39;playlist&#39; &amp;&amp; item.id !== LIKED_ID &amp;&amp; (
+                  &lt;Text c={C.muted} size={13}&gt;
+                    {item.description}
+                  &lt;/Text&gt;
+                )}
+                &lt;Row align=&quot;center&quot; gap={8}&gt;
+                  {item.owner === &#39;You&#39; ? &lt;Avatar size={22} /&gt; : &lt;Artwork art={item.art} size={22} label={item.owner} round /&gt;}
+                  &lt;Text c={C.white} fw=&quot;bold&quot; size={13}&gt;
+                    {item.owner}
+                  &lt;/Text&gt;
+                &lt;/Row&gt;
+                &lt;Text c={C.muted} size={13}&gt;
+                  {KIND_LABEL[item.kind]} · {tracks.length} {tracks.length === 1 ? &#39;song&#39; : &#39;songs&#39;} · {formatTime(seconds)}
+                &lt;/Text&gt;
+              &lt;/&gt;
+            )}
+          &lt;/Block&gt;
+          &lt;Row fullWidth align=&quot;center&quot; justify=&quot;space-between&quot;&gt;
+            &lt;Row align=&quot;center&quot; gap={4} ml={-8}&gt;
+              {artist ? (
+                &lt;Block
+                  onPress={() =&gt; toggleIn(setSaved, item.id)}
+                  accessibilityRole=&quot;button&quot;
+                  accessibilityLabel={saved.has(item.id) ? `Unfollow ${item.title}` : `Follow ${item.title}`}
+                  radius={16}
+                  px={16}
+                  h={32}
+                  p={0}
+                  justify=&quot;center&quot;
+                  ml={8}
+                  bg=&quot;transparent&quot;
+                  borderWidth={1}
+                  borderColor={C.subdued}
+                &gt;
+                  &lt;Text c={C.white} fw=&quot;bold&quot; size={13}&gt;
+                    {saved.has(item.id) ? &#39;Following&#39; : &#39;Follow&#39;}
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              ) : (
+                &lt;&gt;
+                  &lt;Ghost
+                    icon={saved.has(item.id) || item.id === LIKED_ID ? IconCircleCheckFilled : IconCirclePlus}
+                    color={saved.has(item.id) || item.id === LIKED_ID ? C.green : C.muted}
+                    label={saved.has(item.id) ? &#39;Remove from Your Library&#39; : &#39;Save to Your Library&#39;}
+                    onPress={() =&gt; toggleIn(setSaved, item.id)}
+                  /&gt;
+                  &lt;Ghost
+                    icon={IconDownload}
+                    color={item.downloaded ? C.green : C.muted}
+                    label={item.downloaded ? &#39;Downloaded&#39; : &#39;Download&#39;}
+                  /&gt;
+                &lt;/&gt;
+              )}
+              &lt;Ghost icon={IconDots} label={`More options for ${item.title}`} /&gt;
+            &lt;/Row&gt;
+            &lt;Row align=&quot;center&quot; gap={12}&gt;
+              &lt;Ghost
+                icon={IconArrowsShuffle}
+                color={shuffle ? C.green : C.muted}
+                size={26}
+                label={shuffle ? &#39;Turn off shuffle&#39; : &#39;Turn on shuffle&#39;}
+                onPress={() =&gt; setShuffle((value) =&gt; !value)}
+              /&gt;
+              &lt;PlayButton playing={isPlaying(item.id)} label={item.title} size={56} onPress={() =&gt; playCollection(item)} /&gt;
+            &lt;/Row&gt;
+          &lt;/Row&gt;
+        &lt;/Gradient&gt;
+        {artist &amp;&amp; (
+          &lt;Text c={C.white} fw=&quot;bold&quot; size={20} px={16} pb={4}&gt;
+            Popular
+          &lt;/Text&gt;
+        )}
+        {tracks.length ? (
+          renderTracks(tracks, item.id, { showArt: item.kind !== &#39;album&#39;, numbered: artist })
+        ) : (
+          &lt;Block direction=&quot;column&quot; gap={6} p={32} align=&quot;center&quot;&gt;
+            &lt;Text c={C.white} fw=&quot;bold&quot; size={18}&gt;
+              Songs you like will appear here
+            &lt;/Text&gt;
+            &lt;Text c={C.muted} size={13} ta=&quot;center&quot;&gt;
+              Save songs by tapping the plus icon.
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        )}
+      &lt;/Block&gt;
+    );
+  }
+
+  function renderHome() {
+    const shortcuts = [likedCollection, ...LIBRARY.slice(0, 7)];
+    const tileWidth = Math.floor((pageWidth - 32 - 8) / 2);
+    const featured = COLLECTIONS[0];
+    const showMusic = homeChip !== &#39;Artists&#39;;
+    const showArtists = homeChip !== &#39;Music&#39;;
+    return (
+      &lt;Block direction=&quot;column&quot; gap={28}&gt;
+        &lt;Row align=&quot;center&quot; gap={8} px={16}&gt;
+          {!desktop &amp;&amp; &lt;Avatar /&gt;}
+          {HOME_CHIPS.map((chip) =&gt; (
+            &lt;Pill key={chip} label={chip} active={homeChip === chip} onPress={() =&gt; setHomeChip(chip)} /&gt;
+          ))}
+        &lt;/Row&gt;
+        &lt;Block direction=&quot;row&quot; wrap=&quot;wrap&quot; gap={8} px={16}&gt;
+          {shortcuts.map((item) =&gt; (
+            &lt;Block
+              key={item.id}
+              onPress={() =&gt; setCollectionId(item.id)}
+              accessibilityLabel={`Open ${item.title}`}
+              w={tileWidth}
+              h={56}
+              p={0}
+              radius={4}
+              bg={C.tile}
+              overflow=&quot;hidden&quot;
+              direction=&quot;row&quot;
+              align=&quot;center&quot;
+              gap={8}
+            &gt;
+              {item.id === LIKED_ID ? (
+                &lt;LikedArt size={56} /&gt;
+              ) : (
+                &lt;Artwork art={item.art} size={56} label={item.title} radius={0} /&gt;
+              )}
+              &lt;Text c={C.white} fw=&quot;bold&quot; size={12} numberOfLines={2} flex={1}&gt;
+                {item.title}
+              &lt;/Text&gt;
+              {isPlaying(item.id) &amp;&amp; (
+                &lt;Block pr={8}&gt;
+                  &lt;IconVolume size={16} color={C.green} /&gt;
+                &lt;/Block&gt;
+              )}
+            &lt;/Block&gt;
+          ))}
+        &lt;/Block&gt;
+        {showMusic &amp;&amp; (
+          &lt;Block direction=&quot;column&quot; gap={12} px={16}&gt;
+            &lt;Text c={C.muted} size={13}&gt;
+              Picked for your morning
+            &lt;/Text&gt;
+            &lt;Block bg={C.tile} radius={8} p={0} overflow=&quot;hidden&quot;&gt;
+              &lt;Row gap={0}&gt;
+                &lt;Artwork art={featured.art} size={136} label={featured.title} radius={0} /&gt;
+                &lt;Block direction=&quot;column&quot; flex={1} p={12} gap={4} justify=&quot;space-between&quot;&gt;
+                  &lt;Block direction=&quot;column&quot; gap={4}&gt;
+                    &lt;Text c={C.white} fw=&quot;bold&quot; size={16} numberOfLines={1}&gt;
+                      {featured.title}
+                    &lt;/Text&gt;
+                    &lt;Text c={C.muted} size={12} numberOfLines={2}&gt;
+                      {featured.description}
+                    &lt;/Text&gt;
+                  &lt;/Block&gt;
+                  &lt;Row fullWidth align=&quot;center&quot; justify=&quot;space-between&quot;&gt;
+                    &lt;Ghost
+                      icon={saved.has(featured.id) ? IconCircleCheckFilled : IconCirclePlus}
+                      color={saved.has(featured.id) ? C.green : C.muted}
+                      label={saved.has(featured.id) ? &#39;Remove from Your Library&#39; : &#39;Save to Your Library&#39;}
+                      onPress={() =&gt; toggleIn(setSaved, featured.id)}
+                    /&gt;
+                    &lt;PlayButton
+                      playing={isPlaying(featured.id)}
+                      label={featured.title}
+                      size={40}
+                      onPress={() =&gt; playCollection(featured)}
+                    /&gt;
+                  &lt;/Row&gt;
+                &lt;/Block&gt;
+              &lt;/Row&gt;
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        )}
+        {showMusic &amp;&amp; (
+          &lt;Shelf title=&quot;Made for you&quot;&gt;
+            {COLLECTIONS.map((item) =&gt; (
+              &lt;CollectionTile key={item.id} item={item} size={150} onPress={() =&gt; setCollectionId(item.id)} /&gt;
+            ))}
+          &lt;/Shelf&gt;
+        )}
+        {showArtists &amp;&amp; (
+          &lt;Shelf title=&quot;Your favorite artists&quot;&gt;
+            {ARTISTS.map((item) =&gt; (
+              &lt;CollectionTile key={item.id} item={item} size={130} onPress={() =&gt; setCollectionId(item.id)} /&gt;
+            ))}
+          &lt;/Shelf&gt;
+        )}
+        {showMusic &amp;&amp; (
+          &lt;Shelf title=&quot;Your playlists&quot;&gt;
+            {USER_PLAYLISTS.map((item) =&gt; (
+              &lt;CollectionTile key={item.id} item={item} size={150} onPress={() =&gt; setCollectionId(item.id)} /&gt;
+            ))}
+          &lt;/Shelf&gt;
+        )}
+      &lt;/Block&gt;
+    );
+  }
+
+  function renderSearch() {
+    const categories = [...COLLECTIONS, ...USER_PLAYLISTS];
+    const tileWidth = Math.floor((pageWidth - 32 - 12) / 2);
+    const term = query.trim().toLowerCase();
+    const matches = term ? ALL_COLLECTIONS.filter((item) =&gt; item.title.toLowerCase().includes(term)) : [];
+    return (
+      &lt;Block direction=&quot;column&quot; gap={20}&gt;
+        &lt;Row fullWidth align=&quot;center&quot; gap={12} px={16}&gt;
+          {!desktop &amp;&amp; &lt;Avatar /&gt;}
+          &lt;Text c={C.white} fw=&quot;bold&quot; size={24}&gt;
+            Search
+          &lt;/Text&gt;
+        &lt;/Row&gt;
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={10} mx={16} px={12} h={48} radius={6} bg={C.white}&gt;
+          &lt;IconSearch size={22} color={C.black} /&gt;
+          &lt;Block flex={1}&gt;
+            &lt;Input
+              value={query}
+              onChangeText={setQuery}
+              placeholder=&quot;What do you want to listen to?&quot;
+              variant=&quot;unstyled&quot;
+              inputColor={C.black}
+              inputFontSize={15}
+              accessibilityLabel=&quot;Search songs, artists, and playlists&quot;
+            /&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+        {term ? (
+          &lt;Block direction=&quot;column&quot; gap={0}&gt;
+            {matches.map(renderLibraryRow)}
+            {renderTracks(searchResults, &#39;search&#39;)}
+            {!matches.length &amp;&amp; !searchResults.length &amp;&amp; (
+              &lt;Block direction=&quot;column&quot; gap={6} p={32} align=&quot;center&quot;&gt;
+                &lt;Text c={C.white} fw=&quot;bold&quot; size={18} ta=&quot;center&quot;&gt;
+                  {`Couldn&#39;t find &quot;${query.trim()}&quot;`}
+                &lt;/Text&gt;
+                &lt;Text c={C.muted} size={13} ta=&quot;center&quot;&gt;
+                  Try searching again using a different spelling or keyword.
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+            )}
+          &lt;/Block&gt;
+        ) : (
+          &lt;Block direction=&quot;column&quot; gap={12} px={16}&gt;
+            &lt;Text c={C.white} fw=&quot;bold&quot; size={16}&gt;
+              Browse all
+            &lt;/Text&gt;
+            &lt;Block direction=&quot;row&quot; wrap=&quot;wrap&quot; gap={12}&gt;
+              {categories.map((item) =&gt; (
+                &lt;Block
+                  key={item.id}
+                  onPress={() =&gt; setCollectionId(item.id)}
+                  accessibilityLabel={`Browse ${item.title}`}
+                  w={tileWidth}
+                  h={96}
+                  radius={6}
+                  bg={shade(item.art.background, 0.15)}
+                  p={12}
+                  overflow=&quot;hidden&quot;
+                &gt;
+                  &lt;Text c={C.white} fw=&quot;bold&quot; size={16} maw={tileWidth - 70}&gt;
+                    {item.title}
+                  &lt;/Text&gt;
+                  &lt;Block position=&quot;absolute&quot; right={-14} bottom={-8}&gt;
+                    &lt;Artwork art={item.art} size={68} label={item.title} /&gt;
+                  &lt;/Block&gt;
+                &lt;/Block&gt;
+              ))}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        )}
+      &lt;/Block&gt;
+    );
+  }
+
+  function renderLibraryRow(item: Collection) {
+    const playingHere = contextId === item.id;
+    return (
+      &lt;Block
+        key={item.id}
+        onPress={() =&gt; setCollectionId(item.id)}
+        accessibilityRole=&quot;button&quot;
+        accessibilityLabel={`Open ${item.title}`}
+        direction=&quot;row&quot;
+        align=&quot;center&quot;
+        gap={12}
+        px={16}
+        py={8}
+      &gt;
+        {item.id === LIKED_ID ? (
+          &lt;LikedArt size={64} /&gt;
+        ) : (
+          &lt;Artwork art={item.art} size={64} label={item.title} round={item.kind === &#39;artist&#39;} /&gt;
+        )}
+        &lt;Block direction=&quot;column&quot; gap={4} flex={1} miw={0}&gt;
+          &lt;Text c={playingHere ? C.green : C.white} size={16} numberOfLines={1}&gt;
+            {item.title}
+          &lt;/Text&gt;
+          &lt;Row align=&quot;center&quot; gap={6}&gt;
+            {item.id === LIKED_ID &amp;&amp; &lt;IconPinFilled size={14} color={C.green} /&gt;}
+            {item.downloaded &amp;&amp; &lt;IconDownload size={14} color={C.green} /&gt;}
+            &lt;Text c={C.muted} size={13} numberOfLines={1}&gt;
+              {item.id === LIKED_ID ? `Playlist · ${likedTracks.length} songs` : subtitleFor(item)}
+            &lt;/Text&gt;
+          &lt;/Row&gt;
+        &lt;/Block&gt;
+        {playingHere &amp;&amp; status.playing &amp;&amp; &lt;IconVolume size={18} color={C.green} /&gt;}
+      &lt;/Block&gt;
+    );
+  }
+
+  function renderLibrary() {
+    const items = filter &amp;&amp; filter !== &#39;playlist&#39; ? libraryItems : [likedCollection, ...libraryItems];
+    const tileWidth = Math.floor((pageWidth - 32 - 32) / 3);
+    return (
+      &lt;Block direction=&quot;column&quot; gap={12}&gt;
+        &lt;Row fullWidth align=&quot;center&quot; gap={12} px={16}&gt;
+          {!desktop &amp;&amp; &lt;Avatar /&gt;}
+          &lt;Text c={C.white} fw=&quot;bold&quot; size={24} flex={1}&gt;
+            Your Library
+          &lt;/Text&gt;
+          &lt;Ghost icon={IconSearch} color={C.white} label=&quot;Search in Your Library&quot; onPress={() =&gt; selectSection(&#39;search&#39;)} /&gt;
+          &lt;Ghost icon={IconPlus} color={C.white} label=&quot;Create playlist&quot; /&gt;
+        &lt;/Row&gt;
+        &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} contentProps={{ direction: &#39;row&#39;, gap: 8, px: 16 }}&gt;
+          {filter &amp;&amp; (
+            &lt;Block
+              onPress={() =&gt; setFilter(null)}
+              accessibilityRole=&quot;button&quot;
+              accessibilityLabel=&quot;Clear filter&quot;
+              bg={C.tile}
+              radius={16}
+              w={32}
+              h={32}
+              p={0}
+              align=&quot;center&quot;
+              justify=&quot;center&quot;
+            &gt;
+              &lt;IconX size={16} color={C.white} /&gt;
+            &lt;/Block&gt;
+          )}
+          {FILTERS.filter((item) =&gt; !filter || item.key === filter).map((item) =&gt; (
+            &lt;Pill
+              key={item.key}
+              label={item.label}
+              active={filter === item.key}
+              onPress={() =&gt; setFilter(filter === item.key ? null : item.key)}
+            /&gt;
+          ))}
+        &lt;/ScrollArea&gt;
+        &lt;Row fullWidth align=&quot;center&quot; justify=&quot;space-between&quot; pl={8} pr={4}&gt;
+          &lt;Block
+            onPress={() =&gt; setSortAlpha((value) =&gt; !value)}
+            accessibilityRole=&quot;button&quot;
+            accessibilityLabel={`Sort by ${sortAlpha ? &#39;recents&#39; : &#39;alphabetical&#39;}`}
+            bg=&quot;transparent&quot;
+            p={8}
+            direction=&quot;row&quot;
+            align=&quot;center&quot;
+            gap={8}
+          &gt;
+            &lt;IconArrowsSort size={16} color={C.white} /&gt;
+            &lt;Text c={C.white} size={13} fw=&quot;medium&quot;&gt;
+              {sortAlpha ? &#39;Alphabetical&#39; : &#39;Recents&#39;}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;Ghost
+            icon={grid ? IconList : IconLayoutGrid}
+            color={C.white}
+            size={18}
+            label={grid ? &#39;Show as list&#39; : &#39;Show as grid&#39;}
+            onPress={() =&gt; setGrid((value) =&gt; !value)}
+          /&gt;
+        &lt;/Row&gt;
+        {grid ? (
+          &lt;Block direction=&quot;row&quot; wrap=&quot;wrap&quot; gap={16} px={16}&gt;
+            {items.map((item) =&gt; (
+              &lt;Block
+                key={item.id}
+                onPress={() =&gt; setCollectionId(item.id)}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel={`Open ${item.title}`}
+                w={tileWidth}
+                direction=&quot;column&quot;
+                gap={6}
+              &gt;
+                {item.id === LIKED_ID ? (
+                  &lt;LikedArt size={tileWidth} /&gt;
+                ) : (
+                  &lt;Artwork art={item.art} size={tileWidth} label={item.title} round={item.kind === &#39;artist&#39;} /&gt;
+                )}
+                &lt;Block direction=&quot;column&quot; gap={2}&gt;
+                  &lt;Text c={contextId === item.id ? C.green : C.white} size={13} numberOfLines={1}&gt;
+                    {item.title}
+                  &lt;/Text&gt;
+                  &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+                    {item.id === LIKED_ID ? `${likedTracks.length} songs` : subtitleFor(item)}
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              &lt;/Block&gt;
+            ))}
+          &lt;/Block&gt;
+        ) : (
+          &lt;Block direction=&quot;column&quot; gap={0}&gt;
+            {items.map(renderLibraryRow)}
+          &lt;/Block&gt;
+        )}
+      &lt;/Block&gt;
+    );
+  }
+
+  function renderContent() {
+    if (collection) return renderCollection(collection);
+    if (section === &#39;search&#39;) return renderSearch();
+    if (section === &#39;library&#39;) return renderLibrary();
+    return renderHome();
+  }
+
+  if (expanded) {
+    const artSize = Math.min(width - 48, 420);
+    const isLiked = liked.has(activeTrack.id);
+    return (
+      &lt;Gradient
+        colors={[shade(activeTrack.art.background, 0.3), shade(activeTrack.art.background, 0.75), C.background]}
+        locations={[0, 0.55, 1]}
+        flex={1}
+        pt={insets.top + 8}
+        pb={insets.bottom + 20}
+        px={24}
+        align=&quot;center&quot;
+      &gt;
+        &lt;StatusBar barStyle=&quot;light-content&quot; /&gt;
+        &lt;Block direction=&quot;column&quot; flex={1} w=&quot;100%&quot; maw={480} gap={0}&gt;
+          &lt;Row fullWidth align=&quot;center&quot; justify=&quot;space-between&quot; ml={-8} mr={-8}&gt;
+            &lt;Ghost icon={IconChevronDown} color={C.white} label=&quot;Close now playing&quot; onPress={() =&gt; setExpanded(false)} /&gt;
+            &lt;Block direction=&quot;column&quot; align=&quot;center&quot; gap={0} flex={1} miw={0}&gt;
+              &lt;Text c={C.white} size={10} lts={1} tt=&quot;uppercase&quot;&gt;
+                Playing from {contextId === &#39;search&#39; ? &#39;search&#39; : contextId === LIKED_ID ? &#39;your library&#39; : &#39;playlist&#39;}
+              &lt;/Text&gt;
+              &lt;Text c={C.white} fw=&quot;bold&quot; size={13} numberOfLines={1}&gt;
+                {contextId === &#39;search&#39; ? &#39;Search results&#39; : contextTitle}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+            &lt;Ghost icon={IconDots} color={C.white} label=&quot;More options&quot; /&gt;
+          &lt;/Row&gt;
+          &lt;Block flex={1} align=&quot;center&quot; justify=&quot;center&quot; py={16}&gt;
+            &lt;Artwork art={activeTrack.art} size={artSize} label={activeTrack.title} radius={8} /&gt;
+          &lt;/Block&gt;
+          &lt;Block direction=&quot;column&quot; gap={16}&gt;
+            &lt;Row fullWidth align=&quot;center&quot; gap={12}&gt;
+              &lt;Block direction=&quot;column&quot; gap={2} flex={1} miw={0}&gt;
+                &lt;Text c={C.white} fw=&quot;bold&quot; size={22} numberOfLines={1}&gt;
+                  {activeTrack.title}
+                &lt;/Text&gt;
+                &lt;Text c={C.muted} size={16} numberOfLines={1}&gt;
+                  {activeTrack.artist}
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+              &lt;Ghost
+                icon={isLiked ? IconCircleCheckFilled : IconCirclePlus}
+                color={isLiked ? C.green : C.white}
+                size={28}
+                label={isLiked ? &#39;Remove from Liked Songs&#39; : &#39;Save to Liked Songs&#39;}
+                onPress={() =&gt; toggleIn(setLiked, activeTrack.id)}
+              /&gt;
+            &lt;/Row&gt;
+            &lt;Block direction=&quot;column&quot; gap={2}&gt;
+              &lt;Slider
+                min={0}
+                max={duration}
+                step={0.1}
+                value={seekPreview ?? currentTime}
+                onChange={setSeekPreview}
+                onChangeEnd={(value) =&gt; {
+                  void playlist.seekTo(value);
+                  setSeekPreview(null);
+                }}
+                activeTrackColor={C.white}
+                trackColor=&quot;rgba(255,255,255,0.3)&quot;
+                thumbColor={C.white}
+                trackSize={4}
+                thumbSize={12}
+                tooltip=&quot;never&quot;
+                valueLabel={null}
+                accessibilityLabel=&quot;Playback position&quot;
+              /&gt;
+              &lt;Row fullWidth justify=&quot;space-between&quot;&gt;
+                &lt;Text c={C.muted} size={11}&gt;
+                  {formatTime(seekPreview ?? currentTime)}
+                &lt;/Text&gt;
+                &lt;Text c={C.muted} size={11}&gt;
+                  -{formatTime(duration - (seekPreview ?? currentTime))}
+                &lt;/Text&gt;
+              &lt;/Row&gt;
+            &lt;/Block&gt;
+            &lt;Row fullWidth align=&quot;center&quot; justify=&quot;space-between&quot; ml={-8} mr={-8}&gt;
+              &lt;Ghost
+                icon={IconArrowsShuffle}
+                color={shuffle ? C.green : C.white}
+                size={26}
+                label={shuffle ? &#39;Turn off shuffle&#39; : &#39;Turn on shuffle&#39;}
+                onPress={() =&gt; setShuffle((value) =&gt; !value)}
+              /&gt;
+              &lt;Ghost icon={IconPlayerSkipBackFilled} color={C.white} size={34} label=&quot;Previous track&quot; onPress={previousTrack} /&gt;
+              &lt;IconButton
+                icon={status.playing ? IconPlayerPauseFilled : IconPlayerPlayFilled}
+                variant=&quot;filled&quot;
+                color={C.white}
+                iconColor={C.black}
+                radius=&quot;full&quot;
+                size={68}
+                iconSize={30}
+                accessibilityLabel={status.playing ? &#39;Pause&#39; : &#39;Play&#39;}
+                onPress={togglePlay}
+              /&gt;
+              &lt;Ghost icon={IconPlayerSkipForwardFilled} color={C.white} size={34} label=&quot;Next track&quot; onPress={nextTrack} /&gt;
+              &lt;Ghost
+                icon={repeat === &#39;single&#39; ? IconRepeatOnce : IconRepeat}
+                color={repeat === &#39;none&#39; ? C.white : C.green}
+                size={26}
+                label={`Repeat: ${repeat === &#39;none&#39; ? &#39;off&#39; : repeat === &#39;all&#39; ? &#39;all&#39; : &#39;one&#39;}`}
+                onPress={cycleRepeat}
+              /&gt;
+            &lt;/Row&gt;
+            &lt;Row fullWidth align=&quot;center&quot; justify=&quot;space-between&quot; ml={-8} mr={-8}&gt;
+              &lt;Ghost icon={IconDevicesPc} size={20} label=&quot;Connect to a device&quot; /&gt;
+              &lt;Row gap={8}&gt;
+                &lt;Ghost icon={IconShare} size={20} label=&quot;Share&quot; /&gt;
+                &lt;Ghost icon={IconListDetails} size={20} label=&quot;Queue&quot; /&gt;
+              &lt;/Row&gt;
+            &lt;/Row&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      &lt;/Gradient&gt;
+    );
+  }
+
+  const navBottom = desktop ? 0 : NAV_HEIGHT + insets.bottom;
+  const miniPlayer = (
+    &lt;Block position=&quot;absolute&quot; left={desktop ? 268 : 8} right={8} bottom={navBottom + (desktop ? 8 : MINI_GAP)} align=&quot;center&quot;&gt;
+      &lt;Block
+        bg={shade(activeTrack.art.background, 0.55)}
+        radius={6}
+        p={0}
+        h={MINI_HEIGHT}
+        w=&quot;100%&quot;
+        maw={desktop ? 720 : undefined}
+        overflow=&quot;hidden&quot;
+      &gt;
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} flex={1} pl={8} pr={4}&gt;
+          &lt;Block
+            onPress={() =&gt; setExpanded(true)}
+            accessibilityRole=&quot;button&quot;
+            accessibilityLabel={`Open now playing: ${activeTrack.title} by ${activeTrack.artist}`}
+            direction=&quot;row&quot;
+            align=&quot;center&quot;
+            gap={10}
+            flex={1}
+            miw={0}
+          &gt;
+            &lt;Artwork art={activeTrack.art} size={40} label={activeTrack.title} /&gt;
+            &lt;Block direction=&quot;column&quot; gap={0} flex={1} miw={0}&gt;
+              &lt;Text c={C.white} fw=&quot;bold&quot; size={13} numberOfLines={1}&gt;
+                {activeTrack.title}
+              &lt;/Text&gt;
+              &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+                {activeTrack.artist}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+          &lt;Ghost icon={IconDevicesPc} color={C.muted} size={22} label=&quot;Connect to a device&quot; /&gt;
+          {desktop &amp;&amp; (
+            &lt;Ghost icon={IconPlayerSkipBackFilled} color={C.white} size={22} label=&quot;Previous track&quot; onPress={previousTrack} /&gt;
+          )}
+          &lt;Ghost
+            icon={status.playing ? IconPlayerPauseFilled : IconPlayerPlayFilled}
+            color={C.white}
+            size={26}
+            label={status.playing ? &#39;Pause&#39; : &#39;Play&#39;}
+            onPress={togglePlay}
+          /&gt;
+          {desktop &amp;&amp; (
+            &lt;Ghost icon={IconPlayerSkipForwardFilled} color={C.white} size={22} label=&quot;Next track&quot; onPress={nextTrack} /&gt;
+          )}
+        &lt;/Block&gt;
+        &lt;Block h={2} mx={8} bg=&quot;rgba(255,255,255,0.25)&quot; radius={2}&gt;
+          &lt;Block h={2} w={`${progress}%` as `${number}%`} bg={C.white} radius={2} /&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+
+  return (
+    &lt;Block flex={1} bg={C.background} pt={insets.top} gap={0}&gt;
+      &lt;StatusBar barStyle=&quot;light-content&quot; /&gt;
+      &lt;Block direction=&quot;row&quot; flex={1} mih={0}&gt;
+        {desktop &amp;&amp; (
+          &lt;Block direction=&quot;column&quot; w={260} p={8} gap={8} bg={C.black}&gt;
+            &lt;Block bg={C.background} radius={8} p={8} gap={4}&gt;
+              {(
+                [
+                  [&#39;home&#39;, &#39;Home&#39;, IconHomeFilled],
+                  [&#39;search&#39;, &#39;Search&#39;, IconSearch],
+                  [&#39;library&#39;, &#39;Your Library&#39;, IconBooks],
+                ] as const
+              ).map(([key, label, Glyph]) =&gt; (
+                &lt;Block
+                  key={key}
+                  onPress={() =&gt; selectSection(key)}
+                  accessibilityLabel={label}
+                  bg=&quot;transparent&quot;
+                  p={10}
+                  direction=&quot;row&quot;
+                  align=&quot;center&quot;
+                  gap={16}
+                &gt;
+                  &lt;Glyph size={24} color={section === key ? C.white : C.muted} /&gt;
+                  &lt;Text c={section === key ? C.white : C.muted} fw=&quot;bold&quot; size={15}&gt;
+                    {label}
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              ))}
+            &lt;/Block&gt;
+            &lt;Block bg={C.background} radius={8} p={0} flex={1} overflow=&quot;hidden&quot;&gt;
+              &lt;ScrollArea contentProps={{ py: 8 }}&gt;
+                {[likedCollection, ...LIBRARY].map(renderLibraryRow)}
+              &lt;/ScrollArea&gt;
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        )}
+        &lt;ScrollArea
+          flex={1}
+          contentProps={{ pt: collection ? 0 : 12, pb: MINI_HEIGHT + navBottom + MINI_GAP + 24, align: &#39;center&#39; }}
+        &gt;
+          &lt;Block direction=&quot;column&quot; w=&quot;100%&quot; maw={1040} gap={0}&gt;
+            {renderContent()}
+          &lt;/Block&gt;
+        &lt;/ScrollArea&gt;
+      &lt;/Block&gt;
+      {miniPlayer}
+      {!desktop &amp;&amp; (
+        &lt;BottomAppBar
+          accessibilityLabel=&quot;Main&quot;
+          activeKey={section}
+          onItemPress={selectSection}
+          bg=&quot;rgba(0,0,0,0.92)&quot;
+          withBorder={false}
+          indicator={false}
+          activeColor={C.white}
+          inactiveColor={C.muted}
+          items={[
+            {
+              key: &#39;home&#39;,
+              label: &#39;Home&#39;,
+              icon: ({ active, color }) =&gt;
+                active ? &lt;IconHomeFilled size={26} color={color} /&gt; : &lt;IconHome size={26} color={color} /&gt;,
+            },
+            {
+              key: &#39;search&#39;,
+              label: &#39;Search&#39;,
+              icon: ({ active, color }) =&gt; &lt;IconSearch size={26} color={color} strokeWidth={active ? 2.75 : 2} /&gt;,
+            },
+            {
+              key: &#39;library&#39;,
+              label: &#39;Your Library&#39;,
+              icon: ({ active, color }) =&gt; &lt;IconBooks size={26} color={color} strokeWidth={active ? 2.75 : 2} /&gt;,
+            },
+          ]}
+        /&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;PlocksProvider theme={THEME}&gt;
+        &lt;MusicScreen /&gt;
+      &lt;/PlocksProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</code></pre></section><section id="file-1"><h2>catalog.ts</h2><pre><code>export type ArtworkStyle = {
+  background: string;
+  accent: string;
+  detail: string;
+  glyph: string;
+};
+
+export type Track = {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  genre: string;
+  seconds: number;
+  source: number;
+  art: ArtworkStyle;
+};
+
+export const TRACKS: Track[] = [
+  {
+    id: &#39;golden-hour&#39;, title: &#39;Golden Hour&#39;, artist: &#39;Mira Sol&#39;, album: &#39;Daylight Studies&#39;,
+    genre: &#39;Chill&#39;, seconds: 20, source: require(&#39;./assets/audio/golden-hour.mp3&#39;),
+    art: { background: &#39;#DD9C59&#39;, accent: &#39;#F9DF9E&#39;, detail: &#39;#864E4B&#39;, glyph: &#39;✳&#39; },
+  },
+  {
+    id: &#39;afterglow&#39;, title: &#39;Afterglow&#39;, artist: &#39;Luna Vale&#39;, album: &#39;Blue Hours&#39;,
+    genre: &#39;Chill&#39;, seconds: 21, source: require(&#39;./assets/audio/afterglow.mp3&#39;),
+    art: { background: &#39;#8A84BA&#39;, accent: &#39;#EBC5CF&#39;, detail: &#39;#413E72&#39;, glyph: &#39;✦&#39; },
+  },
+  {
+    id: &#39;night-drive&#39;, title: &#39;Night Drive&#39;, artist: &#39;Lowlight&#39;, album: &#39;City Lines&#39;,
+    genre: &#39;Electronic&#39;, seconds: 17, source: require(&#39;./assets/audio/night-drive.mp3&#39;),
+    art: { background: &#39;#284B64&#39;, accent: &#39;#80D8CE&#39;, detail: &#39;#ED806E&#39;, glyph: &#39;◒&#39; },
+  },
+  {
+    id: &#39;blue-apartment&#39;, title: &#39;Blue Apartment&#39;, artist: &#39;June Ellis&#39;, album: &#39;Rooms&#39;,
+    genre: &#39;Focus&#39;, seconds: 22, source: require(&#39;./assets/audio/blue-apartment.mp3&#39;),
+    art: { background: &#39;#7799AA&#39;, accent: &#39;#E5D5B6&#39;, detail: &#39;#284E68&#39;, glyph: &#39;▣&#39; },
+  },
+  {
+    id: &#39;soft-focus&#39;, title: &#39;Soft Focus&#39;, artist: &#39;Niko Bloom&#39;, album: &#39;Slow Motion&#39;,
+    genre: &#39;Focus&#39;, seconds: 25, source: require(&#39;./assets/audio/soft-focus.mp3&#39;),
+    art: { background: &#39;#7F9581&#39;, accent: &#39;#D6E2A2&#39;, detail: &#39;#405C53&#39;, glyph: &#39;❋&#39; },
+  },
+  {
+    id: &#39;side-streets&#39;, title: &#39;Side Streets&#39;, artist: &#39;The Nova Club&#39;, album: &#39;After Dark&#39;,
+    genre: &#39;Electronic&#39;, seconds: 16, source: require(&#39;./assets/audio/side-streets.mp3&#39;),
+    art: { background: &#39;#B35A5D&#39;, accent: &#39;#FFD18A&#39;, detail: &#39;#512F52&#39;, glyph: &#39;✺&#39; },
+  },
+];
+
+export type CollectionKind = &#39;playlist&#39; | &#39;album&#39; | &#39;artist&#39;;
+
+export type Collection = {
+  id: string;
+  kind: CollectionKind;
+  title: string;
+  owner: string;
+  description: string;
+  subtitle: string;
+  trackIds: string[];
+  art: ArtworkStyle;
+  downloaded?: boolean;
+};
+
+export const COLLECTIONS: Collection[] = [
+  {
+    id: &#39;slow-mornings&#39;, kind: &#39;playlist&#39;, owner: &#39;Made for you&#39;, title: &#39;Slow Mornings&#39;, subtitle: &#39;Made for the softer hours&#39;,
+    description: &#39;Warm chords, open windows, and nowhere else to be.&#39;,
+    trackIds: [&#39;golden-hour&#39;, &#39;afterglow&#39;, &#39;blue-apartment&#39;, &#39;soft-focus&#39;],
+    art: { background: &#39;#B18A70&#39;, accent: &#39;#F3DFAE&#39;, detail: &#39;#657D6A&#39;, glyph: &#39;☼&#39; },
+  },
+  {
+    id: &#39;night-shift&#39;, kind: &#39;playlist&#39;, owner: &#39;Made for you&#39;, title: &#39;Night Shift&#39;, subtitle: &#39;After dark, on repeat&#39;,
+    description: &#39;A little pulse for the way home.&#39;,
+    trackIds: [&#39;night-drive&#39;, &#39;side-streets&#39;, &#39;afterglow&#39;],
+    art: { background: &#39;#364D6A&#39;, accent: &#39;#AFB8E9&#39;, detail: &#39;#E77F82&#39;, glyph: &#39;✦&#39; },
+  },
+  {
+    id: &#39;deep-focus&#39;, kind: &#39;playlist&#39;, owner: &#39;Made for you&#39;, title: &#39;Deep Focus&#39;, subtitle: &#39;Stay in your own lane&#39;,
+    description: &#39;Gentle instrumentals for the things that matter.&#39;,
+    trackIds: [&#39;soft-focus&#39;, &#39;blue-apartment&#39;, &#39;golden-hour&#39;],
+    art: { background: &#39;#547868&#39;, accent: &#39;#CDE7B4&#39;, detail: &#39;#AAC9CF&#39;, glyph: &#39;◌&#39; },
+  },
+  {
+    id: &#39;easy-days&#39;, kind: &#39;playlist&#39;, owner: &#39;Made for you&#39;, title: &#39;Easy Days&#39;, subtitle: &#39;Keep the good mood going&#39;,
+    description: &#39;Light, unhurried sounds for a day with room to breathe.&#39;,
+    trackIds: [&#39;afterglow&#39;, &#39;golden-hour&#39;, &#39;soft-focus&#39;],
+    art: { background: &#39;#AA8B5A&#39;, accent: &#39;#F5DFA0&#39;, detail: &#39;#5E6951&#39;, glyph: &#39;✳&#39; },
+  },
+  {
+    id: &#39;headphones-on&#39;, kind: &#39;playlist&#39;, owner: &#39;Made for you&#39;, title: &#39;Headphones On&#39;, subtitle: &#39;Get lost in the sound&#39;,
+    description: &#39;A little energy for wherever the night takes you.&#39;,
+    trackIds: [&#39;side-streets&#39;, &#39;night-drive&#39;, &#39;blue-apartment&#39;],
+    art: { background: &#39;#69517A&#39;, accent: &#39;#C597CF&#39;, detail: &#39;#F0A89E&#39;, glyph: &#39;✦&#39; },
+  },
+];
+
+const byArtist = (artist: string) =&gt; TRACKS.filter((track) =&gt; track.artist === artist).map((track) =&gt; track.id);
+
+export const ALBUMS: Collection[] = TRACKS.map((track) =&gt; ({
+  id: `album-${track.id}`, kind: &#39;album&#39;, title: track.album, owner: track.artist,
+  subtitle: track.artist, description: `${track.genre} · 2026`, trackIds: byArtist(track.artist), art: track.art,
+}));
+
+export const ARTISTS: Collection[] = TRACKS.map((track) =&gt; ({
+  id: `artist-${track.id}`, kind: &#39;artist&#39;, title: track.artist, owner: track.artist,
+  subtitle: track.genre, description: `${track.genre} artist`, trackIds: byArtist(track.artist),
+  art: { background: track.art.detail, accent: track.art.background, detail: track.art.accent, glyph: track.art.glyph },
+}));
+
+export const USER_PLAYLISTS: Collection[] = [
+  {
+    id: &#39;road-trip&#39;, kind: &#39;playlist&#39;, owner: &#39;You&#39;, title: &#39;Road Trip&#39;, subtitle: &#39;Windows down&#39;,
+    description: &#39;Everything for the long way round.&#39;, downloaded: true,
+    trackIds: [&#39;night-drive&#39;, &#39;side-streets&#39;, &#39;golden-hour&#39;, &#39;afterglow&#39;],
+    art: { background: &#39;#C9673E&#39;, accent: &#39;#F6C177&#39;, detail: &#39;#5B2A2F&#39;, glyph: &#39;➶&#39; },
+  },
+  {
+    id: &#39;sunday-reset&#39;, kind: &#39;playlist&#39;, owner: &#39;You&#39;, title: &#39;Sunday Reset&#39;, subtitle: &#39;Tidy up, slow down&#39;,
+    description: &#39;Clean sheets and a pot of coffee.&#39;,
+    trackIds: [&#39;soft-focus&#39;, &#39;golden-hour&#39;, &#39;blue-apartment&#39;],
+    art: { background: &#39;#9DB5A0&#39;, accent: &#39;#F1E9C9&#39;, detail: &#39;#3F5A4D&#39;, glyph: &#39;☕&#39; },
+  },
+  {
+    id: &#39;rainy-window&#39;, kind: &#39;playlist&#39;, owner: &#39;You&#39;, title: &#39;Rainy Window&#39;, subtitle: &#39;Grey skies, warm room&#39;,
+    description: &#39;For staying in.&#39;, downloaded: true,
+    trackIds: [&#39;blue-apartment&#39;, &#39;afterglow&#39;, &#39;soft-focus&#39;],
+    art: { background: &#39;#4F6275&#39;, accent: &#39;#B9CBD9&#39;, detail: &#39;#1F2C3A&#39;, glyph: &#39;☂&#39; },
+  },
+  {
+    id: &#39;late-commute&#39;, kind: &#39;playlist&#39;, owner: &#39;You&#39;, title: &#39;Late Commute&#39;, subtitle: &#39;Last train home&#39;,
+    description: &#39;City lights out the window.&#39;,
+    trackIds: [&#39;side-streets&#39;, &#39;night-drive&#39;],
+    art: { background: &#39;#2E2A4F&#39;, accent: &#39;#F28FAD&#39;, detail: &#39;#8AD3E6&#39;, glyph: &#39;◐&#39; },
+  },
+];
+
+/** The library in &quot;recently played&quot; order. */
+export const LIBRARY: Collection[] = [
+  USER_PLAYLISTS[0], ARTISTS[2], COLLECTIONS[1], ALBUMS[0], USER_PLAYLISTS[1], ARTISTS[0],
+  COLLECTIONS[0], ALBUMS[3], USER_PLAYLISTS[2], ARTISTS[4], COLLECTIONS[2], ALBUMS[5],
+  USER_PLAYLISTS[3], ARTISTS[1], COLLECTIONS[3], ALBUMS[1], ARTISTS[5], COLLECTIONS[4], ARTISTS[3], ALBUMS[2],
+];
+
+export const ALL_COLLECTIONS: Collection[] = [...COLLECTIONS, ...USER_PLAYLISTS, ...ALBUMS, ...ARTISTS];
+
+export function formatTime(seconds: number): string {
+  const safe = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, &#39;0&#39;)}`;
+}
+</code></pre></section><section id="file-2"><h2>index.ts</h2><pre><code>import { registerRootComponent } from &#39;expo&#39;;
+import App from &#39;./App&#39;;
+
+registerRootComponent(App);
+</code></pre></section></main></body></html>

@@ -1,0 +1,1066 @@
+<!doctype html>
+<html lang="en"><head><!--plocks-demo-seo--><title>Frameleaf demo source | plocks</title><meta name="description" content="Browse the source code for the Frameleaf demo built with plocks."/><link rel="canonical" href="https://plocks.dev/demos/frameleaf/source.html"/><!--/plocks-demo-seo--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>body{margin:0;background:#111319;color:#eef0f3;font:15px system-ui,sans-serif}header{padding:24px;position:sticky;top:0;background:#1b1e26;border-bottom:1px solid #353a46}h1{font-size:20px;margin:0 0 12px}nav{display:flex;gap:12px;flex-wrap:wrap}a{color:#9dbeff}main{max-width:1100px;margin:auto;padding:24px}section{margin-bottom:32px;scroll-margin-top:130px}h2{font-size:18px}pre{overflow:auto;background:#1b1e26;border:1px solid #353a46;border-radius:10px;padding:18px;line-height:1.5}code{font:13px ui-monospace,SFMono-Regular,monospace}</style>
+</head><body><header><h1>frameleaf source</h1><nav><a href="/demos/frameleaf/">Open live demo</a><a href="#file-0">App.tsx</a><a href="#file-1">index.ts</a></nav></header><main><section id="file-0"><h2>App.tsx</h2><pre><code>import { useEffect, useRef, useState } from &#39;react&#39;;
+import type { ReactNode } from &#39;react&#39;;
+import { StatusBar, useWindowDimensions } from &#39;react-native&#39;;
+import AsyncStorage from &#39;@react-native-async-storage/async-storage&#39;;
+import * as Clipboard from &#39;expo-clipboard&#39;;
+import { SafeAreaProvider } from &#39;react-native-safe-area-context&#39;;
+import {
+  IconBookmark,
+  IconBookmarkFilled,
+  IconCompass,
+  IconCompassFilled,
+  IconHeart,
+  IconHeartFilled,
+  IconHome,
+  IconHomeFilled,
+  IconLink,
+  IconSend,
+  IconSquarePlus,
+  IconUserSquare,
+} from &#39;@tabler/icons-react-native&#39;;
+import {
+  TextArea,
+  Input,
+  ScrollArea,
+  SafeArea,
+  Image,
+  Lightbox,
+  Block,
+  Avatar,
+  BottomAppBar,
+  Button,
+  Dialog,
+  Gradient,
+  Icon,
+  IconButton,
+  PlocksProvider,
+  Tabs,
+  Text,
+} from &#39;@plocks/ui&#39;;
+import type { BottomAppBarItem, LightboxItem } from &#39;@plocks/ui&#39;;
+import { Carousel } from &#39;@plocks/carousel&#39;;
+
+const C = {
+  ink: &#39;#0F0F0F&#39;,
+  muted: &#39;#737373&#39;,
+  line: &#39;#EFEFEF&#39;,
+  blue: &#39;#0095F6&#39;,
+  white: &#39;#FFF&#39;,
+  soft: &#39;#EFEFEF&#39;,
+  danger: &#39;#ED4956&#39;,
+  like: &#39;#FF3040&#39;,
+};
+const RING = &#39;#D62976&#39;;
+const PHOTOS = [
+  require(&#39;./assets/scene-lake.webp&#39;),
+  require(&#39;./assets/scene-city.webp&#39;),
+  require(&#39;./assets/scene-desert.webp&#39;),
+  require(&#39;./assets/scene-forest.webp&#39;),
+  require(&#39;./assets/scene-ocean.webp&#39;),
+];
+const PEOPLE = [
+  { name: &#39;mila.roams&#39;, full: &#39;Mila Romero&#39;, bio: [&#39;Collecting little moments.&#39;, &#39;Slow travel · film · lakes&#39;], initials: &#39;MR&#39;, color: &#39;#D57F6A&#39; },
+  { name: &#39;the.weekend.edit&#39;, full: &#39;The Weekend Edit&#39;, bio: [&#39;Two days, one city.&#39;, &#39;New guide every Friday.&#39;], initials: &#39;WE&#39;, color: &#39;#8B87B6&#39; },
+  { name: &#39;kai.and.co&#39;, full: &#39;Kai &amp; Co&#39;, bio: [&#39;Road trips with a dog named Toast.&#39;], initials: &#39;KC&#39;, color: &#39;#4F9BA0&#39; },
+  { name: &#39;jo.studio&#39;, full: &#39;Jo Park&#39;, bio: [&#39;Designer. Mostly trees.&#39;], initials: &#39;JS&#39;, color: &#39;#B88E5B&#39; },
+  { name: &#39;sara.outside&#39;, full: &#39;Sara Lind&#39;, bio: [&#39;Outside is the best room.&#39;], initials: &#39;SO&#39;, color: &#39;#789C69&#39; },
+];
+const ME = 0;
+const STATS = [
+  [&#39;48&#39;, &#39;1,204&#39;, &#39;389&#39;],
+  [&#39;212&#39;, &#39;18.4K&#39;, &#39;96&#39;],
+  [&#39;87&#39;, &#39;3,021&#39;, &#39;410&#39;],
+  [&#39;154&#39;, &#39;6,780&#39;, &#39;512&#39;],
+  [&#39;63&#39;, &#39;940&#39;, &#39;201&#39;],
+];
+const STORY_TIMES = [&#39;2h&#39;, &#39;5h&#39;, &#39;9h&#39;, &#39;14h&#39;, &#39;20h&#39;];
+// Top and bottom edge colors of each scene, so landscape art letterboxes seamlessly in portrait stories.
+const PHOTO_EDGES: [string, string][] = [
+  [&#39;#2DD4BF&#39;, &#39;#0F766E&#39;],
+  [&#39;#5046E5&#39;, &#39;#251E52&#39;],
+  [&#39;#FDBB75&#39;, &#39;#A8603A&#39;],
+  [&#39;#BAE6FD&#39;, &#39;#0C3C32&#39;],
+  [&#39;#FB923C&#39;, &#39;#1E406E&#39;],
+];
+const HIGHLIGHTS = [
+  { label: &#39;Lakes&#39;, image: 0 },
+  { label: &#39;City&#39;, image: 1 },
+  { label: &#39;Desert&#39;, image: 2 },
+  { label: &#39;Forest&#39;, image: 3 },
+  { label: &#39;Coast&#39;, image: 4 },
+];
+const INITIAL_POSTS = [
+  { id: &#39;lake&#39;, person: 0, image: 0, place: &#39;Lake Crescent&#39;, caption: &#39;Some mornings deserve a little pause. 🌿&#39;, likes: 1248, time: &#39;2 hours ago&#39; },
+  { id: &#39;city&#39;, person: 1, image: 1, place: &#39;New York City&#39;, caption: &#39;A city that never runs out of stories.&#39;, likes: 842, time: &#39;8 hours ago&#39; },
+  { id: &#39;desert&#39;, person: 2, image: 2, place: &#39;Arizona&#39;, caption: &#39;Golden hour, every hour.&#39;, likes: 2315, time: &#39;Yesterday&#39; },
+  { id: &#39;forest&#39;, person: 3, image: 3, place: &#39;Somewhere green&#39;, caption: &#39;The long way home is the best way home.&#39;, likes: 651, time: &#39;2 days ago&#39; },
+  { id: &#39;ocean&#39;, person: 4, image: 4, place: &#39;Pacific Coast&#39;, caption: &#39;Out of office for a moment. 🌊&#39;, likes: 1094, time: &#39;3 days ago&#39; },
+];
+const ACTIVITY = [
+  { person: 2, text: &#39;liked your photo.&#39;, time: &#39;2h&#39;, image: 0 },
+  { person: 3, text: &#39;started following you.&#39;, time: &#39;5h&#39;, follow: true },
+  { person: 1, text: &#39;commented: &quot;This light! 😍&quot;&#39;, time: &#39;1d&#39;, image: 0 },
+  { person: 4, text: &#39;liked your photo.&#39;, time: &#39;2d&#39;, image: 3 },
+  { person: 2, text: &#39;started following you.&#39;, time: &#39;4d&#39;, follow: true },
+];
+type Post = {
+  id: string;
+  person: number;
+  image: number;
+  images?: number[];
+  place: string;
+  caption: string;
+  likes: number;
+  time: string;
+};
+const DEMO_CAROUSELS: Record&lt;string, number[]&gt; = { lake: [0, 3, 4], city: [1, 2] };
+const postPhotos = (post: Post) =&gt; post.images?.length ? post.images : DEMO_CAROUSELS[post.id] ?? [post.image];
+type Tab = &#39;home&#39; | &#39;explore&#39; | &#39;activity&#39; | &#39;profile&#39;;
+type Sheet = { kind: &#39;post&#39;; post: Post } | { kind: &#39;story&#39;; person: number } | { kind: &#39;profile&#39;; person: number };
+const STORAGE = &#39;plocks-frameleaf-example:v1&#39;;
+const STORY_MS = 5000;
+const TICK_MS = 50;
+
+function Person({ index, size = 32, ring = false, seen = false }: { index: number; size?: number; ring?: boolean; seen?: boolean }) {
+  const person = PEOPLE[index];
+  const pad = ring ? Math.max(2, Math.round(size / 24)) : 0;
+  return (
+    &lt;Block gap={0} p={pad} radius={size} borderWidth={ring ? 2 : 0} borderColor={seen ? &#39;#DBDBDB&#39; : RING}&gt;
+      &lt;Avatar
+        size={size}
+        fallback={person.initials}
+        bg={person.color}
+        textColor=&quot;#fff&quot;
+        accessibilityLabel={person.name}
+      /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    &lt;Block gap={0} align=&quot;center&quot; flex={1}&gt;
+      &lt;Text fw=&quot;bold&quot; c={C.ink} size={17}&gt;
+        {value}
+      &lt;/Text&gt;
+      &lt;Text c={C.ink} size={13}&gt;
+        {label}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function SheetRow({ label, icon, danger, onPress }: { label: string; icon?: ReactNode; danger?: boolean; onPress: () =&gt; void }) {
+  return (
+    &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={14} px={20} py={14} onPress={onPress} accessibilityRole=&quot;button&quot; accessibilityLabel={label}&gt;
+      {icon}
+      &lt;Text c={danger ? C.danger : C.ink} size={15} fw={danger ? &#39;bold&#39; : undefined}&gt;
+        {label}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function SheetTile({ label, icon, onPress }: { label: string; icon: ReactNode; onPress: () =&gt; void }) {
+  return (
+    &lt;Block
+      flex={1}
+      align=&quot;center&quot;
+      gap={6}
+      py={14}
+      radius={12}
+      bg={C.soft}
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={label}
+    &gt;
+      {icon}
+      &lt;Text c={C.ink} size={12}&gt;
+        {label}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function AppScreen() {
+  const { width } = useWindowDimensions();
+  const wide = width &gt;= 900;
+  const [tab, setTab] = useState&lt;Tab&gt;(&#39;home&#39;);
+  const [viewing, setViewing] = useState&lt;number | null&gt;(null);
+  const [profileTab, setProfileTab] = useState&lt;&#39;grid&#39; | &#39;tagged&#39;&gt;(&#39;grid&#39;);
+  const [posts, setPosts] = useState&lt;Post[]&gt;(INITIAL_POSTS);
+  const [liked, setLiked] = useState&lt;string[]&gt;([]);
+  const [saved, setSaved] = useState&lt;string[]&gt;([]);
+  const [following, setFollowing] = useState&lt;number[]&gt;([1, 2]);
+  const [hidden, setHidden] = useState&lt;string[]&gt;([]);
+  const [comments, setComments] = useState&lt;Record&lt;string, string[]&gt;&gt;({});
+  const [selected, setSelected] = useState&lt;string | null&gt;(null);
+  const [slides, setSlides] = useState&lt;Record&lt;string, number&gt;&gt;({});
+  const [lightboxPostId, setLightboxPostId] = useState&lt;string | null&gt;(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [story, setStory] = useState&lt;number | null&gt;(null);
+  const [storyProgress, setStoryProgress] = useState(0);
+  const [seenStories, setSeenStories] = useState&lt;number[]&gt;([]);
+  const [likedStories, setLikedStories] = useState&lt;number[]&gt;([]);
+  const [reply, setReply] = useState(&#39;&#39;);
+  const [sheet, setSheet] = useState&lt;Sheet | null&gt;(null);
+  const [notice, setNotice] = useState&lt;string | null&gt;(null);
+  const [query, setQuery] = useState(&#39;&#39;);
+  const [draft, setDraft] = useState(&#39;&#39;);
+  const [newCaption, setNewCaption] = useState(&#39;&#39;);
+  const [creating, setCreating] = useState(false);
+  const [ready, setReady] = useState(false);
+  const noticeTimer = useRef&lt;ReturnType&lt;typeof setTimeout&gt; | null&gt;(null);
+
+  useEffect(() =&gt; {
+    AsyncStorage.getItem(STORAGE)
+      .then((raw) =&gt; {
+        if (!raw) return;
+        const data = JSON.parse(raw) as {
+          liked?: string[];
+          saved?: string[];
+          comments?: Record&lt;string, string[]&gt;;
+          posts?: Post[];
+        };
+        if (Array.isArray(data.liked)) setLiked(data.liked);
+        if (Array.isArray(data.saved)) setSaved(data.saved);
+        if (data.comments &amp;&amp; typeof data.comments === &#39;object&#39;) setComments(data.comments);
+        if (Array.isArray(data.posts)) setPosts(data.posts);
+      })
+      .catch(() =&gt; {})
+      .finally(() =&gt; setReady(true));
+  }, []);
+  useEffect(() =&gt; {
+    if (ready) AsyncStorage.setItem(STORAGE, JSON.stringify({ liked, saved, comments, posts })).catch(() =&gt; {});
+  }, [liked, saved, comments, posts, ready]);
+
+  // Stories auto-advance; the timer pauses while a sheet or reply is in progress.
+  const paused = story === null || sheet !== null || reply.length &gt; 0;
+  useEffect(() =&gt; {
+    if (paused) return;
+    const timer = setInterval(() =&gt; setStoryProgress((value) =&gt; value + TICK_MS / STORY_MS), TICK_MS);
+    return () =&gt; clearInterval(timer);
+  }, [paused]);
+  useEffect(() =&gt; {
+    if (story !== null &amp;&amp; storyProgress &gt;= 1) goStory(1);
+  });
+
+  const openStory = (index: number) =&gt; {
+    setStory(index);
+    setStoryProgress(0);
+    setSeenStories((current) =&gt; (current.includes(index) ? current : [...current, index]));
+  };
+  const closeStory = () =&gt; {
+    setStory(null);
+    setReply(&#39;&#39;);
+  };
+  const goStory = (step: number) =&gt; {
+    if (story === null) return;
+    const next = story + step;
+    if (next &lt; 0) setStoryProgress(0);
+    else if (next &gt;= PEOPLE.length) closeStory();
+    else openStory(next);
+  };
+  const flash = (message: string) =&gt; {
+    setNotice(message);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() =&gt; setNotice(null), 2200);
+  };
+  const toggle = &lt;T,&gt;(id: T, values: T[], setValues: (value: T[]) =&gt; void) =&gt;
+    setValues(values.includes(id) ? values.filter((item) =&gt; item !== id) : [...values, id]);
+  const submitComment = () =&gt; {
+    if (!selected || !draft.trim()) return;
+    setComments((current) =&gt; ({ ...current, [selected]: [...(current[selected] ?? []), draft.trim()] }));
+    setDraft(&#39;&#39;);
+  };
+  const createPost = () =&gt; {
+    if (!newCaption.trim()) return;
+    const post: Post = {
+      id: `mine-${Date.now()}`,
+      person: ME,
+      image: 0,
+      place: &#39;From my gallery&#39;,
+      caption: newCaption.trim(),
+      likes: 0,
+      time: &#39;Just now&#39;,
+    };
+    setPosts((current) =&gt; [post, ...current]);
+    setNewCaption(&#39;&#39;);
+    setCreating(false);
+    goTab(&#39;home&#39;);
+  };
+  const goTab = (next: Tab) =&gt; {
+    setTab(next);
+    setViewing(null);
+    setSelected(null);
+  };
+  const openProfile = (person: number) =&gt; {
+    closeStory();
+    setProfileTab(&#39;grid&#39;);
+    if (person === ME) goTab(&#39;profile&#39;);
+    else setViewing(person);
+  };
+  const openLightbox = (post: Post, index: number) =&gt; {
+    setLightboxPostId(post.id);
+    setLightboxIndex(index);
+  };
+  const copyLink = (path: string) =&gt; {
+    Clipboard.setStringAsync(`https://frameleaf.example/${path}`).catch(() =&gt; {});
+    setSheet(null);
+    flash(&#39;Link copied&#39;);
+  };
+  const closeSheet = () =&gt; setSheet(null);
+
+  const renderPostCard = (post: Post) =&gt; {
+    const person = PEOPLE[post.person];
+    const photos = postPhotos(post);
+    const isLiked = liked.includes(post.id);
+    const isSaved = saved.includes(post.id);
+    const commentCount = comments[post.id]?.length ?? 0;
+    return (
+      &lt;Block key={post.id} gap={0} bg={C.white} mb={14}&gt;
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={10} pl={12} pr={4} py={8}&gt;
+          &lt;Block gap={0} onPress={() =&gt; openStory(post.person)} accessibilityRole=&quot;button&quot; accessibilityLabel={`${person.name} story`}&gt;
+            &lt;Person index={post.person} ring seen={seenStories.includes(post.person)} /&gt;
+          &lt;/Block&gt;
+          &lt;Block gap={0} flex={1} onPress={() =&gt; openProfile(post.person)} accessibilityRole=&quot;button&quot; accessibilityLabel={`${person.name} profile`}&gt;
+            &lt;Text fw=&quot;bold&quot; c={C.ink} size={13}&gt;
+              {person.name}
+            &lt;/Text&gt;
+            &lt;Text c={C.ink} size={11}&gt;
+              {post.place}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;IconButton
+            icon=&quot;dots&quot;
+            variant=&quot;ghost&quot;
+            iconColor={C.ink}
+            accessibilityLabel={`More options for ${person.name}&#39;s post`}
+            onPress={() =&gt; setSheet({ kind: &#39;post&#39;, post })}
+          /&gt;
+        &lt;/Block&gt;
+        {photos.length &gt; 1 ? (
+          &lt;Carousel
+            h={Math.min(width, 560) * 1.25}
+            showArrows={wide}
+            showDots={false}
+            onSlideChange={(index: number) =&gt; setSlides((current) =&gt; ({ ...current, [post.id]: index }))}
+            arrowSize=&quot;sm&quot;
+            dotSize=&quot;xs&quot;
+            accessibilityLabel={`${person.name} post photos`}
+          &gt;
+            {photos.map((image, index) =&gt; (
+              &lt;Block
+                key={`${post.id}-${index}`}
+                gap={0}
+                onPress={() =&gt; openLightbox(post, index)}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel={`Open photo ${index + 1} of ${photos.length} from ${person.name}`}
+                w=&quot;100%&quot;
+                h=&quot;100%&quot;
+              &gt;
+                &lt;Image source={PHOTOS[image]} resizeMode=&quot;cover&quot; w=&quot;100%&quot; h=&quot;100%&quot; alt=&quot;&quot; /&gt;
+              &lt;/Block&gt;
+            ))}
+          &lt;/Carousel&gt;
+        ) : (
+          &lt;Block
+            gap={0}
+            onPress={() =&gt; openLightbox(post, 0)}
+            accessibilityRole=&quot;button&quot;
+            accessibilityLabel={`Open photo from ${person.name}`}
+            w=&quot;100%&quot;
+            aspectRatio={4 / 5}
+            overflow=&quot;hidden&quot;
+          &gt;
+            &lt;Image source={PHOTOS[photos[0]]} resizeMode=&quot;cover&quot; w=&quot;100%&quot; h=&quot;100%&quot; alt=&quot;&quot; /&gt;
+          &lt;/Block&gt;
+        )}
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; px={14} pt={10} gap={16}&gt;
+          {photos.length &gt; 1 &amp;&amp; (
+            &lt;Block position=&quot;absolute&quot; left={0} right={0} top={20} direction=&quot;row&quot; justify=&quot;center&quot; gap={4}&gt;
+              {photos.map((_, index) =&gt; (
+                &lt;Block key={index} gap={0} w={6} h={6} radius={3} bg={index === (slides[post.id] ?? 0) ? C.blue : &#39;#C7C7C7&#39;} /&gt;
+              ))}
+            &lt;/Block&gt;
+          )}
+          &lt;Block gap={0} accessibilityRole=&quot;button&quot; accessibilityLabel={isLiked ? &#39;Unlike post&#39; : &#39;Like post&#39;} onPress={() =&gt; toggle(post.id, liked, setLiked)}&gt;
+            {isLiked ? &lt;IconHeartFilled size={26} color={C.like} /&gt; : &lt;IconHeart size={26} color={C.ink} strokeWidth={1.8} /&gt;}
+          &lt;/Block&gt;
+          &lt;Block gap={0} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;View comments&quot; onPress={() =&gt; setSelected(post.id)}&gt;
+            &lt;Icon name=&quot;message&quot; color={C.ink} size={25} /&gt;
+          &lt;/Block&gt;
+          &lt;Block gap={0} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Share post&quot; onPress={() =&gt; copyLink(`p/${post.id}`)}&gt;
+            &lt;IconSend size={25} color={C.ink} strokeWidth={1.8} /&gt;
+          &lt;/Block&gt;
+          &lt;Block gap={0} flex={1} /&gt;
+          &lt;Block gap={0} accessibilityRole=&quot;button&quot; accessibilityLabel={isSaved ? &#39;Remove saved post&#39; : &#39;Save post&#39;} onPress={() =&gt; toggle(post.id, saved, setSaved)}&gt;
+            {isSaved ? &lt;IconBookmarkFilled size={26} color={C.ink} /&gt; : &lt;IconBookmark size={26} color={C.ink} strokeWidth={1.8} /&gt;}
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+        &lt;Block px={14} pt={8} pb={10} gap={4}&gt;
+          &lt;Text fw=&quot;bold&quot; c={C.ink} size={14}&gt;
+            {(post.likes + Number(isLiked)).toLocaleString()} likes
+          &lt;/Text&gt;
+          &lt;Text c={C.ink} size={14} lh={19}&gt;
+            &lt;Text fw=&quot;bold&quot; c={C.ink} size={14}&gt;
+              {person.name}{&#39; &#39;}
+            &lt;/Text&gt;
+            {post.caption}
+          &lt;/Text&gt;
+          {commentCount &gt; 0 &amp;&amp; (
+            &lt;Block gap={0} onPress={() =&gt; setSelected(post.id)}&gt;
+              &lt;Text c={C.muted} size={14}&gt;
+                View {commentCount === 1 ? &#39;1 comment&#39; : `all ${commentCount} comments`}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          )}
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} onPress={() =&gt; setSelected(post.id)} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Add a comment&quot;&gt;
+            &lt;Person index={ME} size={22} /&gt;
+            &lt;Text c={C.muted} size={13}&gt;
+              Add a comment…
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;Text c={C.muted} size={11}&gt;
+            {post.time}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+    );
+  };
+
+  const renderGrid = (images: { key: string; image: number; onPress?: () =&gt; void }[]) =&gt; (
+    &lt;Block direction=&quot;row&quot; wrap=&quot;wrap&quot; gap={0}&gt;
+      {images.map((item) =&gt; (
+        &lt;Block key={item.key} gap={0} w=&quot;33.333%&quot; aspectRatio={1} p={1} onPress={item.onPress}&gt;
+          &lt;Image source={PHOTOS[item.image]} w=&quot;100%&quot; h=&quot;100%&quot; resizeMode=&quot;cover&quot; alt=&quot;&quot; /&gt;
+        &lt;/Block&gt;
+      ))}
+    &lt;/Block&gt;
+  );
+
+  const renderProfile = (index: number) =&gt; {
+    const person = PEOPLE[index];
+    const mine = index === ME;
+    const [postCount, followers, followingCount] = STATS[index];
+    const own = posts.filter((post) =&gt; post.person === index);
+    // Pad the demo grid with sample photos to full rows of three.
+    const extras = Math.ceil((own.length + 12) / 3) * 3 - own.length;
+    const gridItems = [
+      ...own.map((post) =&gt; ({ key: post.id, image: post.image, onPress: () =&gt; setSelected(post.id) })),
+      ...Array.from({ length: extras }, (_, i) =&gt; ({ key: `extra-${i}`, image: (index + i * 3 + 1) % PHOTOS.length })),
+    ];
+    const tagged = Array.from({ length: 6 }, (_, i) =&gt; ({ key: `tag-${i}`, image: (index + i + 3) % PHOTOS.length }));
+    const isFollowing = following.includes(index);
+    return (
+      &lt;Block gap={0}&gt;
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; px={16} h={48} gap={8}&gt;
+          {!mine &amp;&amp; (
+            &lt;IconButton icon=&quot;chevron-left&quot; variant=&quot;ghost&quot; iconColor={C.ink} accessibilityLabel=&quot;Back&quot; onPress={() =&gt; setViewing(null)} /&gt;
+          )}
+          {mine &amp;&amp; &lt;Icon name=&quot;lock&quot; size={16} color={C.ink} /&gt;}
+          &lt;Text fw=&quot;bold&quot; c={C.ink} size={mine ? 20 : 17} flex={1}&gt;
+            {person.name}
+          &lt;/Text&gt;
+          &lt;IconButton icon=&quot;dots&quot; variant=&quot;ghost&quot; iconColor={C.ink} accessibilityLabel=&quot;Profile options&quot; onPress={() =&gt; setSheet({ kind: &#39;profile&#39;, person: index })} /&gt;
+        &lt;/Block&gt;
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; px={16} pt={8} gap={12}&gt;
+          &lt;Block gap={0} onPress={() =&gt; openStory(index)} accessibilityRole=&quot;button&quot; accessibilityLabel={`${person.name} story`}&gt;
+            &lt;Person index={index} size={80} ring seen={seenStories.includes(index)} /&gt;
+          &lt;/Block&gt;
+          &lt;Block direction=&quot;row&quot; flex={1}&gt;
+            &lt;Stat value={postCount} label=&quot;posts&quot; /&gt;
+            &lt;Stat value={followers} label=&quot;followers&quot; /&gt;
+            &lt;Stat value={followingCount} label=&quot;following&quot; /&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+        &lt;Block px={16} pt={12} gap={2}&gt;
+          &lt;Text fw=&quot;bold&quot; c={C.ink} size={14}&gt;
+            {person.full}
+          &lt;/Text&gt;
+          {person.bio.map((line) =&gt; (
+            &lt;Text key={line} c={C.ink} size={14} lh={19}&gt;
+              {line}
+            &lt;/Text&gt;
+          ))}
+        &lt;/Block&gt;
+        &lt;Block direction=&quot;row&quot; px={16} pt={14} gap={8}&gt;
+          {mine ? (
+            &lt;&gt;
+              &lt;Block flex={1}&gt;
+                &lt;Button variant=&quot;filled&quot; title=&quot;Edit profile&quot; size=&quot;sm&quot; color={C.soft} textColor={C.ink} fullWidth onPress={() =&gt; flash(&#39;Profile editing is not part of this demo&#39;)} /&gt;
+              &lt;/Block&gt;
+              &lt;Block flex={1}&gt;
+                &lt;Button variant=&quot;filled&quot; title=&quot;Share profile&quot; size=&quot;sm&quot; color={C.soft} textColor={C.ink} fullWidth onPress={() =&gt; copyLink(person.name)} /&gt;
+              &lt;/Block&gt;
+            &lt;/&gt;
+          ) : (
+            &lt;&gt;
+              &lt;Block flex={1}&gt;
+                &lt;Button
+                  variant=&quot;filled&quot;
+                  title={isFollowing ? &#39;Following&#39; : &#39;Follow&#39;}
+                  size=&quot;sm&quot;
+                  color={isFollowing ? C.soft : C.blue}
+                  textColor={isFollowing ? C.ink : C.white}
+                  fullWidth
+                  onPress={() =&gt; toggle(index, following, setFollowing)}
+                /&gt;
+              &lt;/Block&gt;
+              &lt;Block flex={1}&gt;
+                &lt;Button variant=&quot;filled&quot; title=&quot;Message&quot; size=&quot;sm&quot; color={C.soft} textColor={C.ink} fullWidth onPress={() =&gt; flash(&#39;Messages are not part of this demo&#39;)} /&gt;
+              &lt;/Block&gt;
+            &lt;/&gt;
+          )}
+        &lt;/Block&gt;
+        &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} contentProps={{ gap: 16, px: 16, py: 16 }}&gt;
+          {HIGHLIGHTS.map((highlight) =&gt; (
+            &lt;Block key={highlight.label} align=&quot;center&quot; gap={6} onPress={() =&gt; openStory((index + highlight.image) % PEOPLE.length)} accessibilityRole=&quot;button&quot; accessibilityLabel={`${highlight.label} highlight`}&gt;
+              &lt;Block gap={0} p={3} radius={40} borderWidth={1} borderColor=&quot;#DBDBDB&quot;&gt;
+                &lt;Block gap={0} w={60} h={60} radius={30} overflow=&quot;hidden&quot;&gt;
+                  &lt;Image source={PHOTOS[highlight.image]} w=&quot;100%&quot; h=&quot;100%&quot; resizeMode=&quot;cover&quot; alt=&quot;&quot; /&gt;
+                &lt;/Block&gt;
+              &lt;/Block&gt;
+              &lt;Text c={C.ink} size={12}&gt;
+                {highlight.label}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          ))}
+          {mine &amp;&amp; (
+            &lt;Block align=&quot;center&quot; gap={6}&gt;
+              &lt;Block gap={0} w={68} h={68} radius={34} borderWidth={1} borderColor=&quot;#DBDBDB&quot; align=&quot;center&quot; justify=&quot;center&quot;&gt;
+                &lt;Icon name=&quot;plus&quot; size={28} color={C.ink} /&gt;
+              &lt;/Block&gt;
+              &lt;Text c={C.ink} size={12}&gt;
+                New
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          )}
+        &lt;/ScrollArea&gt;
+        &lt;Block direction=&quot;row&quot; borderTopWidth={1} borderTopColor={C.line} gap={0}&gt;
+          {([&#39;grid&#39;, &#39;tagged&#39;] as const).map((key) =&gt; (
+            &lt;Block
+              key={key}
+              flex={1}
+              align=&quot;center&quot;
+              py={11}
+              gap={0}
+              borderBottomWidth={1}
+              borderBottomColor={profileTab === key ? C.ink : &#39;transparent&#39;}
+              onPress={() =&gt; setProfileTab(key)}
+              accessibilityRole=&quot;tab&quot;
+              accessibilityLabel={key === &#39;grid&#39; ? &#39;Posts&#39; : &#39;Tagged&#39;}
+            &gt;
+              {key === &#39;grid&#39; ? (
+                &lt;Icon name=&quot;grid&quot; size={24} color={profileTab === key ? C.ink : C.muted} /&gt;
+              ) : (
+                &lt;IconUserSquare size={24} color={profileTab === key ? C.ink : C.muted} strokeWidth={1.8} /&gt;
+              )}
+            &lt;/Block&gt;
+          ))}
+        &lt;/Block&gt;
+        {renderGrid(profileTab === &#39;grid&#39; ? gridItems : tagged)}
+      &lt;/Block&gt;
+    );
+  };
+
+  const activePost = posts.find((post) =&gt; post.id === selected);
+  const lightboxPost = posts.find((post) =&gt; post.id === lightboxPostId);
+  const lightboxImages: LightboxItem[] = lightboxPost
+    ? postPhotos(lightboxPost).map((image, index) =&gt; ({
+        id: `${lightboxPost.id}-${index}`,
+        uri: PHOTOS[image],
+        title: `${PEOPLE[lightboxPost.person].name} · ${lightboxPost.place}`,
+      }))
+    : [];
+  const showProfile = viewing !== null || tab === &#39;profile&#39;;
+  const navItems: BottomAppBarItem[] = [
+    { key: &#39;home&#39;, label: &#39;Home&#39;, icon: ({ active, color }) =&gt; (active ? &lt;IconHomeFilled size={27} color={color} /&gt; : &lt;IconHome size={27} color={color} strokeWidth={1.8} /&gt;) },
+    { key: &#39;explore&#39;, label: &#39;Search&#39;, icon: ({ active, color }) =&gt; (active ? &lt;IconCompassFilled size={27} color={color} /&gt; : &lt;IconCompass size={27} color={color} strokeWidth={1.8} /&gt;) },
+    { key: &#39;create&#39;, label: &#39;New post&#39;, icon: ({ color }) =&gt; &lt;IconSquarePlus size={27} color={color} strokeWidth={1.8} /&gt;, onPress: () =&gt; setCreating(true) },
+    { key: &#39;activity&#39;, label: &#39;Activity&#39;, icon: ({ active, color }) =&gt; (active ? &lt;IconHeartFilled size={27} color={color} /&gt; : &lt;IconHeart size={27} color={color} strokeWidth={1.8} /&gt;) },
+    {
+      key: &#39;profile&#39;,
+      label: &#39;Profile&#39;,
+      icon: ({ active }) =&gt; (
+        &lt;Block gap={0} p={1} radius={16} borderWidth={active ? 2 : 0} borderColor={C.ink} m={active ? 0 : 2}&gt;
+          &lt;Avatar size={24} fallback={PEOPLE[ME].initials} bg={PEOPLE[ME].color} textColor=&quot;#fff&quot; /&gt;
+        &lt;/Block&gt;
+      ),
+    },
+  ];
+  const visiblePosts = posts.filter((post) =&gt; !hidden.includes(post.id));
+
+  const sheetPerson = sheet ? (sheet.kind === &#39;post&#39; ? sheet.post.person : sheet.person) : ME;
+  const sheetMine = sheetPerson === ME;
+
+  return (
+    &lt;Block gap={0} flex={1} bg={C.white}&gt;
+      &lt;SafeArea gap={0} flex={1} bg={C.white}&gt;
+        &lt;StatusBar barStyle={story !== null ? &#39;light-content&#39; : &#39;dark-content&#39;} /&gt;
+        &lt;Block gap={0} flex={1} direction={wide ? &#39;row&#39; : &#39;column&#39;} maw={1260} w=&quot;100%&quot; alignSelf=&quot;center&quot;&gt;
+          {wide &amp;&amp; (
+            &lt;Block w={240} borderRightWidth={1} borderRightColor={C.line} p={22} gap={30}&gt;
+              &lt;Text fw=&quot;bold&quot; c={C.ink} size={29} fs=&quot;italic&quot;&gt;
+                frame
+              &lt;/Text&gt;
+              &lt;Tabs
+                navigationOnly
+                orientation=&quot;vertical&quot;
+                variant=&quot;chip&quot;
+                color={C.ink}
+                value={tab}
+                onChange={(item) =&gt; goTab(item as Tab)}
+                items={([&#39;home&#39;, &#39;explore&#39;, &#39;activity&#39;, &#39;profile&#39;] as const).map((item) =&gt; ({
+                  key: item,
+                  label: item === &#39;explore&#39; ? &#39;Search&#39; : item[0].toUpperCase() + item.slice(1),
+                  icon: (
+                    &lt;Icon
+                      name={item === &#39;home&#39; ? &#39;home&#39; : item === &#39;explore&#39; ? &#39;search&#39; : item === &#39;activity&#39; ? &#39;heart&#39; : &#39;avatar&#39;}
+                      size={24}
+                      color={tab === item ? C.white : C.ink}
+                    /&gt;
+                  ),
+                  content: null,
+                }))}
+              /&gt;
+              &lt;Button variant=&quot;filled&quot; title=&quot;Create post&quot; color={C.blue} onPress={() =&gt; setCreating(true)} /&gt;
+            &lt;/Block&gt;
+          )}
+          &lt;Block gap={0} flex={1} miw={0}&gt;
+            {!wide &amp;&amp; tab === &#39;home&#39; &amp;&amp; viewing === null &amp;&amp; (
+              &lt;Block gap={0} h={50} direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot; pl={16} pr={8}&gt;
+                &lt;Text fw=&quot;bold&quot; c={C.ink} size={27} fs=&quot;italic&quot;&gt;
+                  frame
+                &lt;/Text&gt;
+                &lt;Block direction=&quot;row&quot; gap={0}&gt;
+                  &lt;IconButton
+                    icon={&lt;IconHeart size={26} color={C.ink} strokeWidth={1.8} /&gt;}
+                    variant=&quot;ghost&quot;
+                    accessibilityLabel=&quot;Activity&quot;
+                    onPress={() =&gt; goTab(&#39;activity&#39;)}
+                  /&gt;
+                  &lt;IconButton
+                    icon={&lt;IconSend size={25} color={C.ink} strokeWidth={1.8} /&gt;}
+                    variant=&quot;ghost&quot;
+                    accessibilityLabel=&quot;Messages&quot;
+                    onPress={() =&gt; flash(&#39;Messages are not part of this demo&#39;)}
+                  /&gt;
+                &lt;/Block&gt;
+              &lt;/Block&gt;
+            )}
+            &lt;ScrollArea key={showProfile ? `profile-${viewing ?? ME}` : tab} keyboardShouldPersistTaps=&quot;handled&quot; flex={1} contentProps={{ align: &#39;center&#39;, pb: wide ? 30 : 90 }}&gt;
+              &lt;Block gap={0} w=&quot;100%&quot; maw={tab === &#39;explore&#39; &amp;&amp; !showProfile ? 800 : 560}&gt;
+                {showProfile ? (
+                  renderProfile(viewing ?? ME)
+                ) : (
+                  &lt;&gt;
+                    {tab === &#39;home&#39; &amp;&amp; (
+                      &lt;&gt;
+                        &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} contentProps={{ gap: 14, px: 12, pt: 6, pb: 12 }}&gt;
+                          {PEOPLE.map((person, index) =&gt; (
+                            &lt;Block
+                              key={person.name}
+                              onPress={() =&gt; openStory(index)}
+                              align=&quot;center&quot;
+                              gap={5}
+                              w={78}
+                              accessibilityRole=&quot;button&quot;
+                              accessibilityLabel={`${index === ME ? &#39;Your&#39; : `${person.name}&#39;s`} story`}
+                            &gt;
+                              &lt;Person index={index} size={66} ring seen={seenStories.includes(index)} /&gt;
+                              &lt;Text c={C.ink} size={12} numberOfLines={1}&gt;
+                                {index === ME ? &#39;Your story&#39; : person.name}
+                              &lt;/Text&gt;
+                            &lt;/Block&gt;
+                          ))}
+                        &lt;/ScrollArea&gt;
+                        &lt;Block gap={0} h={1} bg={C.line} mb={4} /&gt;
+                        {visiblePosts.map(renderPostCard)}
+                      &lt;/&gt;
+                    )}
+                    {tab === &#39;explore&#39; &amp;&amp; (
+                      &lt;Block gap={0}&gt;
+                        &lt;Block gap={0} p={12}&gt;
+                          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} bg={C.soft} radius={10} px={12} h={38}&gt;
+                            &lt;Icon name=&quot;search&quot; size={16} color={C.muted} /&gt;
+                            &lt;Input
+                              variant=&quot;unstyled&quot;
+                              value={query}
+                              onChangeText={setQuery}
+                              placeholder=&quot;Search&quot;
+                              placeholderTextColor={C.muted}
+                              mb={0}
+                              flex={1}
+                            /&gt;
+                          &lt;/Block&gt;
+                        &lt;/Block&gt;
+                        {query.trim() ? (
+                          &lt;Block gap={0}&gt;
+                            {PEOPLE.map((person, index) =&gt; ({ person, index }))
+                              .filter(({ person }) =&gt; `${person.name} ${person.full}`.toLowerCase().includes(query.toLowerCase()))
+                              .map(({ person, index }) =&gt; (
+                                &lt;Block key={person.name} direction=&quot;row&quot; align=&quot;center&quot; gap={12} px={16} py={8} onPress={() =&gt; openProfile(index)}&gt;
+                                  &lt;Person index={index} size={44} /&gt;
+                                  &lt;Block gap={0}&gt;
+                                    &lt;Text fw=&quot;bold&quot; c={C.ink} size={14}&gt;
+                                      {person.name}
+                                    &lt;/Text&gt;
+                                    &lt;Text c={C.muted} size={13}&gt;
+                                      {person.full}
+                                    &lt;/Text&gt;
+                                  &lt;/Block&gt;
+                                &lt;/Block&gt;
+                              ))}
+                          &lt;/Block&gt;
+                        ) : (
+                          renderGrid(
+                            Array.from({ length: 15 }, (_, i) =&gt; {
+                              const post = posts[i % posts.length];
+                              return { key: `explore-${i}`, image: (post.image + Math.floor(i / posts.length)) % PHOTOS.length, onPress: () =&gt; setSelected(post.id) };
+                            }),
+                          )
+                        )}
+                      &lt;/Block&gt;
+                    )}
+                    {tab === &#39;activity&#39; &amp;&amp; (
+                      &lt;Block gap={0}&gt;
+                        &lt;Text fw=&quot;bold&quot; c={C.ink} size={22} px={16} pt={10} pb={6}&gt;
+                          Notifications
+                        &lt;/Text&gt;
+                        &lt;Text fw=&quot;bold&quot; c={C.ink} size={15} px={16} py={10}&gt;
+                          This week
+                        &lt;/Text&gt;
+                        {ACTIVITY.map((item, index) =&gt; (
+                          &lt;Block key={index} direction=&quot;row&quot; align=&quot;center&quot; gap={12} px={16} py={8}&gt;
+                            &lt;Block gap={0} onPress={() =&gt; openProfile(item.person)}&gt;
+                              &lt;Person index={item.person} size={44} /&gt;
+                            &lt;/Block&gt;
+                            &lt;Text c={C.ink} size={14} flex={1} lh={19}&gt;
+                              &lt;Text fw=&quot;bold&quot; c={C.ink} size={14}&gt;
+                                {PEOPLE[item.person].name}
+                              &lt;/Text&gt;{&#39; &#39;}
+                              {item.text}{&#39; &#39;}
+                              &lt;Text c={C.muted} size={14}&gt;
+                                {item.time}
+                              &lt;/Text&gt;
+                            &lt;/Text&gt;
+                            {item.follow ? (
+                              &lt;Button
+                                variant=&quot;filled&quot;
+                                title={following.includes(item.person) ? &#39;Following&#39; : &#39;Follow&#39;}
+                                size=&quot;xs&quot;
+                                color={following.includes(item.person) ? C.soft : C.blue}
+                                textColor={following.includes(item.person) ? C.ink : C.white}
+                                onPress={() =&gt; toggle(item.person, following, setFollowing)}
+                              /&gt;
+                            ) : (
+                              &lt;Block gap={0} w={44} h={44} radius={4} overflow=&quot;hidden&quot;&gt;
+                                &lt;Image source={PHOTOS[item.image ?? 0]} w=&quot;100%&quot; h=&quot;100%&quot; resizeMode=&quot;cover&quot; alt=&quot;&quot; /&gt;
+                              &lt;/Block&gt;
+                            )}
+                          &lt;/Block&gt;
+                        ))}
+                      &lt;/Block&gt;
+                    )}
+                  &lt;/&gt;
+                )}
+              &lt;/Block&gt;
+            &lt;/ScrollArea&gt;
+            {!wide &amp;&amp; (
+              &lt;BottomAppBar
+                items={navItems}
+                activeKey={showProfile ? &#39;profile&#39; : tab}
+                onItemPress={(key) =&gt; key !== &#39;create&#39; &amp;&amp; goTab(key as Tab)}
+                showLabels={false}
+                indicator={false}
+                activeColor={C.ink}
+                inactiveColor={C.ink}
+                borderColor={C.line}
+                bg={C.white}
+                accessibilityLabel=&quot;Main&quot;
+              /&gt;
+            )}
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+        {notice &amp;&amp; (
+          &lt;Block position=&quot;absolute&quot; left={16} right={16} bottom={wide ? 24 : 80} zIndex={2000} align=&quot;center&quot; gap={0}&gt;
+            &lt;Block gap={0} bg=&quot;#262626&quot; radius={10} px={16} py={12} shadow=&quot;md&quot;&gt;
+              &lt;Text c={C.white} size={14}&gt;
+                {notice}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        )}
+      &lt;/SafeArea&gt;
+
+      {story !== null &amp;&amp; (
+        &lt;Block position=&quot;absolute&quot; inset={0} zIndex={1000} bg=&quot;#000&quot; gap={0}&gt;
+          &lt;SafeArea gap={0} flex={1} bg=&quot;#000&quot;&gt;
+            &lt;Block gap={0} flex={1} w=&quot;100%&quot; maw={wide ? 440 : undefined} alignSelf=&quot;center&quot;&gt;
+            &lt;Block gap={0} flex={1} radius={10} overflow=&quot;hidden&quot;&gt;
+              &lt;Gradient
+                position=&quot;absolute&quot;
+                inset={0}
+                colors={[PHOTO_EDGES[story][0], PHOTO_EDGES[story][0], PHOTO_EDGES[story][1], PHOTO_EDGES[story][1]]}
+                locations={[0, 0.5, 0.5, 1]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                justify=&quot;center&quot;
+                gap={0}
+              &gt;
+                &lt;Block gap={0} w=&quot;100%&quot; aspectRatio={3 / 2}&gt;
+                  &lt;Image source={PHOTOS[story]} w=&quot;100%&quot; h=&quot;100%&quot; resizeMode=&quot;cover&quot; alt={`${PEOPLE[story].name} story`} /&gt;
+                &lt;/Block&gt;
+              &lt;/Gradient&gt;
+              &lt;Gradient colors={[&#39;rgba(0,0,0,0.45)&#39;, &#39;rgba(0,0,0,0)&#39;]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} gap={10} px={8} pt={8} pb={28}&gt;
+                &lt;Block direction=&quot;row&quot; gap={4}&gt;
+                  {PEOPLE.map((person, index) =&gt; (
+                    &lt;Block key={person.name} flex={1} h={2.5} radius={2} bg=&quot;rgba(255,255,255,0.35)&quot; overflow=&quot;hidden&quot; gap={0}&gt;
+                      &lt;Block
+                        gap={0}
+                        h=&quot;100%&quot;
+                        bg={C.white}
+                        w={`${index &lt; story ? 100 : index === story ? Math.min(100, storyProgress * 100) : 0}%`}
+                      /&gt;
+                    &lt;/Block&gt;
+                  ))}
+                &lt;/Block&gt;
+                &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} pl={4}&gt;
+                  &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} flex={1} onPress={() =&gt; openProfile(story)} accessibilityRole=&quot;button&quot; accessibilityLabel={`${PEOPLE[story].name} profile`}&gt;
+                    &lt;Person index={story} size={32} /&gt;
+                    &lt;Text fw=&quot;bold&quot; c={C.white} size={14}&gt;
+                      {PEOPLE[story].name}
+                    &lt;/Text&gt;
+                    &lt;Text c=&quot;rgba(255,255,255,0.75)&quot; size={14}&gt;
+                      {STORY_TIMES[story]}
+                    &lt;/Text&gt;
+                  &lt;/Block&gt;
+                  &lt;IconButton icon=&quot;dots&quot; variant=&quot;ghost&quot; iconColor={C.white} accessibilityLabel=&quot;Story options&quot; onPress={() =&gt; setSheet({ kind: &#39;story&#39;, person: story })} /&gt;
+                  &lt;IconButton icon=&quot;x&quot; variant=&quot;ghost&quot; iconColor={C.white} accessibilityLabel=&quot;Close story&quot; onPress={closeStory} /&gt;
+                &lt;/Block&gt;
+              &lt;/Gradient&gt;
+              &lt;Block direction=&quot;row&quot; flex={1} gap={0}&gt;
+                &lt;Block flex={1} gap={0} onPress={() =&gt; goStory(-1)} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Previous story&quot; /&gt;
+                &lt;Block flex={2} gap={0} onPress={() =&gt; goStory(1)} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Next story&quot; /&gt;
+              &lt;/Block&gt;
+            &lt;/Block&gt;
+              &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={14} px={12} py={10}&gt;
+                &lt;Block flex={1} h={44} radius={22} borderWidth={1} borderColor=&quot;rgba(255,255,255,0.7)&quot; px={16} justify=&quot;center&quot; gap={0}&gt;
+                  &lt;Input
+                    variant=&quot;unstyled&quot;
+                    value={reply}
+                    onChangeText={setReply}
+                    placeholder=&quot;Send message&quot;
+                    placeholderTextColor=&quot;rgba(255,255,255,0.85)&quot;
+                    inputColor={C.white}
+                    onEnter={() =&gt; {
+                      setReply(&#39;&#39;);
+                      flash(&#39;Message sent&#39;);
+                    }}
+                    mb={0}
+                  /&gt;
+                &lt;/Block&gt;
+                &lt;Block gap={0} onPress={() =&gt; toggle(story, likedStories, setLikedStories)} accessibilityRole=&quot;button&quot; accessibilityLabel={likedStories.includes(story) ? &#39;Unlike story&#39; : &#39;Like story&#39;}&gt;
+                  {likedStories.includes(story) ? &lt;IconHeartFilled size={28} color={C.like} /&gt; : &lt;IconHeart size={28} color={C.white} strokeWidth={1.8} /&gt;}
+                &lt;/Block&gt;
+                &lt;Block gap={0} onPress={() =&gt; copyLink(`stories/${PEOPLE[story].name}`)} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Share story&quot;&gt;
+                  &lt;IconSend size={27} color={C.white} strokeWidth={1.8} /&gt;
+                &lt;/Block&gt;
+              &lt;/Block&gt;
+            &lt;/Block&gt;
+          &lt;/SafeArea&gt;
+        &lt;/Block&gt;
+      )}
+
+      {(activePost || creating) &amp;&amp; (
+        &lt;Dialog
+          opened
+          variant={creating ? &#39;modal&#39; : &#39;bottomsheet&#39;}
+          title={creating ? &#39;New post&#39; : &#39;Comments&#39;}
+          titleProps={{ fw: &#39;bold&#39;, size: 16, ta: &#39;center&#39; }}
+          onClose={() =&gt; {
+            setSelected(null);
+            setCreating(false);
+          }}
+        &gt;
+          {creating ? (
+            &lt;Block p={18} gap={14}&gt;
+              &lt;Image source={PHOTOS[0]} w=&quot;100%&quot; h={220} radius={8} /&gt;
+              &lt;Text c={C.muted} size={12}&gt;
+                Using a demo gallery photo
+              &lt;/Text&gt;
+              &lt;TextArea
+                variant=&quot;outline&quot;
+                value={newCaption}
+                onChangeText={setNewCaption}
+                placeholder=&quot;Write a caption...&quot;
+                mb={0}
+                rows={3}
+                radius={8}
+              /&gt;
+              &lt;Button variant=&quot;filled&quot; title=&quot;Share&quot; color={C.blue} fullWidth onPress={createPost} disabled={!newCaption.trim()} /&gt;
+            &lt;/Block&gt;
+          ) : (
+            activePost &amp;&amp; (
+              &lt;Block gap={0}&gt;
+                &lt;ScrollArea mah={360} contentProps={{ py: 12, gap: 18 }}&gt;
+                  &lt;Block direction=&quot;row&quot; gap={12}&gt;
+                    &lt;Person index={activePost.person} size={32} /&gt;
+                    &lt;Text c={C.ink} size={14} flex={1} lh={19}&gt;
+                      &lt;Text fw=&quot;bold&quot; c={C.ink} size={14}&gt;
+                        {PEOPLE[activePost.person].name}{&#39; &#39;}
+                      &lt;/Text&gt;
+                      {activePost.caption}
+                    &lt;/Text&gt;
+                  &lt;/Block&gt;
+                  {(comments[activePost.id] ?? []).map((comment, index) =&gt; (
+                    &lt;Block key={index} direction=&quot;row&quot; gap={12}&gt;
+                      &lt;Person index={ME} size={32} /&gt;
+                      &lt;Text c={C.ink} size={14} flex={1} lh={19}&gt;
+                        &lt;Text fw=&quot;bold&quot; c={C.ink} size={14}&gt;
+                          {PEOPLE[ME].name}{&#39; &#39;}
+                        &lt;/Text&gt;
+                        {comment}
+                      &lt;/Text&gt;
+                    &lt;/Block&gt;
+                  ))}
+                  {(comments[activePost.id] ?? []).length === 0 &amp;&amp; (
+                    &lt;Text c={C.muted} size={13} ta=&quot;center&quot; py={12}&gt;
+                      No comments yet. Start the conversation.
+                    &lt;/Text&gt;
+                  )}
+                &lt;/ScrollArea&gt;
+                &lt;Block direction=&quot;row&quot; pt={10} borderTopWidth={1} borderTopColor={C.line} align=&quot;center&quot; gap={10}&gt;
+                  &lt;Person index={ME} size={32} /&gt;
+                  &lt;Block flex={1} h={40} radius={20} borderWidth={1} borderColor=&quot;#DBDBDB&quot; px={14} justify=&quot;center&quot; gap={0}&gt;
+                    &lt;Input
+                      variant=&quot;unstyled&quot;
+                      value={draft}
+                      onChangeText={setDraft}
+                      placeholder={`Add a comment for ${PEOPLE[activePost.person].name}…`}
+                      onEnter={submitComment}
+                      mb={0}
+                      inputColor={C.ink}
+                    /&gt;
+                  &lt;/Block&gt;
+                  &lt;Block gap={0} onPress={submitComment} opacity={draft.trim() ? 1 : 0.4} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Post comment&quot;&gt;
+                    &lt;Text fw=&quot;bold&quot; c={C.blue}&gt;
+                      Post
+                    &lt;/Text&gt;
+                  &lt;/Block&gt;
+                &lt;/Block&gt;
+              &lt;/Block&gt;
+            )
+          )}
+        &lt;/Dialog&gt;
+      )}
+
+      {sheet &amp;&amp; (
+        &lt;Dialog opened variant=&quot;bottomsheet&quot; title={null} accessibilityLabel=&quot;Options&quot; onClose={closeSheet}&gt;
+          &lt;Block gap={0} pb={16}&gt;
+            {sheet.kind === &#39;post&#39; &amp;&amp; (
+              &lt;Block direction=&quot;row&quot; gap={10} pt={4} pb={12}&gt;
+                &lt;SheetTile
+                  label={saved.includes(sheet.post.id) ? &#39;Unsave&#39; : &#39;Save&#39;}
+                  icon={saved.includes(sheet.post.id) ? &lt;IconBookmarkFilled size={24} color={C.ink} /&gt; : &lt;IconBookmark size={24} color={C.ink} strokeWidth={1.8} /&gt;}
+                  onPress={() =&gt; {
+                    toggle(sheet.post.id, saved, setSaved);
+                    closeSheet();
+                    flash(saved.includes(sheet.post.id) ? &#39;Removed from saved&#39; : &#39;Saved&#39;);
+                  }}
+                /&gt;
+                &lt;SheetTile label=&quot;Share&quot; icon={&lt;IconSend size={24} color={C.ink} strokeWidth={1.8} /&gt;} onPress={() =&gt; copyLink(`p/${sheet.post.id}`)} /&gt;
+                &lt;SheetTile label=&quot;Copy link&quot; icon={&lt;IconLink size={24} color={C.ink} strokeWidth={1.8} /&gt;} onPress={() =&gt; copyLink(`p/${sheet.post.id}`)} /&gt;
+              &lt;/Block&gt;
+            )}
+            &lt;Block gap={0} radius={12} bg={C.soft} overflow=&quot;hidden&quot;&gt;
+              {sheet.kind === &#39;story&#39; &amp;&amp; (
+                &lt;&gt;
+                  &lt;SheetRow label=&quot;Copy link&quot; icon={&lt;IconLink size={22} color={C.ink} strokeWidth={1.8} /&gt;} onPress={() =&gt; copyLink(`stories/${PEOPLE[sheet.person].name}`)} /&gt;
+                  &lt;SheetRow label={`Mute ${PEOPLE[sheet.person].name}`} icon={&lt;Icon name=&quot;volume-off&quot; size={22} color={C.ink} /&gt;} onPress={() =&gt; { closeSheet(); flash(&#39;Stories muted&#39;); }} /&gt;
+                &lt;/&gt;
+              )}
+              {sheet.kind === &#39;profile&#39; &amp;&amp; (
+                &lt;&gt;
+                  &lt;SheetRow label=&quot;Share this profile&quot; icon={&lt;IconSend size={22} color={C.ink} strokeWidth={1.8} /&gt;} onPress={() =&gt; copyLink(PEOPLE[sheet.person].name)} /&gt;
+                  &lt;SheetRow label=&quot;Copy profile URL&quot; icon={&lt;IconLink size={22} color={C.ink} strokeWidth={1.8} /&gt;} onPress={() =&gt; copyLink(PEOPLE[sheet.person].name)} /&gt;
+                &lt;/&gt;
+              )}
+              {!sheetMine &amp;&amp; sheet.kind !== &#39;profile&#39; &amp;&amp; (
+                &lt;SheetRow label=&quot;About this account&quot; icon={&lt;Icon name=&quot;avatar&quot; size={22} color={C.ink} /&gt;} onPress={() =&gt; { closeSheet(); openProfile(sheetPerson); }} /&gt;
+              )}
+              {sheet.kind === &#39;post&#39; &amp;&amp; !sheetMine &amp;&amp; (
+                &lt;&gt;
+                  &lt;SheetRow
+                    label=&quot;Not interested&quot;
+                    icon={&lt;Icon name=&quot;eyeOff&quot; size={22} color={C.ink} /&gt;}
+                    onPress={() =&gt; {
+                      setHidden((current) =&gt; [...current, sheet.post.id]);
+                      closeSheet();
+                      flash(&#39;Post hidden&#39;);
+                    }}
+                  /&gt;
+                  {following.includes(sheetPerson) &amp;&amp; (
+                    &lt;SheetRow
+                      label=&quot;Unfollow&quot;
+                      icon={&lt;Icon name=&quot;user&quot; size={22} color={C.ink} /&gt;}
+                      onPress={() =&gt; {
+                        toggle(sheetPerson, following, setFollowing);
+                        closeSheet();
+                        flash(`Unfollowed ${PEOPLE[sheetPerson].name}`);
+                      }}
+                    /&gt;
+                  )}
+                &lt;/&gt;
+              )}
+              {sheetMine &amp;&amp; sheet.kind === &#39;post&#39; &amp;&amp; (
+                &lt;SheetRow
+                  label=&quot;Delete&quot;
+                  danger
+                  icon={&lt;Icon name=&quot;trash&quot; size={22} color={C.danger} /&gt;}
+                  onPress={() =&gt; {
+                    setPosts((current) =&gt; current.filter((post) =&gt; post.id !== sheet.post.id));
+                    closeSheet();
+                    flash(&#39;Post deleted&#39;);
+                  }}
+                /&gt;
+              )}
+              {!sheetMine &amp;&amp; (
+                &lt;SheetRow label=&quot;Report&quot; danger icon={&lt;Icon name=&quot;flag&quot; size={22} color={C.danger} /&gt;} onPress={() =&gt; { closeSheet(); flash(&#39;Thanks for letting us know&#39;); }} /&gt;
+              )}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        &lt;/Dialog&gt;
+      )}
+
+      &lt;Lightbox
+        opened={lightboxPostId !== null}
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        onClose={() =&gt; setLightboxPostId(null)}
+        showDownloadButton={false}
+        accessibilityLabel={lightboxPost ? `${PEOPLE[lightboxPost.person].name} post photos` : &#39;Post photos&#39;}
+      /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;PlocksProvider theme={{ colorScheme: &#39;light&#39; }}&gt;
+        &lt;AppScreen /&gt;
+      &lt;/PlocksProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</code></pre></section><section id="file-1"><h2>index.ts</h2><pre><code>import { registerRootComponent } from &#39;expo&#39;;
+import App from &#39;./App&#39;;
+
+registerRootComponent(App);
+</code></pre></section></main></body></html>
