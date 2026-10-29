@@ -443,7 +443,8 @@ function DialogBase(props: DialogProps, ref: Ref<View>) {
 
       {hasHeader && (
         <View style={styles.header}>
-          <Text variant="h3" c="primary" nativeID={titleId} {...titleProps}>
+          {/* drawn at h3 size, but the level under a page's h1, so heading order holds */}
+          <Text variant="h3" as="h2" c="primary" nativeID={titleId} {...titleProps}>
             {title || ''}
           </Text>
           {closable && variant !== 'bottomsheet' && (

@@ -78,6 +78,13 @@ describe('Dialog (react-native-web DOM)', () => {
     expect(screen.getByRole('button', { name: 'Close dialog' })).toBeTruthy();
   });
 
+  it('titles itself with an h2, the level under a page heading', async () => {
+    render(<Harness />);
+    await openDialog();
+    const heading = screen.getByRole('heading', { name: 'Settings' });
+    expect(heading.tagName).toBe('H2');
+  });
+
   it('moves focus into the dialog, traps Tab, and restores focus on Escape', async () => {
     const onClose = jest.fn();
     render(<Harness onClose={onClose} />);

@@ -118,7 +118,7 @@ export type { ColorSchemeScriptOptions, ColorSchemeMarkerOptions } from './core/
 
 // Viewport (one shared, hydration-safe store)
 export { useViewport } from './core/responsive';
-export type { ViewportState, BreakpointProviderProps } from './core/responsive';
+export type { ViewportState, ViewportSize, UseViewportOptions, BreakpointProviderProps } from './core/responsive';
 
 // Component contract (DESIGN §5)
 export { useVisibility, withStatics } from './core/factory';
@@ -216,6 +216,8 @@ export {
   useMediaQuery,
   useHover,
   useLongPress,
+  useModifierKeys,
+  getModifierKeys,
   useScrollSpy,
   useMaskedInput,
   useTitleRegistration,
@@ -425,7 +427,7 @@ export type {
 } from './core/theme/componentSize';
 export type { SizeToken } from './core/theme/types';
 export type { ResponsiveProp } from './core/theme/breakpoints';
-export type { HotkeyItem, KeyboardModifiers, DeviceInfo, UseDeviceInfoOptions } from './hooks';
+export type { HotkeyItem, HotkeyHandler, HotkeyHandlers, KeyboardModifiers, ModifierKeysState, DeviceInfo, UseDeviceInfoOptions } from './hooks';
 export type { UseClipboardOptions, UseClipboardReturnValue } from './hooks';
 export type { UseDisclosureCallbacks, UseDisclosureHandlers, UseDisclosureReturn } from './hooks';
 export type { ControllableStateAction, UseControllableStateOptions, UseControllableStateReturn } from './hooks';
@@ -655,7 +657,7 @@ export type { IconProps, IconSize, IconVariant, IconDefinition, IconRegistry, Ex
 export { registerIcon, registerIcons, getIconNames, hasIcon } from './components/Icon';
 export type { LightboxModalProps, LightboxThumbnailProps, LightboxControlsProps, LightboxMetadataProps } from './components/Lightbox';
 export { WaveformSkeleton } from './components/Waveform';
-export type { WaveformMarker, PerformanceMetrics as WaveformPerformanceMetrics, WaveformSkeletonProps } from './components/Waveform';
+export type { WaveformMarker, WaveformRegion, PerformanceMetrics as WaveformPerformanceMetrics, WaveformSkeletonProps } from './components/Waveform';
 export type { MasonryViewToken, MasonryFlashListProps } from './components/Masonry';
 export { MobileMenu, resolveNavbarReservedWidth, resolveContentBottom, isMobileBreakpoint, DEFAULT_HEADER, DEFAULT_NAVBAR, DEFAULT_ASIDE, DEFAULT_FOOTER, DEFAULT_BOTTOM_NAV, APP_SHELL_META } from './components/AppShell';
 export type { AppShellHeaderProps, AppShellNavbarProps, AppShellAsideProps, AppShellFooterProps, AppShellMainProps, AppShellSectionProps, MobileMenuProps, MobileMenuConfig, StatusBarManagerProps, StatusBarConfig, HeaderConfig, NavbarConfig, AsideConfig, FooterConfig, BottomNavConfig, LayoutVisibilityConfig, LayoutType as AppShellLayoutType, ResponsiveSize as AppShellResponsiveSize, Breakpoint as AppShellBreakpoint, AppShellContextValue, AppShellApi, AppShellLayoutValue, AppShellCssConfig, AppShellCssOptions, AppShellCssVar, AppLayoutProviderProps, AppLayoutRendererProps, LayoutMainExtraProps } from './components/AppShell';
