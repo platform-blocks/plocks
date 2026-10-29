@@ -55,7 +55,7 @@ export interface CalendarHeatmapChartProps
   firstDayOfWeek?: 0 | 1;
   /**
    * Size of a day cell in px. When the container is narrower than the calendar,
-   * cells shrink to fit, down to 4px; below that the chart keeps its width.
+   * cells shrink to fit, down to 3px; below that the chart keeps its width.
    */
   rectSize?: number;
   /** Space between cells, in px */

@@ -31,7 +31,7 @@ interface MonthMark {
 
 const DEFAULT_MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DEFAULT_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MIN_CELL = 4;
+const MIN_CELL = 3;
 const PAD = 8;
 const LEGEND_GAP = 10;
 const SERIES_ID = 'calendar-heatmap';

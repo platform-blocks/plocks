@@ -134,7 +134,12 @@ export const MatrixChart: React.FC<MatrixChartProps> = (props) => {
   const gridLeft = PAD + yBand;
   const availableWidth = Math.max(0, width - gridLeft - PAD);
   const autoCell = columns > 0 ? Math.floor((availableWidth - gap * (columns - 1)) / columns) : MIN_AUTO_CELL;
-  const cell = cellSize ?? clamp(autoCell, MIN_AUTO_CELL, MAX_AUTO_CELL);
+  // An explicit cellSize is the natural size; like auto cells, it shrinks to fit
+  // the width, down to MIN_AUTO_CELL, past which the chart keeps its width.
+  const cell =
+    cellSize != null
+      ? Math.max(Math.min(cellSize, autoCell), Math.min(cellSize, MIN_AUTO_CELL))
+      : clamp(autoCell, MIN_AUTO_CELL, MAX_AUTO_CELL);
   const gridWidth = columns * cell + gap * Math.max(columns - 1, 0);
   const gridHeight = rows * cell + gap * Math.max(rows - 1, 0);
   const gridTop = Math.max(PAD, titleBand) + (xLabelsPosition === 'top' ? xBand : 0);

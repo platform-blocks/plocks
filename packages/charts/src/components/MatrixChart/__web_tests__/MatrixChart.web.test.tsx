@@ -42,3 +42,17 @@ test('lays out a cell per x/y pair, fills gaps as empty, and honours getCellProp
   expect(getByText('r1')).toBeTruthy();
   expect(getByText('b')).toBeTruthy();
 });
+
+test('shrinks an explicit cellSize to fit a narrow width, but not below 12px', () => {
+  const data = Array.from({ length: 10 }, (_, i) => ({ x: `c${i}`, y: 'r', value: i }));
+  const cellWidth = (w: number) => {
+    const { container, unmount } = renderChart(<MatrixChart w={w} data={data} cellSize={30} gap={2} withYLabels={false} />);
+    const width = Number(container.querySelector('[data-testid^="matrix-cell-"]')?.getAttribute('width'));
+    unmount();
+    return width;
+  };
+  expect(cellWidth(1000)).toBe(30);
+  expect(cellWidth(200)).toBeLessThan(30);
+  expect(cellWidth(200) * 10 + 2 * 9).toBeLessThanOrEqual(200);
+  expect(cellWidth(60)).toBe(12);
+});

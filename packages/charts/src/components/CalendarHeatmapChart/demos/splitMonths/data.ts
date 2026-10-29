@@ -1,5 +1,5 @@
 export const START = '2025-01-01';
-export const END = '2025-12-31';
+export const END = '2025-06-30';
 
 // Seeded so the calendar (and its screenshots) is identical on every render.
 function mulberry32(seed: number) {

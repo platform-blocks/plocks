@@ -64,7 +64,11 @@ export interface MatrixChartProps extends BaseChartProps, ChartInteractionCallba
   domain?: [number, number];
   /** Color of empty (`null` or missing) cells */
   emptyColor?: string;
-  /** Cell size in px. Defaults to whatever fits the width, between 12 and 40 */
+  /**
+   * Cell size in px. Defaults to whatever fits the width, between 12 and 40.
+   * When the container is narrower than the grid, cells shrink to fit, down to
+   * 12px; below that the chart keeps its width.
+   */
   cellSize?: number;
   /** Gap between cells, in px */
   gap?: number;
