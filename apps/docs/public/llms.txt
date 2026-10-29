@@ -15,7 +15,7 @@ Whole-library files:
 Agent skills for Claude Code, Cursor and others: https://github.com/platform-blocks/skills (`npx skills add https://github.com/platform-blocks/skills --skill plocks-setup`)
 
 Install: `npm install @plocks/ui` — separate packages, installed alongside it: `@plocks/brands`, `@plocks/carousel`, `@plocks/charts`, `@plocks/code`, `@plocks/dates`, `@plocks/emoji-picker`, `@plocks/media`, `@plocks/qrcode`, `@plocks/spotlight`. A component page's Import line names the package it comes from.
-Version: generated from the `main` branch — `@plocks/ui` 0.2.0, `@plocks/brands` 0.2.0, `@plocks/carousel` 0.2.0, `@plocks/charts` 0.2.0, `@plocks/code` 0.2.0, `@plocks/dates` 0.2.0, `@plocks/emoji-picker` 0.2.0, `@plocks/media` 0.2.0, `@plocks/qrcode` 0.2.0, `@plocks/spotlight` 0.2.0. The branch can be ahead of the latest npm release; if an API here is missing from your installed version, check the changelog: https://github.com/platform-blocks/plocks/tree/main/changelog
+Version: generated from the `main` branch — `@plocks/ui` 0.3.0, `@plocks/brands` 0.3.0, `@plocks/carousel` 0.3.0, `@plocks/charts` 0.3.0, `@plocks/code` 0.3.0, `@plocks/dates` 0.3.0, `@plocks/emoji-picker` 0.3.0, `@plocks/media` 0.3.0, `@plocks/qrcode` 0.3.0, `@plocks/spotlight` 0.3.0. The branch can be ahead of the latest npm release; if an API here is missing from your installed version, check the changelog: https://github.com/platform-blocks/plocks/tree/main/changelog
 Website: https://plocks.dev • GitHub: https://github.com/platform-blocks/plocks • npm: https://www.npmjs.com/package/@plocks/ui
 
 **Conventions**
