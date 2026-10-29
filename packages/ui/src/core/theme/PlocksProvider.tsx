@@ -11,6 +11,7 @@ import { OverlayProvider, OverlayRenderer, DirectionProvider } from '../provider
 import { SafeAreaBoundary } from '../providers/SafeAreaBoundary';
 import type { DirectionProviderProps } from '../providers';
 import { BreakpointProvider } from '../responsive';
+import type { ViewportSize } from '../responsive';
 import { I18nProvider } from '../i18n';
 import type { I18nResources } from '../i18n/types';
 import { UniversalCSS } from '../utils/UniversalCSS';
@@ -248,6 +249,16 @@ export interface PlocksProviderProps {
    * Omitted in a nested provider: inherit the parent's setting.
    */
   reducedMotion?: ReducedMotionSetting;
+
+  /**
+   * Root provider only. The viewport assumed while a web page is statically
+   * rendered and hydrated (prerender has no window): what `useViewport`,
+   * `useBreakpoint` and responsive props report until the real size is read
+   * right after hydration. Defaults to a desktop size (`SERVER_VIEWPORT`); a
+   * phone-first app passes e.g. `{ width: 390, height: 844 }` so a phone's
+   * first paint is already its own layout. Ignored on native.
+   */
+  serverViewport?: ViewportSize;
 }
 
 interface ResolvedThemeOptions {
@@ -454,7 +465,8 @@ function RootProvider({
   direction,
   haptics,
   toast,
-  reducedMotion
+  reducedMotion,
+  serverViewport
 }: PlocksProviderProps) {
   const toastConfig: ToastProviderConfig | null = toast === false ? null : (toast ?? EMPTY_TOAST_CONFIG);
   const i18nStore = useMemo(
@@ -524,7 +536,7 @@ function RootProvider({
         fallbackLocale={fallbackLocale}
         resources={i18nStore}
       >
-        <BreakpointProvider>
+        <BreakpointProvider serverViewport={serverViewport}>
           {enhancedTree}
         </BreakpointProvider>
       </I18nBoundary>

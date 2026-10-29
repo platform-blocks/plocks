@@ -210,6 +210,23 @@ describe('Button Component - Rendering & Behavior', () => {
         expect(getByTestId('button')).toBeTruthy();
       });
     });
+
+    it('variant="none" draws no chrome around element children and stays a pressable button', () => {
+      const onPress = jest.fn();
+      const { getByTestId, getByRole } = render(
+        <Button variant="none" accessibilityLabel="Kick pad" onPress={onPress} testID="button">
+          <RNText testID="tile">Kick</RNText>
+        </Button>
+      );
+      const flat = StyleSheet.flatten(getByTestId('button').props.style);
+      expect(flat.backgroundColor).toBe('transparent');
+      expect(flat.borderColor).toBe('transparent');
+      expect(flat.paddingHorizontal).toBe(0);
+      expect(flat.height).toBe('auto');
+      expect(getByTestId('tile')).toBeTruthy();
+      fireEvent.press(getByRole('button', { name: 'Kick pad' }));
+      expect(onPress).toHaveBeenCalledTimes(1);
+    });
   });
 
   // ============================================================================

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { useLatestCallback } from '../../core/hooks/useLatestCallback';
 import { hasDOM, isWeb } from '../../core/platform';
@@ -14,21 +14,77 @@ export type KeyboardModifiers = {
   shift?: boolean;
 };
 
+/** Called with the DOM keyboard event that matched. */
+export type HotkeyHandler = (event: KeyboardEvent) => void;
+
+/**
+ * Press and release handlers for one binding — the form for anything held:
+ * push-to-talk, a modifier that changes what a drag does, a key that previews
+ * while it is down.
+ */
+export interface HotkeyHandlers {
+  /** Runs when the combination is pressed, and again on auto-repeat unless `repeat` is false. */
+  keydown?: HotkeyHandler;
+  /**
+   * Runs when the key of a press that matched is released, whatever the
+   * modifiers did in between (⇧A released after ⇧ still ends the ⇧A press). It
+   * also runs, with a synthetic `keyup` event, when the window loses focus while
+   * the key is held, and for every held binding when ⌘ is released (macOS
+   * drops the keyups of keys let go while ⌘ is down).
+   */
+  keyup?: HotkeyHandler;
+  /** Whether auto-repeat keydowns call `keydown` again. @default true */
+  repeat?: boolean;
+  /** Whether a matching press or release calls `preventDefault()` and `stopPropagation()`. @default true */
+  preventDefault?: boolean;
+}
+
 export type HotkeyItem = [
-  /** key combination like 'mod+k', 'escape', 'ctrl+j' */
+  /**
+   * Key combination like 'mod+k', 'escape', 'ctrl+j'. The last part may be a
+   * modifier itself ('shift', 'alt', 'ctrl', 'meta', 'mod') to bind that key on
+   * its own; 'space' is the space bar.
+   */
   string,
-  /** handler function */
-  (event: KeyboardEvent) => void,
+  /** Press handler, or `{ keydown, keyup, repeat, preventDefault }` */
+  HotkeyHandler | HotkeyHandlers,
   /** optional modifiers override */
   KeyboardModifiers?,
   /** optional description */
   string[]?
 ];
 
+type ModifierName = keyof KeyboardModifiers;
+
+const isApplePlatform = () =>
+  isWeb && typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+
+/** `event.key` (lowercased) of each modifier, and the flag it sets while down. */
+const MODIFIER_KEYS: Record<string, { key: string; flag: ModifierName }> = {
+  shift: { key: 'shift', flag: 'shift' },
+  alt: { key: 'alt', flag: 'alt' },
+  option: { key: 'alt', flag: 'alt' },
+  ctrl: { key: 'control', flag: 'ctrl' },
+  control: { key: 'control', flag: 'ctrl' },
+  meta: { key: 'meta', flag: 'meta' },
+  cmd: { key: 'meta', flag: 'meta' },
+};
+
+/** Names for keys whose `event.key` is awkward to write in a combination string. */
+const KEY_ALIASES: Record<string, string> = { space: ' ' };
+
+interface ParsedHotkey {
+  modifiers: KeyboardModifiers;
+  /** Lowercased `event.key` to match. */
+  key: string;
+  /** The modifier flag the key itself sets while down ('shift' binds Shift alone), else null. */
+  ownFlag: ModifierName | null;
+}
+
 // Parse hotkey string into modifiers and key
-function parseHotkey(hotkey: string): { modifiers: KeyboardModifiers; key: string } {
+function parseHotkey(hotkey: string): ParsedHotkey {
   const keys = hotkey.toLowerCase().split('+');
-  const key = keys[keys.length - 1];
+  let key = keys[keys.length - 1];
   const modifiers: KeyboardModifiers = {};
 
   for (let i = 0; i < keys.length - 1; i++) {
@@ -36,13 +92,8 @@ function parseHotkey(hotkey: string): { modifiers: KeyboardModifiers; key: strin
     switch (modifier) {
       case 'mod':
         // 'mod' maps to cmd on Mac, ctrl on others
-        if (isWeb && typeof navigator !== 'undefined') {
-          const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-          if (isMac) {
-            modifiers.meta = true;
-          } else {
-            modifiers.ctrl = true;
-          }
+        if (isApplePlatform()) {
+          modifiers.meta = true;
         } else {
           modifiers.ctrl = true;
         }
@@ -63,78 +114,172 @@ function parseHotkey(hotkey: string): { modifiers: KeyboardModifiers; key: strin
     }
   }
 
-  return { modifiers, key };
+  if (key === 'mod') key = isApplePlatform() ? 'meta' : 'ctrl';
+  const own = MODIFIER_KEYS[key];
+  if (own) return { modifiers, key: own.key, ownFlag: own.flag };
+  return { modifiers, key: KEY_ALIASES[key] ?? key, ownFlag: null };
 }
 
 // Check if event matches the hotkey
 function matchesHotkey(
   event: KeyboardEvent,
   modifiers: KeyboardModifiers,
-  key: string
+  key: string,
+  ownFlag: ModifierName | null = null
 ): boolean {
   // Check key match (case insensitive)
-  if (event.key.toLowerCase() !== key.toLowerCase()) {
+  if (typeof event.key !== 'string' || event.key.toLowerCase() !== key.toLowerCase()) {
     return false;
   }
 
-  // Check modifiers
-  if (!!modifiers.alt !== !!event.altKey) return false;
-  if (!!modifiers.ctrl !== !!event.ctrlKey) return false;
-  if (!!modifiers.meta !== !!event.metaKey) return false;
-  if (!!modifiers.shift !== !!event.shiftKey) return false;
+  // Check modifiers. A modifier bound on its own is down during its own press,
+  // so its flag is not compared.
+  if (ownFlag !== 'alt' && !!modifiers.alt !== !!event.altKey) return false;
+  if (ownFlag !== 'ctrl' && !!modifiers.ctrl !== !!event.ctrlKey) return false;
+  if (ownFlag !== 'meta' && !!modifiers.meta !== !!event.metaKey) return false;
+  if (ownFlag !== 'shift' && !!modifiers.shift !== !!event.shiftKey) return false;
 
   return true;
+}
+
+/** Typing in a field keeps its keys (Escape excepted). */
+function isTypingTarget(event: KeyboardEvent): boolean {
+  const target = event.target as HTMLElement | null;
+  return (
+    !!target &&
+    (target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.isContentEditable ||
+      target.contentEditable === 'true')
+  );
+}
+
+function handlersOf(handler: HotkeyItem[1]): HotkeyHandlers {
+  return typeof handler === 'function' ? { keydown: handler } : handler ?? {};
+}
+
+/** The physical key a press came from, so its release is found whatever the modifiers did. */
+const pressId = (event: KeyboardEvent) => event.code || event.key?.toLowerCase() || '';
+
+interface HeldPress {
+  combo: string;
+  /** The binding's handlers when it was pressed: the release falls back to them if it is gone. */
+  handlers: HotkeyHandlers;
+  key: string;
+  code: string;
+}
+
+/**
+ * Shared keydown/keyup matching for `useHotkeys` and the global manager.
+ * `items` is read on every event, so handlers are always the latest.
+ */
+function createHotkeyRouter(items: () => Iterable<HotkeyItem>) {
+  const held = new Map<string, HeldPress>();
+
+  const current = (press: HeldPress): HotkeyHandlers => {
+    for (const [combo, handler] of items()) {
+      if (combo === press.combo) return handlersOf(handler);
+    }
+    return press.handlers;
+  };
+
+  const release = (id: string, event: KeyboardEvent) => {
+    const press = held.get(id);
+    if (!press) return false;
+    held.delete(id);
+    const handlers = current(press);
+    if (handlers.keyup && handlers.preventDefault !== false) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    handlers.keyup?.(event);
+    return true;
+  };
+
+  /** Ends every held press with a synthetic keyup (focus lost, ⌘ released). */
+  const releaseAll = () => {
+    for (const [id, press] of Array.from(held)) {
+      const event =
+        typeof KeyboardEvent === 'function'
+          ? new KeyboardEvent('keyup', { key: press.key, code: press.code })
+          : ({ type: 'keyup', key: press.key, code: press.code, preventDefault() {}, stopPropagation() {} } as unknown as KeyboardEvent);
+      release(id, event);
+    }
+  };
+
+  const keydown = (event: KeyboardEvent) => {
+    // Don't trigger hotkeys when user is typing in input fields
+    // Exception: allow escape key to work in input fields
+    if (isTypingTarget(event) && event.key !== 'Escape') return;
+
+    for (const [combo, handler, customModifiers] of items()) {
+      const { modifiers, key, ownFlag } = parseHotkey(combo);
+      if (!matchesHotkey(event, customModifiers || modifiers, key, ownFlag)) continue;
+
+      const handlers = handlersOf(handler);
+      if (handlers.preventDefault !== false) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const id = pressId(event);
+      // A fresh press of a key still marked held means its keyup was lost
+      // (released while ⌘ was down, or in another window): end that one first.
+      if (!event.repeat && held.has(id)) release(id, event);
+      if (handlers.keyup && !held.has(id)) {
+        held.set(id, { combo, handlers, key: event.key, code: event.code });
+      }
+      if (!event.repeat || handlers.repeat !== false) handlers.keydown?.(event);
+      break; // Only trigger first matching hotkey
+    }
+  };
+
+  const keyup = (event: KeyboardEvent) => {
+    // macOS never delivers the keyups of keys released while ⌘ was down, so
+    // letting go of ⌘ ends every press.
+    if (event.key === 'Meta') {
+      release(pressId(event), event);
+      releaseAll();
+      return;
+    }
+    release(pressId(event), event);
+  };
+
+  return { keydown, keyup, releaseAll };
 }
 
 // Main useHotkeys hook
 /**
  * Document-level keyboard shortcuts (web; no-op on native).
  *
- * Handlers are always the latest ones passed — the listener is attached once
- * and reads the current `hotkeys` on every keypress — so inline handlers never
+ * Each binding is `[combo, handler]` or `[combo, { keydown, keyup, repeat,
+ * preventDefault }]`; `keyup` runs when the key of a press that matched is
+ * released (or the window loses focus while it is held), which is how a held
+ * key is tracked. A modifier can be bound on its own (`'shift'`, `'alt'`).
+ *
+ * Handlers are always the latest ones passed — the listeners are attached once
+ * and read the current `hotkeys` on every key event — so inline handlers never
  * go stale and never cause re-subscription.
  */
 export function useHotkeys(hotkeys: HotkeyItem[]) {
-  const handleKeyDown = useLatestCallback((event: KeyboardEvent) => {
-    // Don't trigger hotkeys when user is typing in input fields
-    const target = event.target as HTMLElement | null;
-    if (
-      target &&
-      (target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable ||
-        target.contentEditable === 'true')
-    ) {
-      // Exception: allow escape key to work in input fields
-      if (event.key !== 'Escape') {
-        return;
-      }
-    }
-
-    for (const [hotkeyString, handler, customModifiers] of hotkeys) {
-      const { modifiers, key } = parseHotkey(hotkeyString);
-      const finalModifiers = customModifiers || modifiers;
-
-      if (matchesHotkey(event, finalModifiers, key)) {
-        event.preventDefault();
-        event.stopPropagation();
-        handler(event);
-        break; // Only trigger first matching hotkey
-      }
-    }
-  });
+  const readHotkeys = useLatestCallback(() => hotkeys);
+  const [router] = useState(() => createHotkeyRouter(() => readHotkeys() ?? []));
 
   useEffect(() => {
     if (!hasDOM) {
       return;
     }
 
-    const listener = (event: KeyboardEvent) => {
-      handleKeyDown(event);
+    document.addEventListener('keydown', router.keydown);
+    document.addEventListener('keyup', router.keyup);
+    window.addEventListener('blur', router.releaseAll);
+    return () => {
+      document.removeEventListener('keydown', router.keydown);
+      document.removeEventListener('keyup', router.keyup);
+      window.removeEventListener('blur', router.releaseAll);
+      // Unmounting mid-press still ends the press.
+      router.releaseAll();
     };
-    document.addEventListener('keydown', listener);
-    return () => document.removeEventListener('keydown', listener);
-  }, [handleKeyDown]);
+  }, [router]);
 }
 
 // Global hotkey manager
@@ -197,45 +342,29 @@ class GlobalHotkeyManager {
 
     const shouldListen = this.hotkeys.size > 0 && this.isForeground();
     if (shouldListen && !this.isListening) {
-      document.addEventListener('keydown', this.handleKeyDown);
+      document.addEventListener('keydown', this.router.keydown);
+      document.addEventListener('keyup', this.router.keyup);
+      window.addEventListener('blur', this.router.releaseAll);
       this.isListening = true;
     } else if (!shouldListen && this.isListening) {
-      document.removeEventListener('keydown', this.handleKeyDown);
-      this.isListening = false;
+      this.stopListening();
     }
   }
 
-  private handleKeyDown = (event: KeyboardEvent) => {
-    // Don't trigger hotkeys when user is typing in input fields
-    const target = event.target as HTMLElement;
-    if (
-      target.tagName === 'INPUT' ||
-      target.tagName === 'TEXTAREA' ||
-      target.contentEditable === 'true'
-    ) {
-      // Exception: allow escape key to work in input fields
-      if (event.key !== 'Escape') {
-        return;
-      }
-    }
+  private stopListening() {
+    document.removeEventListener('keydown', this.router.keydown);
+    document.removeEventListener('keyup', this.router.keyup);
+    window.removeEventListener('blur', this.router.releaseAll);
+    this.isListening = false;
+    // Backgrounded or emptied mid-press: still end the press.
+    this.router.releaseAll();
+  }
 
-    for (const [hotkeyString, handler, customModifiers] of this.hotkeys.values()) {
-      const { modifiers, key } = parseHotkey(hotkeyString);
-      const finalModifiers = customModifiers || modifiers;
-
-      if (matchesHotkey(event, finalModifiers, key)) {
-        event.preventDefault();
-        event.stopPropagation();
-        handler(event);
-        break;
-      }
-    }
-  };
+  private router = createHotkeyRouter(() => this.hotkeys.values());
 
   dispose() {
     if (hasDOM && this.isListening) {
-      document.removeEventListener('keydown', this.handleKeyDown);
-      this.isListening = false;
+      this.stopListening();
     }
 
     if (typeof this.visibilityCleanup === 'function') {
@@ -265,7 +394,20 @@ export const globalHotkeys = new GlobalHotkeyManager();
  */
 export function useGlobalHotkeys(id: string, hotkey: HotkeyItem, enabled: boolean = true) {
   const [combo, handler, modifiers, description] = hotkey;
-  const latestHandler = useLatestCallback(handler);
+  const latestHandlers = useLatestCallback(() => handlersOf(handler));
+  // One stable registration that forwards to the latest handlers, flags included.
+  const [proxy] = useState<HotkeyHandlers>(() => ({
+    keydown: (event) => latestHandlers()?.keydown?.(event),
+    get keyup() {
+      return latestHandlers()?.keyup ? (event: KeyboardEvent) => latestHandlers()?.keyup?.(event) : undefined;
+    },
+    get repeat() {
+      return latestHandlers()?.repeat;
+    },
+    get preventDefault() {
+      return latestHandlers()?.preventDefault;
+    },
+  }));
   const modifiersKey = modifiers ? JSON.stringify(modifiers) : '';
   const descriptionKey = description ? description.join('\u0000') : '';
 
@@ -273,9 +415,9 @@ export function useGlobalHotkeys(id: string, hotkey: HotkeyItem, enabled: boolea
     if (!enabled) return undefined;
     const parsedModifiers: KeyboardModifiers | undefined = modifiersKey ? JSON.parse(modifiersKey) : undefined;
     const parsedDescription = descriptionKey ? descriptionKey.split('\u0000') : undefined;
-    globalHotkeys.register(id, [combo, (event) => { latestHandler(event); }, parsedModifiers, parsedDescription]);
+    globalHotkeys.register(id, [combo, proxy, parsedModifiers, parsedDescription]);
     return () => globalHotkeys.unregister(id);
-  }, [id, combo, modifiersKey, descriptionKey, enabled, latestHandler]);
+  }, [id, combo, modifiersKey, descriptionKey, enabled, proxy]);
 }
 
 // Convenience hooks for common patterns

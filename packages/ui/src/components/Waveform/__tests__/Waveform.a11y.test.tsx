@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import type { SharedValue } from 'react-native-reanimated';
 
 import { Waveform } from '../Waveform';
 import { WaveformSkeleton } from '../WaveformSkeleton';
@@ -73,5 +74,37 @@ describe('Waveform accessibility', () => {
     const first = JSON.stringify(toJSON());
     rerender(<WaveformSkeleton barsCount={6} />);
     expect(JSON.stringify(toJSON())).toBe(first);
+  });
+
+  it('exposes pressable regions as buttons in a group the screen reader can enter', () => {
+    const onRegionPress = jest.fn();
+    const regions = [
+      { start: 0, end: 0.5, label: 'Slice 1' },
+      { start: 0.5, end: 1, label: 'Slice 2', active: true },
+    ];
+    render(<Waveform peaks={PEAKS} regions={regions} onRegionPress={onRegionPress} testID="wave" />);
+    const root = screen.getByTestId('wave');
+    // an accessible root would swallow its children into one element on native
+    expect(root.props.accessible).toBe(false);
+    expect(root.props.role).toBe('group');
+    const second = screen.getByRole('button', { name: 'Slice 2' });
+    expect(second.props.accessibilityState).toEqual(expect.objectContaining({ selected: true }));
+    fireEvent.press(second);
+    expect(onRegionPress).toHaveBeenCalledWith(1, regions[1]);
+  });
+
+  it('draws a playhead from a shared value or a number', () => {
+    const { makeMutable } = jest.requireMock('react-native-reanimated') as {
+      makeMutable: <T>(value: T) => SharedValue<T>;
+    };
+    const playhead = makeMutable(0.5);
+    const { rerender } = render(<Waveform peaks={PEAKS} w={290} barWidth={2} barGap={1} playhead={playhead} testID="wave" />);
+    const line = () =>
+      screen.UNSAFE_root.findAll(
+        (node) => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.width === 2
+      )[0];
+    expect(line()).toBeTruthy();
+    rerender(<Waveform peaks={PEAKS} w={290} barWidth={2} barGap={1} playhead={0.25} testID="wave" />);
+    expect(line()).toBeTruthy();
   });
 });

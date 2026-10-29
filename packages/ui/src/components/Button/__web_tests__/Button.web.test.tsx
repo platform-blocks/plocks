@@ -46,6 +46,35 @@ describe('Button (react-native-web DOM)', () => {
     expect(screen.getByRole('tab', { name: 'Overview' }).getAttribute('aria-selected')).toBe('true');
   });
 
+  it('variant="none" is an unstyled pressable that is still a full button', () => {
+    const onPress = jest.fn();
+    render(
+      <Button variant="none" accessibilityLabel="Kick pad" onPress={onPress}>
+        <Text testID="tile">Kick</Text>
+      </Button>
+    );
+    const button = screen.getByRole('button', { name: 'Kick pad' });
+    // no chrome: transparent fill and border, no padding, no fixed height
+    expect(button.style.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    expect(button.style.borderTopColor).toBe('rgba(0, 0, 0, 0)');
+    expect(button.style.paddingLeft).toBe('0px');
+    expect(button.style.height).toBe('auto');
+    // element children render as they are
+    expect(button.contains(screen.getByTestId('tile'))).toBe(true);
+    expect(button.getAttribute('tabindex')).toBe('0');
+    fireEvent.click(button);
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('variant="none" keeps disabled semantics', () => {
+    const onPress = jest.fn();
+    render(<Button variant="none" title="Tile" disabled onPress={onPress} />);
+    const button = screen.getByRole('button', { name: 'Tile' });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(button);
+    expect(onPress).not.toHaveBeenCalled();
+  });
+
   it('renders a tinted light button without a browser-default outline', () => {
     render(<Button title="Light action" variant="light" />);
     const button = screen.getByRole('button', { name: 'Light action' }) as HTMLButtonElement;

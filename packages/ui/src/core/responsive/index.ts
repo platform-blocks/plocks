@@ -6,7 +6,6 @@ import { useTheme } from '../theme/ThemeProvider';
 import { getBreakpoints, type BreakpointValues } from '../theme/tokens';
 import {
   SERVER_VIEWPORT,
-  getServerViewportSnapshot,
   getViewportSnapshot,
   subscribeViewport,
   type ViewportSize,
@@ -68,6 +67,7 @@ export function isBreakpointAtLeast(current: Breakpoint, target: Breakpoint): bo
 }
 
 const BreakpointValuesContext = createContext<BreakpointValues | null>(null);
+const ServerViewportContext = createContext<ViewportSize>(SERVER_VIEWPORT);
 
 export interface BreakpointProviderProps {
   /**
@@ -75,6 +75,14 @@ export interface BreakpointProviderProps {
    * Omit to use `theme.breakpoints`.
    */
   breakpoints?: Partial<BreakpointValues>;
+  /**
+   * Viewport assumed while the page is statically rendered and hydrated (web
+   * prerender has no window), for `useViewport`, `useBreakpoint` and everything
+   * built on them in this subtree. Omit to inherit the parent's, which at the
+   * root is a desktop-sized default (`SERVER_VIEWPORT`). A phone-first app
+   * passes a phone size so a phone's first paint is already its own layout.
+   */
+  serverViewport?: ViewportSize;
   children?: React.ReactNode;
 }
 
@@ -84,8 +92,18 @@ export interface BreakpointProviderProps {
  * listener; without `breakpoints` it is a pass-through.
  * `PlocksProvider` mounts one automatically.
  */
-function BreakpointProvider({ breakpoints, children }: BreakpointProviderProps) {
+function BreakpointProvider({ breakpoints, serverViewport, children }: BreakpointProviderProps) {
   const parent = useContext(BreakpointValuesContext);
+  const parentServerViewport = useContext(ServerViewportContext);
+  const serverWidth = serverViewport?.width;
+  const serverHeight = serverViewport?.height;
+  const server = useMemo<ViewportSize | null>(
+    () =>
+      serverWidth === undefined || serverHeight === undefined
+        ? null
+        : { width: serverWidth, height: serverHeight },
+    [serverWidth, serverHeight]
+  );
   const theme = useTheme();
   const themeValues = getBreakpoints(theme);
   const { xs, sm, md, lg, xl } = breakpoints ?? {};
@@ -103,7 +121,13 @@ function BreakpointProvider({ breakpoints, children }: BreakpointProviderProps) 
     };
   }, [parent, themeValues, xs, sm, md, lg, xl]);
 
-  return React.createElement(BreakpointValuesContext.Provider, { value }, children);
+  // Always the same two providers, so setting `serverViewport` later never
+  // remounts the subtree.
+  return React.createElement(
+    ServerViewportContext.Provider,
+    { value: server ?? parentServerViewport },
+    React.createElement(BreakpointValuesContext.Provider, { value }, children)
+  );
 }
 
 /** The breakpoint table in effect: a `BreakpointProvider` override, else `theme.breakpoints`. */
@@ -113,13 +137,41 @@ function useBreakpointValues(): BreakpointValues {
   return override ?? getBreakpoints(theme);
 }
 
+export interface UseViewportOptions {
+  /**
+   * Size to report while the page is statically rendered and hydrated (web
+   * prerender has no window). Defaults to the nearest `BreakpointProvider` /
+   * `PlocksProvider` `serverViewport`, else a desktop size (`SERVER_VIEWPORT`).
+   * Native never prerenders, so it always reads the real window.
+   */
+  serverViewport?: ViewportSize;
+}
+
+/**
+ * The server snapshot for `size`: the shared default object when it matches, so
+ * `useSyncExternalStore` gets a stable value without a cache per caller.
+ */
+function useServerViewport(size: ViewportSize | undefined): ViewportSize {
+  const inherited = useContext(ServerViewportContext);
+  const width = size?.width ?? inherited.width;
+  const height = size?.height ?? inherited.height;
+  return useMemo(
+    () => (width === inherited.width && height === inherited.height ? inherited : { width, height }),
+    [width, height, inherited]
+  );
+}
+
 /**
  * Current viewport `{ width, height, breakpoint }`, re-rendering on every size
- * change. Hydration-safe: the server (and the hydration pass) see a desktop
- * default. Prefer `useBreakpoint()` when only the breakpoint matters.
+ * change. Hydration-safe: the server and the hydration pass see the prerender
+ * size (`options.serverViewport`, else the provider's `serverViewport`, else a
+ * desktop default), then the real one, so markup never mismatches. Prefer
+ * `useBreakpoint()` when only the breakpoint matters.
  */
-export function useViewport(): ViewportState {
-  const size = useSyncExternalStore(subscribeViewport, getViewportSnapshot, getServerViewportSnapshot);
+export function useViewport(options?: UseViewportOptions): ViewportState {
+  const server = useServerViewport(options?.serverViewport);
+  const getServerSnapshot = useCallback(() => server, [server]);
+  const size = useSyncExternalStore(subscribeViewport, getViewportSnapshot, getServerSnapshot);
   const values = useBreakpointValues();
   return useMemo(
     () => ({ width: size.width, height: size.height, breakpoint: getBreakpointForWidth(size.width, values) }),
@@ -129,12 +181,14 @@ export function useViewport(): ViewportState {
 
 /**
  * Current breakpoint name. Only re-renders when the breakpoint changes, not on
- * every resize. Hook-order-safe and hydration-safe (server: `xl`).
+ * every resize. Hook-order-safe and hydration-safe (server: the provider's
+ * `serverViewport` breakpoint, `xl` by default).
  */
 function useBreakpoint(): Breakpoint {
   const values = useBreakpointValues();
+  const serverWidth = useContext(ServerViewportContext).width;
   const getSnapshot = useCallback(() => getBreakpointForWidth(getViewportSnapshot().width, values), [values]);
-  const getServerSnapshot = useCallback(() => getBreakpointForWidth(SERVER_VIEWPORT.width, values), [values]);
+  const getServerSnapshot = useCallback(() => getBreakpointForWidth(serverWidth, values), [serverWidth, values]);
   return useSyncExternalStore(subscribeViewport, getSnapshot, getServerSnapshot);
 }
 

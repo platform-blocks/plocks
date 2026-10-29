@@ -1,6 +1,8 @@
 import React, { useMemo, useCallback, useRef, useState, useEffect, useId } from 'react';
-import { View, Text as RNText } from 'react-native';
-import type { GestureResponderEvent, LayoutChangeEvent } from 'react-native';
+import { View, Pressable, StyleSheet, Text as RNText } from 'react-native';
+import type { DimensionValue, GestureResponderEvent, LayoutChangeEvent } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
 import {
   acquirePageScrollLock,
   getGestureSurfaceStyle,
@@ -19,7 +21,7 @@ import { resolveAccentColor } from '../../core/theme/resolveColors';
 import { literalBackgrounds, literalText } from '../../core/theme/cssVariableTheme';
 import { onColor, resolveFontSize, resolveRadius } from '../../core/theme/tokens';
 import { extractStyleProps, useStyleProps } from '../../core/utils/spacing';
-import type { WaveformProps, PerformanceMetrics, WaveformSizeMetrics } from './types';
+import type { WaveformProps, PerformanceMetrics, WaveformRegion, WaveformSizeMetrics } from './types';
 import { WaveformSkeleton } from './WaveformSkeleton';
 import { useMergedRef } from '../../core/utils/mergeRefs';
 import {
@@ -88,6 +90,161 @@ const resolveWaveformMetrics = (value: ComponentSizeValue | undefined): Waveform
   return typeof resolved === 'number' ? resolveWaveformMetrics(resolved) : resolved;
 };
 
+const EMPTY_REGIONS: WaveformRegion[] = [];
+
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+/** A percentage of the drawing's width, for the region overlay. */
+const toPercent = (value: number): DimensionValue => `${clamp01(value) * 100}%`;
+
+/** Opacity of an active region's highlight (and of a region while pressed). */
+const REGION_ACTIVE_OPACITY = 0.18;
+/** Opacity of a region's `color` tint. */
+const REGION_TINT_OPACITY = 0.22;
+const REGION_DIVIDER_WIDTH = 1.5;
+
+interface WaveformRegionsProps {
+  regions: WaveformRegion[];
+  height: number;
+  /** Width of the drawing the regions span: px, or '100%' for `fullWidth`. */
+  width: number | '100%';
+  highlightColor: string;
+  dividerColor: string;
+  resolveColor: (value: string | undefined, fallback: string) => string;
+  onRegionPress?: (index: number, region: WaveformRegion) => void;
+}
+
+/**
+ * Regions as plain views over the drawing, so each can be a real button with
+ * its own name, state and focus, and no SVG hit-testing is involved.
+ */
+function WaveformRegions({
+  regions,
+  height,
+  width,
+  highlightColor,
+  dividerColor,
+  resolveColor,
+  onRegionPress,
+}: WaveformRegionsProps) {
+  const pressable = !!onRegionPress;
+  return (
+    <View style={[pressable ? POINTER.boxNone : POINTER.none, { position: 'absolute', left: 0, top: 0, width, height }]}>
+      {regions.map((region, index) => {
+        const start = clamp01(Math.min(region.start, region.end));
+        const end = clamp01(Math.max(region.start, region.end));
+        const tint = region.color ? resolveColor(region.color, region.color) : null;
+        const frame = {
+          position: 'absolute' as const,
+          left: toPercent(start),
+          width: toPercent(end - start),
+          top: 0,
+          height,
+        };
+        const layers = (pressed: boolean) => (
+          <>
+            {tint && (
+              <View style={[POINTER.none, FILL, { backgroundColor: tint, opacity: REGION_TINT_OPACITY }]} />
+            )}
+            {(region.active || pressed) && (
+              <View style={[POINTER.none, FILL, { backgroundColor: highlightColor, opacity: REGION_ACTIVE_OPACITY }]} />
+            )}
+            {start > 0 && (
+              <View
+                style={{
+                  pointerEvents: 'none',
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: REGION_DIVIDER_WIDTH,
+                  backgroundColor: dividerColor,
+                }}
+              />
+            )}
+          </>
+        );
+
+        if (!pressable) {
+          return (
+            <View key={index} style={[POINTER.none, frame]}>
+              {layers(false)}
+            </View>
+          );
+        }
+
+        return (
+          <Pressable
+            key={index}
+            onPress={() => onRegionPress?.(index, region)}
+            disabled={region.disabled}
+            {...a11yProps({
+              role: 'button',
+              label: region.label || `Region ${index + 1} of ${regions.length}`,
+              selected: !!region.active,
+              disabled: !!region.disabled,
+            })}
+            style={[frame, REGION_CURSOR]}
+          >
+            {({ pressed }) => layers(pressed && !region.disabled)}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const FILL = { position: 'absolute' as const, left: 0, right: 0, top: 0, bottom: 0 };
+// StyleSheet, not inline: react-native-web only honors `box-none` from a sheet.
+const POINTER = StyleSheet.create({ none: { pointerEvents: 'none' }, boxNone: { pointerEvents: 'box-none' } });
+const REGION_CURSOR = { cursor: 'pointer' as const };
+
+interface WaveformPlayheadProps {
+  playhead: SharedValue<number> | number;
+  height: number;
+  /** Px width of the drawing the position spans; 0 (not measured yet) hides the line. */
+  span: number;
+  color: string;
+  lineWidth: number;
+  opacity: number;
+}
+
+const isSharedValue = (value: unknown): value is SharedValue<number> =>
+  typeof value === 'object' && value !== null && 'value' in value;
+
+/**
+ * The externally driven playback line. Only its transform and opacity are
+ * animated, from the shared value on the UI thread, so moving it never
+ * re-renders the waveform (or this component).
+ */
+function WaveformPlayhead({ playhead, height, span, color, lineWidth, opacity }: WaveformPlayheadProps) {
+  const local = useSharedValue(typeof playhead === 'number' ? playhead : -1);
+  useEffect(() => {
+    if (typeof playhead === 'number') local.value = playhead;
+  }, [playhead, local]);
+  const source = isSharedValue(playhead) ? playhead : local;
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const at = source.value;
+    const hidden = !(at >= 0) || span <= 0;
+    const x = Math.max(0, Math.min(span - lineWidth, Math.min(1, at) * span - lineWidth / 2));
+    return {
+      opacity: hidden ? 0 : opacity,
+      transform: [{ translateX: hidden ? 0 : x }],
+    };
+  }, [source, span, lineWidth, opacity]);
+
+  return (
+    <Animated.View
+      style={[
+        POINTER.none,
+        { position: 'absolute', left: 0, top: 0, width: lineWidth, height, backgroundColor: color },
+        animatedStyle,
+      ]}
+    />
+  );
+}
+
 export const Waveform = factory<{ props: WaveformProps; ref: View }>((props, ref) => {
   // `w` / `h` are the drawing's px geometry: they are applied with it below,
   // not with the other style props.
@@ -130,6 +287,11 @@ export const Waveform = factory<{ props: WaveformProps; ref: View }>((props, ref
     showRMS = false,
     rmsData,
     markers = [],
+    regions = EMPTY_REGIONS,
+    onRegionPress,
+    regionDividerColor,
+    playhead,
+    playheadStyle,
     enablePerformanceMonitoring = false,
     onPerformanceMetrics,
     onKeyDown,
@@ -387,7 +549,10 @@ export const Waveform = factory<{ props: WaveformProps; ref: View }>((props, ref
   }, [interactive, onSeek, calculatePosition]);
 
   // --- Accessibility: a seek slider when interactive, otherwise an image ---
-  const seekable = interactive && !!onSeek;
+  // Pressable regions are buttons of their own; the waveform is then the group
+  // that holds them (a slider or an image can't contain buttons).
+  const regionsPressable = !!onRegionPress && regions.length > 0;
+  const seekable = interactive && !!onSeek && !regionsPressable;
   const percent = Math.round(clampedProgress * 1000) / 10;
   const valueText = duration && duration > 0
     ? `${formatWaveformTime(clampedProgress * duration)} of ${formatWaveformTime(duration)}`
@@ -413,12 +578,13 @@ export const Waveform = factory<{ props: WaveformProps; ref: View }>((props, ref
     onKeyDown?.(event);
     if (event.defaultPrevented) return;
     adjustableKeyDown?.(event);
-    if (event.defaultPrevented || !interactive) return;
+    // A focused region button keeps Space for itself.
+    if (event.defaultPrevented || !interactive || regionsPressable) return;
     if (event.key === ' ' || event.key === 'Spacebar') {
       event.preventDefault();
       if (hasDOM) document.dispatchEvent(new CustomEvent('waveformSpacePress'));
     }
-  }, [onKeyDown, adjustableKeyDown, interactive]);
+  }, [onKeyDown, adjustableKeyDown, interactive, regionsPressable]);
 
   const renderBars = () => {
     return normalizedPeaks.map((peak, index) => {
@@ -694,6 +860,41 @@ export const Waveform = factory<{ props: WaveformProps; ref: View }>((props, ref
 
   const widthStyle = fullWidth ? { width: '100%' as const } : { width: w };
 
+  // Regions and the playhead sit over the drawing in px of its own width (or
+  // the measured width when it stretches to fill).
+  const drawingWidth = normalizedPeaks.length > 0 ? actualWaveformWidth : w;
+  const overlays = (
+    <>
+      {regions.length > 0 && (
+        <WaveformRegions
+          regions={regions}
+          height={h}
+          width={fullWidth ? '100%' : drawingWidth}
+          highlightColor={svgText.primary}
+          dividerColor={resolveColor(regionDividerColor, svgText.primary)}
+          resolveColor={resolveColor}
+          onRegionPress={onRegionPress}
+        />
+      )}
+      {playhead !== undefined && (
+        <WaveformPlayhead
+          playhead={playhead}
+          height={h}
+          span={fullWidth ? containerWidth : drawingWidth}
+          color={resolveColor(playheadStyle?.color, svgText.primary)}
+          lineWidth={playheadStyle?.width ?? 2}
+          opacity={playheadStyle?.opacity ?? 1}
+        />
+      )}
+    </>
+  );
+  const groupProps = regionsPressable
+    ? {
+        accessible: false,
+        ...a11yProps({ role: 'group', label: accessibilityLabel || 'Audio waveform', accessible: false }),
+      }
+    : null;
+
   if (loading) {
     return (
       <WaveformSkeleton
@@ -746,13 +947,15 @@ export const Waveform = factory<{ props: WaveformProps; ref: View }>((props, ref
         ref={ref}
         style={[spacingStyles, style, widthStyle, { height: h, justifyContent: 'center', alignItems: 'center' }]}
         testID={testID}
+        onLayout={handleLayout}
         {...restProps}
-        {...a11yProps({ role: 'img', label: accessibilityLabel || 'Empty waveform', accessible: true })}
+        {...(groupProps ?? a11yProps({ role: 'img', label: accessibilityLabel || 'Empty waveform', accessible: true }))}
       >
         <Svg {...svgProps}>
           {/* Render a minimal placeholder */}
           <Rect x={0} y={h / 2 - 1} width={fullWidth ? '100%' : w} height={2} fill={waveformColor} opacity={0.3} />
         </Svg>
+        {overlays}
       </View>
     );
   }
@@ -781,12 +984,12 @@ export const Waveform = factory<{ props: WaveformProps; ref: View }>((props, ref
       }
     : null;
 
-  const roleProps = seekable
+  const roleProps = groupProps ?? (seekable
     ? adjustableProps
     : a11yProps({
         role: 'img',
         label: accessibilityLabel || (interactive ? 'Audio waveform' : 'Audio waveform visualization'),
-      });
+      }));
 
   return (
     <View
@@ -801,7 +1004,7 @@ export const Waveform = factory<{ props: WaveformProps; ref: View }>((props, ref
         widthStyle,
       ]}
       testID={testID}
-      accessible
+      accessible={!regionsPressable}
       focusable={seekable}
       onLayout={handleLayout}
       {...interactionProps}
@@ -817,6 +1020,7 @@ export const Waveform = factory<{ props: WaveformProps; ref: View }>((props, ref
         {TimeStamps}
         {Markers}
       </Svg>
+      {overlays}
     </View>
   );
 }, { displayName: 'Waveform' });

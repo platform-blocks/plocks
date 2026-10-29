@@ -67,6 +67,6 @@ export const LLMS_CHOOSING: LlmsChoice[] = [
   },
   {
     need: 'Actions and navigation',
-    options: '`Button` for actions; `IconButton` for icon-only actions (needs `accessibilityLabel`); `Link` for navigation; `Menu` for several related actions behind one trigger; `Tabs`, `Stepper`, `Pagination`, `Breadcrumbs` and `NavTree` for moving between views.',
+    options: '`Button` for actions; `IconButton` for icon-only actions (needs `accessibilityLabel`); `Button variant="none"` (or `IconButton variant="none"`) for a pressable whose children are the whole look — a tile, pad, row or swatch — with no fill, border or padding but still the button role, focus ring, press feedback, `disabled`, `tooltip` and `onLongPress` (prefer it to a bare `Pressable` or a `Block` with `onPress`); `Link` for navigation; `Menu` for several related actions behind one trigger; `Tabs`, `Stepper`, `Pagination`, `Breadcrumbs` and `NavTree` for moving between views.',
   },
 ];

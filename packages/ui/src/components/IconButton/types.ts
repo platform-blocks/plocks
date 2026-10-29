@@ -26,7 +26,10 @@ export interface IconButtonProps
   icon: string | ExternalIconComponent | React.ReactElement;
   /**
    * Button visual variant. `default` is the neutral button, matching `Button`;
-   * a solid primary fill is opt-in via `filled`.
+   * a solid primary fill is opt-in via `filled`. `none` draws only the icon
+   * (secondary text color, or `color`) on a square, chrome-free hit area of
+   * the `size`'s height, keeping the button role, focus ring and press
+   * feedback — for icon toggles inside toolbars, chips and custom rows.
    * @default 'default'
    */
   variant?: IconButtonVariant;

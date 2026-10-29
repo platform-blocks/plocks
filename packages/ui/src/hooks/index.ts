@@ -5,9 +5,12 @@ export {
   useToggleColorScheme,
   useSpotlightToggle,
   globalHotkeys,
+  type HotkeyHandler,
+  type HotkeyHandlers,
   type HotkeyItem,
   type KeyboardModifiers,
 } from './useHotkeys';
+export { getModifierKeys, useModifierKeys, type ModifierKeysState } from './useModifierKeys';
 
 export { useClipboard, type UseClipboardOptions, type UseClipboardReturnValue } from './useClipboard';
 export {

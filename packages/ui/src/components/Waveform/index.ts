@@ -1,5 +1,5 @@
 export { Waveform } from './Waveform';
-export type { WaveformProps, WaveformMarker, PerformanceMetrics } from './types';
+export type { WaveformProps, WaveformMarker, WaveformRegion, PerformanceMetrics } from './types';
 export { WaveformSkeleton } from './WaveformSkeleton';
 export type { WaveformSkeletonProps } from './WaveformSkeleton';
 export * from './utils';

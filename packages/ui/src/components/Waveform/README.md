@@ -181,6 +181,46 @@ useEffect(() => {
 }, []);
 ```
 
+### Regions (slices you can press)
+`regions` lays spans over the drawing in normalized 0–1 coordinates. Each is tinted with its `color`, highlighted while `active`, and divided from the span before it by a thin line (`regionDividerColor`, `'transparent'` to hide). With `onRegionPress` every region is its own button — named by `label`, "Region 2 of 8" by default, announced as selected while `active`, keyboard-focusable on web — and the waveform becomes the group that holds them (its seek slider gives way).
+
+```tsx
+const regions = slices.map((s, i) => ({
+  start: s.start / duration,
+  end: s.end / duration,
+  label: `Audition slice ${i + 1}`,
+  active: i === auditioned,
+}));
+
+<Waveform
+  peaks={peaks}
+  fullWidth
+  regions={regions}
+  onRegionPress={(index) => audition(index)}
+  accessibilityLabel="Sample slices"
+/>
+```
+
+Regions render even when `peaks` is empty, so the slices stay pressable where no waveform could be decoded.
+
+### External playhead
+`playhead` draws a playback line the caller drives without re-rendering the waveform: pass a Reanimated shared value (0–1, negative hides it) and write it from your clock. Only the line's transform changes, on the UI thread. A plain number also works, at the cost of a render per change. `playheadStyle` sets `color`, `width` and `opacity`. Unlike `progress`, it doesn't recolor the bars.
+
+```tsx
+const playhead = useSharedValue(-1);
+
+useEffect(() => {
+  let frame = requestAnimationFrame(function tick() {
+    const at = player.position();
+    playhead.value = at === null ? -1 : at / duration;
+    frame = requestAnimationFrame(tick);
+  });
+  return () => cancelAnimationFrame(frame);
+}, [player, duration, playhead]);
+
+<Waveform peaks={peaks} fullWidth playhead={playhead} />
+```
+
 ## Performance Considerations
 
 ### Virtual Rendering

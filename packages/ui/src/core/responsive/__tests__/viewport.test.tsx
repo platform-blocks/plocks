@@ -133,3 +133,20 @@ describe('useViewport / useBreakpoint', () => {
     expect(result.current.breakpoint).toBe('lg');
   });
 });
+
+describe('serverViewport on native', () => {
+  it('is ignored: native never prerenders, so the real window is read at once', () => {
+    const { result } = renderHook(() => useViewport({ serverViewport: { width: 390, height: 844 } }));
+    expect(result.current).toEqual({ width: 800, height: 600, breakpoint: getBreakpointForWidth(800) });
+  });
+
+  it('inherits through BreakpointProvider without changing the client value', () => {
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <BreakpointProvider serverViewport={{ width: 390, height: 844 }}>{children}</BreakpointProvider>
+    );
+    const { result } = renderHook(() => ({ viewport: useViewport(), breakpoint: useBreakpoint() }), { wrapper });
+    expect(result.current.viewport.width).toBe(800);
+    expect(result.current.breakpoint).toBe(getBreakpointForWidth(800));
+  });
+});
+

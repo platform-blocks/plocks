@@ -1,4 +1,5 @@
 import type { ViewProps, ViewStyle } from 'react-native';
+import type { SharedValue } from 'react-native-reanimated';
 
 import type { BaseProps } from '../../core/types/base';
 import type { SizeValue } from '../../core/theme/types';
@@ -127,6 +128,38 @@ export interface WaveformProps extends BaseProps<ViewStyle>, Omit<ViewProps, 'ch
   rmsData?: number[];
   /** Custom markers to display on the waveform */
   markers?: WaveformMarker[];
+
+  // Regions
+  /**
+   * Spans laid over the waveform (`start` / `end` in normalized 0–1
+   * coordinates), such as the slices of a chopped sample. Each is tinted with
+   * its `color`, highlighted while `active`, and divided from the span before it
+   * by a thin line. With `onRegionPress` every region is its own button (named
+   * by `label`, "Region 2 of 8" by default) that takes the presses inside it, so
+   * the waveform's own seek gesture and slider role give way to them.
+   */
+  regions?: WaveformRegion[];
+  /** Called with the region's index (and the region) when one is pressed. Makes regions pressable. */
+  onRegionPress?: (index: number, region: WaveformRegion) => void;
+  /** Color of the line between adjacent regions; `'transparent'` hides it. Defaults to the body text color. */
+  regionDividerColor?: string;
+
+  // Playhead
+  /**
+   * Playback position (0–1) drawn as a vertical line, driven by the caller
+   * without re-rendering the waveform: pass a Reanimated shared value and
+   * write it every frame (`playhead.value = t / duration`) — only the line
+   * moves, on the UI thread. A negative value hides the line. A plain number
+   * works too, at the cost of a render per change. Unlike `progress`, it does
+   * not recolor the bars.
+   */
+  playhead?: SharedValue<number> | number;
+  /** Playhead line color (palette token or CSS color), width in px, and opacity. */
+  playheadStyle?: {
+    color?: string;
+    width?: number;
+    opacity?: number;
+  };
   
   // Performance
   /** Enable performance monitoring */
@@ -146,6 +179,22 @@ export interface WaveformMarker {
   type?: 'line' | 'flag' | 'dot';
   /** Click handler */
   onPress?: () => void;
+}
+
+/** A span of the waveform; see `WaveformProps.regions`. */
+export interface WaveformRegion {
+  /** Start position (0-1) */
+  start: number;
+  /** End position (0-1) */
+  end: number;
+  /** Accessible name when regions are pressable. @default "Region n of total" */
+  label?: string;
+  /** Tint for the region (palette token or CSS color). No tint by default. */
+  color?: string;
+  /** Highlight the region (the one playing or last auditioned); announced as selected. */
+  active?: boolean;
+  /** A pressable region that ignores presses (announced as disabled). */
+  disabled?: boolean;
 }
 
 export interface PerformanceMetrics {

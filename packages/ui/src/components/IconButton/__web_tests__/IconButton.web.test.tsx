@@ -17,6 +17,19 @@ describe('IconButton (react-native-web DOM)', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
+  it('variant="none" is a chrome-free square button around the icon', () => {
+    const onPress = jest.fn();
+    render(<IconButton icon="heart" variant="none" accessibilityLabel="Favorite" onPress={onPress} />);
+    const button = screen.getByRole('button', { name: 'Favorite' });
+    expect(button.style.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    expect(button.style.borderTopColor).toBe('rgba(0, 0, 0, 0)');
+    // the hit area stays square
+    expect(button.style.width).toBe(button.style.height);
+    expect(button.getAttribute('tabindex')).toBe('0');
+    fireEvent.click(button);
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to the tooltip text as its name', () => {
     render(<IconButton icon="settings" tooltip="Settings" />);
     expect(screen.getByRole('button', { name: 'Settings' })).toBeTruthy();

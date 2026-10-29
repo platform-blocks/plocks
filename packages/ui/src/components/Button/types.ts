@@ -63,6 +63,16 @@ export interface ButtonProps
    * body text — so an unstyled `<Button>` never claims the accent color. A solid
    * primary fill is opt-in via `filled`. Passing a `color` without a `variant`
    * gives a `filled` button in that color, with readable text picked for it.
+   *
+   * `none` is the unstyled pressable: no fill, no visible border, no padding
+   * and no fixed height, so the children you pass are the whole look (a pad,
+   * a tile, a list row, a swatch). It keeps everything else a Button does —
+   * the `button` role and accessible name, keyboard focus and the focus ring,
+   * press/hover feedback, haptics, `disabled` / `loading`, `tooltip`,
+   * `onLongPress` — so reach for it before a bare `Pressable` or a `Block`
+   * with `onPress`. Element children render as they are, in a centered row;
+   * text children get the label style (inheriting the color on web). `style`
+   * sizes and shapes it.
    * @default 'default' ('filled' when `color` is set)
    */
   variant?: ButtonVariant;

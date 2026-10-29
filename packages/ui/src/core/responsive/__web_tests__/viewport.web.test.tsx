@@ -5,7 +5,8 @@ import { renderToString } from 'react-dom/server';
 import { hydrateRoot } from 'react-dom/client';
 
 import { factory } from '../../factory/factory';
-import { useBreakpoint, useViewport } from '../index';
+import { BreakpointProvider, useBreakpoint, useViewport } from '../index';
+import { PlocksProvider } from '../../theme/PlocksProvider';
 import { resetViewportStore } from '../viewportStore';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 
@@ -46,6 +47,64 @@ describe('viewport store on web', () => {
     });
     expect(recoverable).not.toHaveBeenCalled();
     expect(container.textContent).toBe('400:base:base');
+    act(() => root?.unmount());
+    container.remove();
+  });
+
+  it('prerenders and hydrates at a caller-supplied serverViewport, then reads the real one', async () => {
+    const PHONE = { width: 390, height: 844 };
+    function PhoneProbe() {
+      const { width, height, breakpoint } = useViewport({ serverViewport: PHONE });
+      return <Text testID="probe">{`${width}x${height}:${breakpoint}`}</Text>;
+    }
+    setWidth(1024);
+    const markup = renderToString(<PhoneProbe />);
+    expect(markup).toContain('390x844:base');
+
+    const container = document.createElement('div');
+    container.innerHTML = markup;
+    document.body.appendChild(container);
+    const recoverable = jest.fn();
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    await act(async () => {
+      root = hydrateRoot(container, <PhoneProbe />, { onRecoverableError: recoverable });
+    });
+    expect(recoverable).not.toHaveBeenCalled();
+    expect(container.textContent).toBe(`1024x${window.innerHeight}:lg`);
+    act(() => root?.unmount());
+    container.remove();
+  });
+
+  it('takes the prerender size from PlocksProvider / BreakpointProvider for every hook below', async () => {
+    const PHONE = { width: 390, height: 844 };
+    setWidth(1300);
+    const app = (
+      <PlocksProvider serverViewport={PHONE} withGlobalCSS={false} withCSSVariables={false}>
+        <Probe />
+      </PlocksProvider>
+    );
+    expect(renderToString(app)).toContain('390:base:base');
+    // a nested provider overrides it for its subtree
+    expect(
+      renderToString(
+        <BreakpointProvider serverViewport={PHONE}>
+          <BreakpointProvider serverViewport={{ width: 800, height: 600 }}>
+            <Probe />
+          </BreakpointProvider>
+        </BreakpointProvider>
+      )
+    ).toContain('800:md:md');
+
+    const container = document.createElement('div');
+    container.innerHTML = renderToString(app);
+    document.body.appendChild(container);
+    const recoverable = jest.fn();
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    await act(async () => {
+      root = hydrateRoot(container, app, { onRecoverableError: recoverable });
+    });
+    expect(recoverable).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('1300:xl:xl');
     act(() => root?.unmount());
     container.remove();
   });
