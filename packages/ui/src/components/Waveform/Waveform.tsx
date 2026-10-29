@@ -181,7 +181,8 @@ function WaveformRegions({
             {...a11yProps({
               role: 'button',
               label: region.label || `Region ${index + 1} of ${regions.length}`,
-              selected: !!region.active,
+              // aria-selected isn't allowed on a button; the active region is the current one
+              current: region.active ? true : undefined,
               disabled: !!region.disabled,
             })}
             style={[frame, REGION_CURSOR]}

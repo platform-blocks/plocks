@@ -182,7 +182,7 @@ useEffect(() => {
 ```
 
 ### Regions (slices you can press)
-`regions` lays spans over the drawing in normalized 0–1 coordinates. Each is tinted with its `color`, highlighted while `active`, and divided from the span before it by a thin line (`regionDividerColor`, `'transparent'` to hide). With `onRegionPress` every region is its own button — named by `label`, "Region 2 of 8" by default, announced as selected while `active`, keyboard-focusable on web — and the waveform becomes the group that holds them (its seek slider gives way).
+`regions` lays spans over the drawing in normalized 0–1 coordinates. Each is tinted with its `color`, highlighted while `active`, and divided from the span before it by a thin line (`regionDividerColor`, `'transparent'` to hide). With `onRegionPress` every region is its own button — named by `label`, "Region 2 of 8" by default, announced as current while `active` (selected on native), keyboard-focusable on web — and the waveform becomes the group that holds them (its seek slider gives way).
 
 ```tsx
 const regions = slices.map((s, i) => ({

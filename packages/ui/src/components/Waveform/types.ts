@@ -191,7 +191,7 @@ export interface WaveformRegion {
   label?: string;
   /** Tint for the region (palette token or CSS color). No tint by default. */
   color?: string;
-  /** Highlight the region (the one playing or last auditioned); announced as selected. */
+  /** Highlight the region (the one playing or last auditioned); announced as current (selected on native). */
   active?: boolean;
   /** A pressable region that ignores presses (announced as disabled). */
   disabled?: boolean;

@@ -71,7 +71,9 @@ describe('Waveform (react-native-web DOM)', () => {
         'Region 3 of 3',
       ]);
       expect(group.contains(buttons[0])).toBe(true);
-      expect(buttons[2].getAttribute('aria-selected')).toBe('true');
+      expect(buttons[2].getAttribute('aria-current')).toBe('true');
+      expect(buttons[0].getAttribute('aria-current')).toBeNull();
+      expect(buttons[2].getAttribute('aria-selected')).toBeNull();
       // positioned as a share of the drawing
       expect(buttons[1].style.left).toBe('25%');
       expect(buttons[1].style.width).toBe('25%');
