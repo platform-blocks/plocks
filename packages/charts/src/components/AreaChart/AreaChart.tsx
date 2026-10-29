@@ -3,7 +3,14 @@ import { LineChart } from '../LineChart';
 import { StackedAreaChart } from '../StackedAreaChart';
 import type { AreaChartProps } from './types';
 
-// Enhanced wrapper that can render overlap or stacked area layouts.
+// Enhanced wrapper that can render overlap, stacked or stream area layouts.
+// Every other prop — reference marks included — is forwarded to whichever chart renders.
+const STACK_MODES = {
+  stacked: 'absolute',
+  stackedPercentage: 'percentage',
+  stream: 'stream',
+} as const;
+
 export const AreaChart: React.FC<AreaChartProps> = (props) => {
   const {
     layout = 'overlap',
@@ -23,9 +30,9 @@ export const AreaChart: React.FC<AreaChartProps> = (props) => {
   const resolvedFillOpacity = fillOpacity ?? 0.35;
   const hasMultiSeries = Array.isArray(series) && series.length > 0;
 
-  const isStackedLayout = layout === 'stacked' || layout === 'stackedPercentage';
+  const stackMode = layout === 'overlap' ? undefined : STACK_MODES[layout];
 
-  if (isStackedLayout && hasMultiSeries) {
+  if (stackMode && hasMultiSeries) {
     return (
       <StackedAreaChart
         {...lineProps}
@@ -33,7 +40,7 @@ export const AreaChart: React.FC<AreaChartProps> = (props) => {
         smooth={resolvedSmooth}
         opacity={areaOpacity ?? resolvedFillOpacity}
         stackOrder={stackOrder}
-        stackMode={layout === 'stackedPercentage' ? 'percentage' : 'absolute'}
+        stackMode={stackMode}
       />
     );
   }

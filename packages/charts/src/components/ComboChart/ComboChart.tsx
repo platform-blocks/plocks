@@ -4,11 +4,14 @@ import Svg, { Path, G, Circle } from 'react-native-svg';
 import Animated, { SharedValue, useSharedValue, useAnimatedProps, withTiming, Easing } from 'react-native-reanimated';
 
 import { ComboChartProps, ComboChartLayer } from './types';
-import { ChartContainer, ChartTitle, ChartLegend , withChartBandPadding } from '../../ChartBase';
+import { ChartContainer, ChartTitle, ChartLegend , withChartBandPadding, measureChartBrushBand, CHART_BRUSH_GAP, CHART_BRUSH_HEIGHT } from '../../ChartBase';
+import { ChartBrush, inferBrushStep, pickBrushSeries, sliceToBrushWindow, useChartBrushRange } from '../ChartBrush/ChartBrush';
+import type { ChartBrushSeries } from '../ChartBrush/types';
 import { resolveCartesianPadding, domainTickLabels, measureWidestLabel } from '../../core/axisLayout';
 import { useChartTheme } from '../../theme/ChartThemeContext';
 import { ChartGrid } from '../../core/ChartGrid';
 import { Axis } from '../../core/Axis';
+import { ReferenceAreas, ReferenceDots, ReferenceLines, numericReference, type ReferenceMarkScales } from '../../core/ReferenceMarks';
 import { useChartInteractionContext, usePointer, useActiveTarget } from '../../interaction/ChartInteractionContext';
 import type { ActiveTarget } from '../../core/hittest/types';
 import { ChartInteractionEvent } from '../../types';
@@ -199,44 +202,16 @@ const ComboBarSeries: React.FC<{
     <>
       {bars.map((bar) => {
         if (!bar.visible || bar.height <= 0 || bar.width <= 0) return null;
-        const corners = barCornerMask('vertical', bar.dataY >= 0);
-        const animatedProps = useAnimatedProps(() => {
-          const progress = animationProgress.value;
-          const height = bar.height * progress;
-          const y = bar.y + (bar.height - height);
-          return {
-            d: roundedBarPath(bar.x, y, bar.width, height, 3, corners.tl, corners.tr, corners.br, corners.bl),
-          } as any;
-        });
-        const isWeb = Platform.OS === 'web';
         return (
-          <AnimatedPath
+          <ComboBar
             key={bar.id}
-            testID={`combo-bar-${bar.id}`}
-            animatedProps={animatedProps}
-            fill={bar.color}
-            opacity={bar.visible ? layerOpacity : 0}
-            pointerEvents={bar.visible ? 'auto' : 'none'}
-            {...(isWeb
-              ? {
-                  onPointerEnter: () => !disabled && onBarHover(bar),
-                  onPointerLeave: () => onBarHoverEnd(bar),
-                  onPointerDown: (event: any) => {
-                    if (disabled) return;
-                    event.currentTarget?.setPointerCapture?.(event.pointerId);
-                  },
-                  onPointerUp: (event: any) => {
-                    if (disabled) return;
-                    event.currentTarget?.releasePointerCapture?.(event.pointerId);
-                    onBarPress(bar, toNativePointerEvent(event));
-                  },
-                  onPointerCancel: () => onBarHoverEnd(bar),
-                }
-              : {
-                  onPressIn: () => !disabled && onBarHover(bar),
-                  onPressOut: () => onBarHoverEnd(bar),
-                  onPress: (event: any) => !disabled && onBarPress(bar, { nativeEvent: event.nativeEvent }),
-                })}
+            bar={bar}
+            opacity={layerOpacity}
+            animationProgress={animationProgress}
+            disabled={disabled}
+            onBarHover={onBarHover}
+            onBarHoverEnd={onBarHoverEnd}
+            onBarPress={onBarPress}
           />
         );
       })}
@@ -245,6 +220,58 @@ const ComboBarSeries: React.FC<{
 });
 
 ComboBarSeries.displayName = 'ComboBarSeries';
+
+// One component per bar so each owns its animated-props hook: the number of drawn bars
+// changes (series toggles, brushing), and hooks called in a loop would break on that.
+const ComboBar: React.FC<{
+  bar: ComputedBarRect;
+  opacity: number;
+  animationProgress: SharedValue<number>;
+  disabled: boolean;
+  onBarHover: (bar: ComputedBarRect) => void;
+  onBarHoverEnd: (bar: ComputedBarRect) => void;
+  onBarPress: (bar: ComputedBarRect, nativeEvent: any) => void;
+}> = ({ bar, opacity, animationProgress, disabled, onBarHover, onBarHoverEnd, onBarPress }) => {
+  const corners = barCornerMask('vertical', bar.dataY >= 0);
+  const animatedProps = useAnimatedProps(() => {
+    const progress = animationProgress.value;
+    const height = bar.height * progress;
+    const y = bar.y + (bar.height - height);
+    return {
+      d: roundedBarPath(bar.x, y, bar.width, height, 3, corners.tl, corners.tr, corners.br, corners.bl),
+    } as any;
+  });
+  const isWeb = Platform.OS === 'web';
+  return (
+    <AnimatedPath
+      testID={`combo-bar-${bar.id}`}
+      animatedProps={animatedProps}
+      fill={bar.color}
+      opacity={bar.visible ? opacity : 0}
+      pointerEvents={bar.visible ? 'auto' : 'none'}
+      {...(isWeb
+        ? {
+            onPointerEnter: () => !disabled && onBarHover(bar),
+            onPointerLeave: () => onBarHoverEnd(bar),
+            onPointerDown: (event: any) => {
+              if (disabled) return;
+              event.currentTarget?.setPointerCapture?.(event.pointerId);
+            },
+            onPointerUp: (event: any) => {
+              if (disabled) return;
+              event.currentTarget?.releasePointerCapture?.(event.pointerId);
+              onBarPress(bar, toNativePointerEvent(event));
+            },
+            onPointerCancel: () => onBarHoverEnd(bar),
+          }
+        : {
+            onPressIn: () => !disabled && onBarHover(bar),
+            onPressOut: () => onBarHoverEnd(bar),
+            onPress: (event: any) => !disabled && onBarPress(bar, { nativeEvent: event.nativeEvent }),
+          })}
+    />
+  );
+};
 
 const computePathLength = (points: Array<{ x: number; y: number }>) => {
   if (points.length < 2) return 0;
@@ -267,8 +294,6 @@ const ComboLineSeries: React.FC<{
   animationProgress: SharedValue<number>;
   showPoints?: boolean;
 }> = React.memo(({ layer, scaleX, scaleY, plotHeight, animationProgress, showPoints }) => {
-  if (layer.points.length < 2 && layer.type !== 'density') return null;
-
   const pixelPoints = useMemo(() => layer.points.map((point) => ({
     x: scaleX(point.x),
     y: scaleY(point.y),
@@ -314,6 +339,9 @@ const ComboLineSeries: React.FC<{
   const animatedFillProps = useAnimatedProps(() => ({
     opacity: animationProgress.value,
   }));
+
+  // After the hooks: a brushed window can leave fewer than two points.
+  if (layer.points.length < 2 && layer.type !== 'density') return null;
 
   const renderPoints = showPoints && layer.type === 'line';
 
@@ -362,6 +390,13 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
     disabled = false,
     onPress,
     onDataPointPress,
+    referenceLines,
+    referenceAreas,
+    referenceDots,
+    withBrush = false,
+    brushProps,
+    brushRange,
+    onBrushChange,
   } = props;
 
   const theme = useChartTheme();
@@ -449,10 +484,7 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
     () => resolvedLayers.map((layer) => ({ label: layer.name })),
     [resolvedLayers]
   );
-  const { xDomain, yDomainLeft, yDomainRight } = useMemo(() => {
-    const leftLayers = resolvedLayers.filter((layer) => layer.targetAxis === 'left');
-    const rightLayersOnly = resolvedLayers.filter((layer) => layer.targetAxis === 'right');
-
+  const fullXDomain = useMemo<[number, number]>(() => {
     const xValues = resolvedLayers.flatMap((layer) => layer.points.map((p) => p.x));
     let xMin = xDomainProp?.[0];
     let xMax = xDomainProp?.[1];
@@ -467,10 +499,41 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
       xMin -= delta;
       xMax += delta;
     }
+    return [xMin!, xMax!];
+  }, [resolvedLayers, xDomainProp]);
+
+  // Brush: the selected x window is the domain the plot draws.
+  const brush = useChartBrushRange({
+    domain: fullXDomain,
+    value: brushRange,
+    start: withBrush ? brushProps?.start : undefined,
+    end: withBrush ? brushProps?.end : undefined,
+    onChange: [onBrushChange, brushProps?.onChange],
+  });
+  const xWindowed = (withBrush || brushRange !== undefined) && brush.active;
+  const xDomain: [number, number] = xWindowed ? brush.range : fullXDomain;
+  // Bars are drawn only inside the window; lines keep a neighbor each side so they
+  // run to the plot edge (the plot clips them).
+  const windowLayers = useMemo(() => {
+    if (!xWindowed) return resolvedLayers;
+    const [x0, x1] = xDomain;
+    return resolvedLayers.map((layer) => ({
+      ...layer,
+      points: layer.type === 'bar' || layer.type === 'histogram'
+        ? layer.points.filter((p) => p.x >= x0 && p.x <= x1)
+        : sliceToBrushWindow(layer.points, (p) => p.x, xDomain),
+    }));
+  }, [resolvedLayers, xWindowed, xDomain]);
+
+  const { yDomainLeft, yDomainRight } = useMemo(() => {
+    const [x0, x1] = xDomain;
+    const leftLayers = windowLayers.filter((layer) => layer.targetAxis === 'left');
+    const rightLayersOnly = windowLayers.filter((layer) => layer.targetAxis === 'right');
 
     const extractDomain = (layersSubset: NormalizedLayer[], provided?: [number, number]) => {
       if (provided) return provided;
-      const values = layersSubset.flatMap((layer) => layer.points.map((p) => p.y));
+      // Value axes fit what the window shows.
+      const values = layersSubset.flatMap((layer) => layer.points.filter((p) => !xWindowed || (p.x >= x0 && p.x <= x1)).map((p) => p.y));
       const min = values.length ? Math.min(...values) : 0;
       const max = values.length ? Math.max(...values) : 1;
       if (min === max) {
@@ -484,11 +547,10 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
     const rightDomain = rightLayersOnly.length ? extractDomain(rightLayersOnly, yDomainRightProp) : extractDomain(leftLayers, yDomainRightProp);
 
     return {
-      xDomain: [xMin!, xMax!] as [number, number],
       yDomainLeft: leftDomain,
       yDomainRight: rightDomain,
     };
-  }, [resolvedLayers, xDomainProp, yDomainLeftProp, yDomainRightProp]);
+  }, [windowLayers, xWindowed, xDomain, yDomainLeftProp, yDomainRightProp]);
 
   // Margins measured off the labels each axis will draw, rather than a flat 80px
   // gutter that a narrow chart could not afford.
@@ -516,6 +578,8 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
      yAxis?.title, xAxis?.title, yAxis?.show, xAxis?.show, yAxis?.showLabels, xAxis?.showLabels, hasRightAxis, width, height,
      theme.numberFormat, showRightAxisTitle, yAxisRight?.title]
   );
+  const brushHeight = brushProps?.height ?? CHART_BRUSH_HEIGHT;
+  const brushBand = measureChartBrushBand(withBrush, brushHeight);
   const padding = useMemo(() => withChartBandPadding(
     axisPadding,
     {
@@ -526,8 +590,9 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
       legendFontSize: legend?.fontSize,
       containerWidth: width,
       topAllowance: 10,
+      bottomAllowance: brushBand,
     },
-  ), [axisPadding, title, subtitle, legend?.show, legend?.position, legend?.fontSize, legendLabels, width]);
+  ), [axisPadding, title, subtitle, legend?.show, legend?.position, legend?.fontSize, legendLabels, width, brushBand]);
 
   const plotWidth = Math.max(0, width - padding.left - padding.right);
   const plotHeight = Math.max(0, height - padding.top - padding.bottom);
@@ -538,6 +603,13 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
   const scaleX = useMemo(() => linearScale(xDomain, [0, plotWidth]), [xDomain, plotWidth]);
   const scaleYLeft = useMemo(() => linearScale(yDomainLeft, [plotHeight, 0]), [yDomainLeft, plotHeight]);
   const scaleYRight = useMemo(() => linearScale(yDomainRight, [plotHeight, 0]), [yDomainRight, plotHeight]);
+  // Reference marks read y against the primary (left) axis.
+  const referenceScales = useMemo<ReferenceMarkScales>(() => ({
+    xToPx: numericReference(scaleX),
+    yToPx: numericReference(scaleYLeft),
+    plotWidth,
+    plotHeight,
+  }), [scaleX, scaleYLeft, plotWidth, plotHeight]);
 
   // Dedupe key of the last-published slice. The tooltip content only changes when the
   // pointer crosses into a new x-category, so we skip the (unthrottled) setActiveSlice/
@@ -566,12 +638,13 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
       // Engine-swap: build a multi-layer ActiveTarget slice at the pointer x (one mark per
       // visible layer, snapped to its nearest data point) instead of feeding a legacy crosshair.
       const slice: ActiveTarget[] = [];
-      for (const layer of resolvedLayers) {
-        if (!layer.visible || layer.points.length === 0) continue;
+      for (const layer of windowLayers) {
+        const candidates = xWindowed ? layer.points.filter((p) => p.x >= xDomain[0] && p.x <= xDomain[1]) : layer.points;
+        if (!layer.visible || candidates.length === 0) continue;
         const axisScale = layer.targetAxis === 'right' ? scaleYRight : scaleYLeft;
-        let nearest = layer.points[0];
+        let nearest = candidates[0];
         let nearestDist = Infinity;
-        for (const point of layer.points) {
+        for (const point of candidates) {
           const dist = Math.abs(scaleX(point.x) - plotX);
           if (dist < nearestDist) { nearestDist = dist; nearest = point; }
         }
@@ -611,7 +684,7 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
         setActiveTarget?.(null);
       }
     }
-  }, [pointerStateAvailable, padding.left, padding.top, plotWidth, plotHeight, setPointer, wantsCrosshairUpdates, setActiveSlice, setActiveTarget, resolvedLayers, scaleX, scaleYLeft, scaleYRight, yAxis, yAxisRight]);
+  }, [pointerStateAvailable, padding.left, padding.top, plotWidth, plotHeight, setPointer, wantsCrosshairUpdates, setActiveSlice, setActiveTarget, windowLayers, xWindowed, xDomain, scaleX, scaleYLeft, scaleYRight, yAxis, yAxisRight]);
 
   const clearPointerState = useCallback(() => {
     if (!pointerStateAvailable) return;
@@ -663,8 +736,28 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
     } as const;
   }, [hasContinuousPointerTracking, handleWebPointerMove, handlePointerLeave, interaction]) as Record<string, any>;
 
-  const barLayers = resolvedLayers.filter((layer): layer is NormalizedBarLayer => layer.type === 'bar' || layer.type === 'histogram');
-  const lineLayers = resolvedLayers.filter((layer): layer is NormalizedLineLikeLayer => layer.type === 'line' || layer.type === 'area' || layer.type === 'density');
+  const barLayers = windowLayers.filter((layer): layer is NormalizedBarLayer => layer.type === 'bar' || layer.type === 'histogram');
+  const lineLayers = windowLayers.filter((layer): layer is NormalizedLineLikeLayer => layer.type === 'line' || layer.type === 'area' || layer.type === 'density');
+
+  // Brush preview: each visible layer over the full x extent, drawn like the layer.
+  const brushSeries = useMemo<ChartBrushSeries[]>(() => {
+    if (!withBrush) return [];
+    const all = resolvedLayers
+      .filter((layer) => layer.visible)
+      .map((layer) => ({
+        id: layer.id,
+        name: layer.name,
+        color: layer.color,
+        data: layer.points,
+        type: (layer.type === 'bar' || layer.type === 'histogram' ? 'bar' : layer.type === 'area' ? 'area' : 'line') as ChartBrushSeries['type'],
+      }));
+    return pickBrushSeries(all, brushProps?.series);
+  }, [withBrush, resolvedLayers, brushProps?.series]);
+  const brushStep = useMemo(
+    () => brushProps?.step ?? (withBrush ? inferBrushStep(resolvedLayers.flatMap((layer) => layer.points.map((p) => p.x)), fullXDomain) : 1),
+    [brushProps?.step, withBrush, resolvedLayers, fullXDomain]
+  );
+  const brushTraveller = brushProps?.travellerWidth ?? 8;
 
   const layerSignature = useMemo(() => resolvedLayers.map((layer) => {
     const pointsSig = layer.points.map((point) => `${point.x}:${point.y}`).join('|');
@@ -785,6 +878,7 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
         style={{ position: 'absolute', left: padding.left, top: padding.top }}
         {...svgPointerHandlers}
       >
+        <ReferenceAreas areas={referenceAreas} scales={referenceScales} />
         <G>
           {barLayers.map((layer) => (
             layer.visible ? (
@@ -817,6 +911,8 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
             ) : null
           ))}
         </G>
+        <ReferenceLines lines={referenceLines} scales={referenceScales} />
+        <ReferenceDots dots={referenceDots} scales={referenceScales} />
       </Svg>
 
       {/* Crosshair — a vertical guide tracking the cursor x across the plot. Snaps to the
@@ -902,6 +998,30 @@ export const ComboChart: React.FC<ComboChartProps> = (props) => {
           showLabels={yAxisRight?.showLabels ?? true}
           tickLabelColor={yAxisRight?.labelColor || theme.colors.textSecondary}
           tickLabelFontSize={yAxisRight?.labelFontSize ?? 11}
+        />
+      )}
+
+      {withBrush && plotWidth > 0 && (
+        <ChartBrush
+          testID="combo-chart-brush"
+          style={{
+            position: 'absolute',
+            left: padding.left - brushTraveller / 2,
+            top: padding.top + plotHeight + axisPadding.bottom + CHART_BRUSH_GAP,
+          }}
+          w={plotWidth + brushTraveller}
+          h={brushHeight}
+          domain={fullXDomain}
+          value={brush.range}
+          onChange={brush.setRange}
+          series={brushSeries}
+          normalizeSeries={hasRightAxis}
+          step={brushStep}
+          travellerWidth={brushTraveller}
+          fill={brushProps?.fill}
+          stroke={brushProps?.stroke}
+          formatValue={brushProps?.formatValue ?? xAxis?.labelFormatter ?? xTickFormat}
+          disabled={disabled}
         />
       )}
 

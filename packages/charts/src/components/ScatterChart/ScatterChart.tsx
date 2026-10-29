@@ -4,7 +4,16 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easi
 import { useChartTheme } from '../../theme/ChartThemeContext';
 import { ScatterChartProps, ChartInteractionEvent, ChartDataPoint } from '../../types';
 import { ChartContainer, ChartTitle, ChartLegend , withChartBandPadding } from '../../ChartBase';
-import { resolveCartesianPadding, domainTickLabels } from '../../core/axisLayout';
+import {
+  resolveCartesianPadding,
+  domainTickLabels,
+  measureWidestLabel,
+  AXIS_TICK_FONT_SIZE,
+  AXIS_TICK_PADDING,
+  AXIS_TICK_SIZE,
+  AXIS_TITLE_FONT_SIZE,
+  AXIS_TITLE_GAP,
+} from '../../core/axisLayout';
 import { useOptionalChartInteraction, useChartInteractionVolatile } from '../../interaction/ChartInteractionContext';
 import { useChartPointer } from '../../interaction/useChartPointer';
 import { touchDistance } from '../../interaction/useOptionalPinch';
@@ -13,6 +22,8 @@ import type { HitSeries, Mark } from '../../core/hittest/types';
 import type { NormalizedPointerEvent } from '../../interaction/pointerNormalize';
 import { ChartGrid } from '../../core/ChartGrid';
 import { Axis } from '../../core/Axis';
+import Svg from 'react-native-svg';
+import { ReferenceAreas, ReferenceDots, ReferenceLines, numericReference, type ReferenceMarkScales } from '../../core/ReferenceMarks';
 
 import {
   scaleLinear,
@@ -34,6 +45,60 @@ import { usePanZoom } from '../../hooks/usePanZoom';
 
 const formatTime = (value: number) => new Date(value).toLocaleDateString();
 
+type ScatterScaleType = ScatterChartProps['xScaleType'];
+type ScatterValueAxis = 'left' | 'right';
+
+const generateScaleTicks = (domain: [number, number], scaleType: ScatterScaleType, count: number): number[] => {
+  switch (scaleType) {
+    case 'log': return generateLogTicks(domain, count);
+    case 'time': return generateTimeTicks(domain, count);
+    default: return generateTicks(domain[0], domain[1], count);
+  }
+};
+
+/** 10% breathing room either side, so edge points don't sit on the axis line. */
+const padDomain = (domain: [number, number]): [number, number] => {
+  const pad = (domain[1] - domain[0]) * 0.1;
+  return [domain[0] - pad, domain[1] + pad];
+};
+
+/**
+ * Axis scale for one plot dimension. `invert` maps the domain bottom-up (value
+ * axes); a collapsed extent yields a constant scale so axes render nothing.
+ */
+const buildAxisScale = (
+  domain: [number, number],
+  extent: number,
+  invert: boolean,
+  scaleType: ScatterScaleType,
+  ticks: number[],
+  defaultCount: number,
+): Scale<number> => {
+  const d = [...domain] as [number, number];
+  if (extent <= 0) {
+    const scale = ((_: number) => 0) as Scale<number>;
+    scale.domain = () => d;
+    scale.range = () => [0, 0];
+    scale.ticks = () => [...ticks];
+    return scale;
+  }
+  const range: [number, number] = invert ? [extent, 0] : [0, extent];
+  const scale = ((value: number) => {
+    switch (scaleType) {
+      case 'log':
+        return scaleLog(Math.max(value, 1e-12), d, range);
+      case 'time':
+        return scaleTime(value, d, range);
+      default:
+        return scaleLinear(value, d, range);
+    }
+  }) as Scale<number>;
+  scale.domain = () => d.slice();
+  scale.range = () => range.slice();
+  scale.ticks = (count?: number) => (ticks.length ? ticks : generateScaleTicks(d, scaleType, count ?? defaultCount));
+  return scale;
+};
+
 /** Per-series shape fed to the hit-test engine (points augmented with layout coordinates). */
 interface ScatterChartSeriesRegistration {
   id: string;
@@ -42,6 +107,8 @@ interface ScatterChartSeriesRegistration {
   visible?: boolean;
   pointColor?: string;
   pointSize?: number;
+  /** Value axis the series is scaled against. */
+  yAxis: ScatterValueAxis;
   chartPoints: Array<ChartDataPoint & { chartX: number; chartY: number }>;
 }
 
@@ -146,6 +213,8 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
     subtitle,
     xAxis,
     yAxis,
+    yAxisRight,
+    yDomainRight: yDomainRightProp,
     grid,
     legend,
     tooltip,
@@ -155,6 +224,9 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
     disabled = false,
     multiTooltip,
     enableCrosshair,
+    referenceLines,
+    referenceAreas,
+    referenceDots,
   } = props;
 
   const theme = useChartTheme();
@@ -169,14 +241,19 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
   // Normalize multi-series (fallback to single-series wrapper)
   const normalizedSeries = React.useMemo(() => {
     if (series && series.length) {
-      return series.map((s, i) => ({
-        id: s.id || `series-${i}`,
-        name: s.name || `Series ${i + 1}`,
-        color: s.color || theme.colors.accentPalette[i % theme.colors.accentPalette.length],
-        data: s.data,
-        pointSize: s.pointSize ?? pointSize,
-        pointColor: s.pointColor || s.color,
-      }));
+      return series.map((s, i) => {
+        const color = s.color || theme.colors.accentPalette[i % theme.colors.accentPalette.length];
+        return {
+          id: s.id || `series-${i}`,
+          name: s.name || `Series ${i + 1}`,
+          color,
+          data: s.data,
+          pointSize: s.pointSize ?? pointSize,
+          // Points take the series color (the one the legend shows) unless overridden.
+          pointColor: s.pointColor || color,
+          yAxis: (s.yAxis === 'right' ? 'right' : 'left') as ScatterValueAxis,
+        };
+      });
     }
     // Fallback single-series mode using initial data prop
     return [{
@@ -186,6 +263,7 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
       data: data,
       pointSize,
       pointColor: pointColor || theme.colors.accentPalette[0],
+      yAxis: 'left' as ScatterValueAxis,
     }];
   }, [series, data, pointSize, pointColor, theme.colors.accentPalette, title]);
 
@@ -195,7 +273,17 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
 
   // Calculate data bounds with some padding
   const computedXDomain = React.useMemo(() => getDataDomain(normalizedSeries.flatMap(s => s.data), d => d.x), [normalizedSeries]);
-  const computedYDomain = React.useMemo(() => getDataDomain(normalizedSeries.flatMap(s => s.data), d => d.y), [normalizedSeries]);
+  // The left axis is scaled by the series bound to it; when every series is on
+  // the right it falls back to all of them so it still has a sensible range.
+  const hasRightSeries = normalizedSeries.some(s => s.yAxis === 'right');
+  const computedYDomain = React.useMemo(() => {
+    const leftSeries = normalizedSeries.filter(s => s.yAxis !== 'right');
+    return getDataDomain((leftSeries.length ? leftSeries : normalizedSeries).flatMap(s => s.data), d => d.y);
+  }, [normalizedSeries]);
+  const computedYDomainRight = React.useMemo(
+    () => getDataDomain(normalizedSeries.filter(s => s.yAxis === 'right').flatMap(s => s.data), d => d.y),
+    [normalizedSeries]
+  );
   const [xDomainState, setXDomainState] = useState<[number, number] | null>(null);
   const [yDomainState, setYDomainState] = useState<[number, number] | null>(null);
   const rawXDomain = xDomainState || computedXDomain;
@@ -219,6 +307,70 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
   const paddedXDomain: [number, number] = [xDomain[0] - xPadding, xDomain[1] + xPadding];
   const paddedYDomain: [number, number] = [yDomain[0] - yPadding, yDomain[1] + yPadding];
 
+  // Secondary (right) value axis — same model as ComboChart: shown when a series
+  // binds to it or `yAxisRight` is passed; its domain is the right-bound series'
+  // data (or `yDomainRight`), mirroring the left domain when nothing binds to it.
+  const hasRightAxis = hasRightSeries || !!yAxisRight;
+  const showRightAxis = hasRightAxis && yAxisRight?.show !== false;
+  const basePaddedYDomain = React.useMemo(() => padDomain(computedYDomain), [computedYDomain]);
+  const baseYDomainRight = React.useMemo<[number, number]>(() => {
+    if (yDomainRightProp) return yDomainRightProp;
+    if (!hasRightSeries) return basePaddedYDomain;
+    const [min, max] = computedYDomainRight;
+    // A single right-bound value would otherwise give a zero-height domain.
+    if (min === max) {
+      const delta = min === 0 ? 1 : Math.abs(min) * 0.1;
+      return [min - delta, max + delta];
+    }
+    return padDomain(computedYDomainRight);
+  }, [yDomainRightProp, hasRightSeries, basePaddedYDomain, computedYDomainRight]);
+  // Pan/zoom drives the left domain; carry the same window onto the right axis so
+  // both sides of the plot keep describing the same pixels.
+  const [paddedYMin, paddedYMax] = paddedYDomain;
+  const paddedYDomainRight = React.useMemo<[number, number]>(() => {
+    const baseSpan = basePaddedYDomain[1] - basePaddedYDomain[0];
+    if (!baseSpan) return baseYDomainRight;
+    const t0 = (paddedYMin - basePaddedYDomain[0]) / baseSpan;
+    const t1 = (paddedYMax - basePaddedYDomain[0]) / baseSpan;
+    if (t0 === 0 && t1 === 1) return baseYDomainRight;
+    const span = baseYDomainRight[1] - baseYDomainRight[0];
+    return [baseYDomainRight[0] + t0 * span, baseYDomainRight[0] + t1 * span];
+  }, [paddedYMin, paddedYMax, basePaddedYDomain, baseYDomainRight]);
+  const domainForAxis = (axis: ScatterValueAxis) => (axis === 'right' ? paddedYDomainRight : paddedYDomain);
+
+  // Right ticks depend only on the right domain, not on the plot size, so they
+  // can be computed up front and measured exactly for the padding below.
+  const yTicksRight = React.useMemo(
+    () => yAxisRight?.ticks ?? generateScaleTicks(paddedYDomainRight, props.yScaleType, 5),
+    [yAxisRight?.ticks, paddedYDomainRight, props.yScaleType]
+  );
+  const yTickFormatRight = React.useMemo(() => createTickFormatter(yTicksRight, theme.numberFormat), [yTicksRight, theme.numberFormat]);
+  const rightLabelFormatter = yAxisRight?.labelFormatter;
+  const formatRightTick = React.useCallback((value: number | string) => {
+    const numeric = typeof value === 'number' ? value : Number(value);
+    if (rightLabelFormatter) return rightLabelFormatter(numeric);
+    if (props.yScaleType === 'time') return formatTime(numeric);
+    return yTickFormatRight(numeric);
+  }, [rightLabelFormatter, props.yScaleType, yTickFormatRight]);
+
+  // Room right of the plot for the secondary axis: tick, gap, its widest label
+  // (under the same width budget as the left axis) and its rotated title.
+  const rightTickSize = yAxisRight?.tickLength ?? AXIS_TICK_SIZE;
+  const rightAxisLayout = React.useMemo(() => {
+    if (!showRightAxis) return { allowance: 0, tickLabelWidth: 0 };
+    const tickLabelWidth = yAxisRight?.showLabels !== false
+      ? Math.min(
+          Math.ceil(measureWidestLabel(yTicksRight.map((tick) => String(formatRightTick(tick))), yAxisRight?.labelFontSize ?? AXIS_TICK_FONT_SIZE)),
+          Math.max(28, Math.round(width * 0.33)),
+        )
+      : 0;
+    const titleBand = yAxisRight?.title
+      ? Math.round((yAxisRight?.titleFontSize ?? AXIS_TITLE_FONT_SIZE) * 1.3) + AXIS_TITLE_GAP
+      : 0;
+    return { allowance: rightTickSize + AXIS_TICK_PADDING + tickLabelWidth + titleBand, tickLabelWidth };
+  }, [showRightAxis, yTicksRight, formatRightTick, yAxisRight?.showLabels, yAxisRight?.labelFontSize,
+      yAxisRight?.title, yAxisRight?.titleFontSize, rightTickSize, width]);
+
   // Chart dimensions — grown so the plot clears the title and legend overlays.
   const basePadding = React.useMemo(
     () => resolveCartesianPadding({
@@ -232,10 +384,11 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
       showXTickLabels: xAxis?.showLabels !== false,
       containerWidth: width,
       containerHeight: height,
+      rightAllowance: rightAxisLayout.allowance,
     }),
     [paddedYDomain, paddedXDomain, yAxis?.labelFormatter, xAxis?.labelFormatter, yAxis?.title, xAxis?.title,
      yAxis?.show, xAxis?.show, yAxis?.showLabels, xAxis?.showLabels, width, height,
-     props.xScaleType, props.yScaleType, theme.numberFormat]
+     props.xScaleType, props.yScaleType, theme.numberFormat, rightAxisLayout.allowance]
   );
   const legendLabels = React.useMemo(
     () => normalizedSeries.map((s, i) => ({ label: s.name || `Series ${i + 1}` })),
@@ -251,7 +404,7 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
         legendFontSize: legend?.fontSize,
         containerWidth: width,
       }),
-    [basePadding.left, title, subtitle, legend?.show, legend?.position, legend?.fontSize, legendLabels, width]
+    [basePadding, title, subtitle, legend?.show, legend?.position, legend?.fontSize, legendLabels, width]
   );
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
@@ -270,7 +423,7 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
     pointColor: s.pointColor,
     pointSize: s.pointSize,
     chartPoints: s.data.map((point) => {
-      const coords = dataToChartCoordinates(point.x, point.y, { x: 0, y: 0, width: plotWidth, height: plotHeight }, paddedXDomain, paddedYDomain);
+      const coords = dataToChartCoordinates(point.x, point.y, { x: 0, y: 0, width: plotWidth, height: plotHeight }, paddedXDomain, domainForAxis(s.yAxis));
       return { ...point, chartX: coords.x, chartY: coords.y };
     })
   }));
@@ -313,98 +466,32 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
     return () => register('scatter', null);
   }, [register, hitSeries]);
 
-  const xTicks = React.useMemo(() => {
-    switch (props.xScaleType) {
-      case 'log': return generateLogTicks(paddedXDomain, 6);
-      case 'time': return generateTimeTicks(paddedXDomain, 6);
-      default: return generateTicks(paddedXDomain[0], paddedXDomain[1], 6);
-    }
-  }, [paddedXDomain, props.xScaleType]);
-  const yTicks = React.useMemo(() => {
-    switch (props.yScaleType) {
-      case 'log': return generateLogTicks(paddedYDomain, 5);
-      case 'time': return generateTimeTicks(paddedYDomain, 5);
-      default: return generateTicks(paddedYDomain[0], paddedYDomain[1], 5);
-    }
-  }, [paddedYDomain, props.yScaleType]);
+  const xTicks = React.useMemo(() => generateScaleTicks(paddedXDomain, props.xScaleType, 6), [paddedXDomain, props.xScaleType]);
+  const yTicks = React.useMemo(() => generateScaleTicks(paddedYDomain, props.yScaleType, 5), [paddedYDomain, props.yScaleType]);
   const xTickFormat = React.useMemo(() => createTickFormatter(xTicks, theme.numberFormat), [xTicks, theme.numberFormat]);
   const yTickFormat = React.useMemo(() => createTickFormatter(yTicks, theme.numberFormat), [yTicks, theme.numberFormat]);
 
-  const axisScaleX = useMemo<Scale<number>>(() => {
-    const range: [number, number] = [0, Math.max(plotWidth, 0)];
-    const domain = [...paddedXDomain] as [number, number];
+  const axisScaleX = useMemo<Scale<number>>(
+    () => buildAxisScale(paddedXDomain, plotWidth, false, props.xScaleType, xTicks, 6),
+    [plotWidth, paddedXDomain, props.xScaleType, xTicks]
+  );
+  const axisScaleY = useMemo<Scale<number>>(
+    () => buildAxisScale(paddedYDomain, plotHeight, true, props.yScaleType, yTicks, 5),
+    [plotHeight, paddedYDomain, props.yScaleType, yTicks]
+  );
+  const axisScaleYRight = useMemo<Scale<number>>(
+    () => buildAxisScale(paddedYDomainRight, plotHeight, true, props.yScaleType, yTicksRight, 5),
+    [plotHeight, paddedYDomainRight, props.yScaleType, yTicksRight]
+  );
 
-    if (plotWidth <= 0) {
-      const scale = ((_: number) => 0) as Scale<number>;
-      scale.domain = () => domain;
-      scale.range = () => [0, 0];
-      scale.ticks = () => [...xTicks];
-      return scale;
-    }
-
-    const scale = ((value: number) => {
-      switch (props.xScaleType) {
-        case 'log':
-          return scaleLog(Math.max(value, 1e-12), domain, range);
-        case 'time':
-          return scaleTime(value, domain, range);
-        default:
-          return scaleLinear(value, domain, range);
-      }
-    }) as Scale<number>;
-    scale.domain = () => domain.slice();
-    scale.range = () => range.slice();
-    scale.ticks = (count?: number) => {
-      if (xTicks.length) return xTicks;
-      switch (props.xScaleType) {
-        case 'log':
-          return generateLogTicks(domain, count ?? 6);
-        case 'time':
-          return generateTimeTicks(domain, count ?? 6);
-        default:
-          return generateTicks(domain[0], domain[1], count ?? 6);
-      }
-    };
-    return scale;
-  }, [plotWidth, paddedXDomain, props.xScaleType, xTicks]);
-
-  const axisScaleY = useMemo<Scale<number>>(() => {
-    const range: [number, number] = [Math.max(plotHeight, 0), 0];
-    const domain = [...paddedYDomain] as [number, number];
-
-    if (plotHeight <= 0) {
-      const scale = ((_: number) => 0) as Scale<number>;
-      scale.domain = () => domain;
-      scale.range = () => [0, 0];
-      scale.ticks = () => [...yTicks];
-      return scale;
-    }
-
-    const scale = ((value: number) => {
-      switch (props.yScaleType) {
-        case 'log':
-          return scaleLog(Math.max(value, 1e-12), domain, range);
-        case 'time':
-          return scaleTime(value, domain, range);
-        default:
-          return scaleLinear(value, domain, range);
-      }
-    }) as Scale<number>;
-    scale.domain = () => domain.slice();
-    scale.range = () => range.slice();
-    scale.ticks = (count?: number) => {
-      if (yTicks.length) return yTicks;
-      switch (props.yScaleType) {
-        case 'log':
-          return generateLogTicks(domain, count ?? 5);
-        case 'time':
-          return generateTimeTicks(domain, count ?? 5);
-        default:
-          return generateTicks(domain[0], domain[1], count ?? 5);
-      }
-    };
-    return scale;
-  }, [plotHeight, paddedYDomain, props.yScaleType, yTicks]);
+  // Reference marks share the axis scales (plot-local px). Their y values are
+  // read against the primary (left) axis, as in ComboChart.
+  const referenceScales = useMemo<ReferenceMarkScales>(() => ({
+    xToPx: numericReference(axisScaleX),
+    yToPx: numericReference(axisScaleY),
+    plotWidth: Math.max(0, plotWidth),
+    plotHeight: Math.max(0, plotHeight),
+  }), [axisScaleX, axisScaleY, plotWidth, plotHeight]);
 
   const quadrantVisual = useMemo(() => {
     if (!quadrants) return null;
@@ -514,36 +601,39 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
   };
   const trendlines = React.useMemo(() => {
     if (!showTrendline) return [] as any[];
+    const toPlot = (x: number, y: number, yDom: [number, number]) =>
+      dataToChartCoordinates(x, y, { x: 0, y: 0, width: plotWidth, height: plotHeight }, paddedXDomain, yDom);
     if (showTrendline === 'per-series') {
       return chartSeries.map(s => {
         const reg = computeRegression(s.chartPoints);
         if (!reg) return null;
+        const yDom = s.yAxis === 'right' ? paddedYDomainRight : paddedYDomain;
         const startX = paddedXDomain[0];
         const endX = paddedXDomain[1];
-        const startY = reg.slope * startX + reg.intercept;
-        const endY = reg.slope * endX + reg.intercept;
         return {
           id: s.id,
           color: s.color,
-          start: dataToChartCoordinates(startX, startY, { x: 0, y: 0, width: plotWidth, height: plotHeight }, paddedXDomain, paddedYDomain),
-          end: dataToChartCoordinates(endX, endY, { x: 0, y: 0, width: plotWidth, height: plotHeight }, paddedXDomain, paddedYDomain)
+          start: toPlot(startX, reg.slope * startX + reg.intercept, yDom),
+          end: toPlot(endX, reg.slope * endX + reg.intercept, yDom)
         };
       }).filter(Boolean);
     }
-    const all = chartSeries.flatMap(s => s.chartPoints);
-    const reg = computeRegression(all);
+    // One regression only means something on one scale: fit the left-bound
+    // series (or the right-bound ones when nothing is on the left).
+    const leftBound = chartSeries.filter(s => s.yAxis !== 'right');
+    const fitted = leftBound.length ? leftBound : chartSeries;
+    const yDom = leftBound.length ? paddedYDomain : paddedYDomainRight;
+    const reg = computeRegression(fitted.flatMap(s => s.chartPoints));
     if (!reg) return [];
     const startX = paddedXDomain[0];
     const endX = paddedXDomain[1];
-    const startY = reg.slope * startX + reg.intercept;
-    const endY = reg.slope * endX + reg.intercept;
     return [{
       id: 'overall',
       color: trendlineColor || theme.colors.accentPalette[0],
-      start: dataToChartCoordinates(startX, startY, { x: 0, y: 0, width: plotWidth, height: plotHeight }, paddedXDomain, paddedYDomain),
-      end: dataToChartCoordinates(endX, endY, { x: 0, y: 0, width: plotWidth, height: plotHeight }, paddedXDomain, paddedYDomain)
+      start: toPlot(startX, reg.slope * startX + reg.intercept, yDom),
+      end: toPlot(endX, reg.slope * endX + reg.intercept, yDom)
     }];
-  }, [showTrendline, chartSeries, paddedXDomain, paddedYDomain, plotWidth, plotHeight, trendlineColor, theme.colors.accentPalette]);
+  }, [showTrendline, chartSeries, paddedXDomain, paddedYDomain, paddedYDomainRight, plotWidth, plotHeight, trendlineColor, theme.colors.accentPalette]);
 
   // Pan/Zoom integration
   const pinchTrackingRef = React.useRef(false);
@@ -758,6 +848,29 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
         />
       )}
 
+      {showRightAxis && plotHeight > 0 && (
+        <Axis
+          scale={axisScaleYRight}
+          orientation="right"
+          length={plotHeight}
+          offset={{ x: padding.left + plotWidth, y: padding.top }}
+          ticks={yTicksRight}
+          tickLabelWidth={rightAxisLayout.tickLabelWidth}
+          tickSize={rightTickSize}
+          tickPadding={axisTickPadding}
+          tickFormat={formatRightTick}
+          showLabels={yAxisRight?.showLabels !== false}
+          showTicks={yAxisRight?.showTicks !== false}
+          stroke={yAxisRight?.color || theme.colors.grid}
+          strokeWidth={yAxisRight?.thickness ?? 1}
+          label={yAxisRight?.title}
+          tickLabelColor={yAxisRight?.labelColor || resolvedTextColor}
+          tickLabelFontSize={yAxisRight?.labelFontSize}
+          labelColor={yAxisRight?.titleColor || theme.colors.textPrimary}
+          labelFontSize={yAxisRight?.titleFontSize}
+        />
+      )}
+
       {/* Chart interaction area */}
       <View
         style={{
@@ -770,6 +883,12 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
         pointerEvents="none"
       >
         <View style={{ flex: 1 }} collapsable={false} pointerEvents="none">
+          {/* Reference areas sit under everything else in the plot */}
+          {referenceAreas?.length ? (
+            <Svg width={referenceScales.plotWidth} height={referenceScales.plotHeight} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+              <ReferenceAreas areas={referenceAreas} scales={referenceScales} />
+            </Svg>
+          ) : null}
           {/* Quadrant background overlays */}
           {quadrantLayout && (
             <>
@@ -976,6 +1095,14 @@ const ScatterChartInner: React.FC<ScatterChartProps> = (props) => {
               />
             );
           }) : null)}
+
+          {/* Reference lines and dots sit above the points */}
+          {referenceLines?.length || referenceDots?.length ? (
+            <Svg width={referenceScales.plotWidth} height={referenceScales.plotHeight} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+              <ReferenceLines lines={referenceLines} scales={referenceScales} />
+              <ReferenceDots dots={referenceDots} scales={referenceScales} />
+            </Svg>
+          ) : null}
 
           {/* Crosshair overlays (driven by the normalized active target / pointer,
               converted from container-origin to plot-local by subtracting padding) */}

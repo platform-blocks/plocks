@@ -159,6 +159,19 @@ const TITLE_PADDING_VERTICAL = 5;
 const TITLE_SUBTITLE_GAP = 4;
 
 export const CHART_LEGEND_PADDING = 10;
+
+/** Default height of the brush strip a cartesian chart draws under its x axis (`withBrush`). */
+export const CHART_BRUSH_HEIGHT = 40;
+/** Gap between the x-axis band (tick labels and title) and the brush strip. */
+export const CHART_BRUSH_GAP = 8;
+
+/**
+ * Height a brush strip takes out of the chart's box, gap included — 0 without one.
+ * Pass it to `withChartBandPadding` as `bottomAllowance`; the strip's top is then
+ * `padding.top + plotHeight + axisBottom + CHART_BRUSH_GAP`.
+ */
+export const measureChartBrushBand = (withBrush: boolean | undefined, height?: number): number =>
+  withBrush ? Math.max(height ?? CHART_BRUSH_HEIGHT, 0) + CHART_BRUSH_GAP : 0;
 const LEGEND_SWATCH_SIZE = 12;
 const LEGEND_SWATCH_GAP = 6;
 const LEGEND_ITEM_MARGIN_H = 8;
@@ -301,6 +314,11 @@ export const withChartBandPadding = (
      * shares the band. Stacks below the title instead of competing with it.
      */
     topAllowance?: number;
+    /**
+     * Space below the x-axis band that is *not* the legend — a brush strip
+     * (`measureChartBrushBand`). Stacks between the axis labels and a bottom legend.
+     */
+    bottomAllowance?: number;
   },
 ): ChartPadding => {
   const titleBand = measureChartTitleBand(options.title, options.subtitle, { containerWidth: options.containerWidth });
@@ -314,7 +332,7 @@ export const withChartBandPadding = (
   return {
     top: Math.max(basePadding.top, titleBand + (options.topAllowance ?? 0)) + legendBand.top,
     right: basePadding.right + legendBand.right,
-    bottom: basePadding.bottom + legendBand.bottom,
+    bottom: basePadding.bottom + (options.bottomAllowance ?? 0) + legendBand.bottom,
     left: basePadding.left + legendBand.left,
   };
 };

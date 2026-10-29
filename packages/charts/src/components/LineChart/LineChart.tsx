@@ -189,7 +189,9 @@ const createFillPath = (points: Array<{ chartX: number; chartY: number }>, plotH
 import { useChartTheme } from '../../theme/ChartThemeContext';
 import { ChartGradientDef, isChartGradient, type ChartGradient } from '../../core/ChartFill';
 import { LineChartProps, ChartInteractionEvent, ChartDataPoint, LineChartSeries } from '../../types';
-import { ChartContainer, ChartTitle, ChartLegend , withChartBandPadding, estimateChartTextWidth } from '../../ChartBase';
+import { ChartContainer, ChartTitle, ChartLegend , withChartBandPadding, estimateChartTextWidth, measureChartBrushBand, CHART_BRUSH_GAP, CHART_BRUSH_HEIGHT } from '../../ChartBase';
+import { ChartBrush } from '../ChartBrush/ChartBrush';
+import { clampBrushRange, inferBrushStep, pickBrushSeries, sliceToBrushWindow } from '../ChartBrush/ChartBrush';
 import { resolveCartesianPadding } from '../../core/axisLayout';
 import { useChartInteractionContext, usePointer } from '../../interaction/ChartInteractionContext';
 import { ChartGrid } from '../../core/ChartGrid';
@@ -212,6 +214,7 @@ import {
   createTickFormatter
 } from '../../utils';
 import { PointSeriesHitTester } from '../../core/hittest/point';
+import { ReferenceAreas, ReferenceDots, ReferenceLines, numericReference, type ReferenceMarkScales } from '../../core/ReferenceMarks';
 import type { HitSeries, Mark } from '../../core/hittest/types';
 import { usePanZoom } from '../../hooks/usePanZoom';
 import { CHART_TOUCH_HOLD_MS, isChartTouchInput } from '../../interaction/touchInput';
@@ -242,6 +245,9 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
     legend,
     tooltip,
   annotations,
+    referenceLines,
+    referenceAreas,
+    referenceDots,
     animation,
     disableAnimations,
     onPress,
@@ -249,6 +255,10 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
     disabled = false,
     animationDuration = 1000,
     style,
+    withBrush = false,
+    brushProps,
+    brushRange,
+    onBrushChange,
     ...rest
   } = props;
 
@@ -302,7 +312,13 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
   const initializeDomains = interaction?.initializeDomains;
   const setDomains = interaction?.setDomains;
   // Visibility now driven by interaction context; local map removed to avoid double state causing loops
-  const [xDomainState, setXDomainState] = useState<[number, number] | null>(null);
+  // The brush window *is* the x domain: brush, pan/zoom and shift+drag zoom all
+  // write this one state, so they can never disagree. `brushProps.start/end` seed it.
+  const [xDomainState, setXDomainState] = useState<[number, number] | null>(() =>
+    withBrush && (brushProps?.start != null || brushProps?.end != null)
+      ? [brushProps?.start ?? -Infinity, brushProps?.end ?? Infinity]
+      : null
+  );
   const [yDomainState, setYDomainState] = useState<[number, number] | null>(null);
   // Pan/zoom state now driven via usePanZoom hook (removing local gesture math duplication)
   const [lastPan, setLastPan] = useState<{ x: number; y: number } | null>(null); // still used for web mouse fallback
@@ -398,8 +414,10 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
   // Calculate data bounds from all series
   const computedXDomain = getMultiSeriesDomain(decimatedSeries, d => d.x);
   const computedYDomain = getMultiSeriesDomain(decimatedSeries, d => d.y);
-  const rawXDomain = xDomainState || computedXDomain;
-  const rawYDomain = yDomainState || computedYDomain;
+  // With a brush (or a controlled `brushRange`) the x domain stays inside the data,
+  // since the brush cannot show a window beyond it.
+  const brushBound = withBrush || brushRange !== undefined;
+  const rawXDomain = brushRange ?? xDomainState ?? computedXDomain;
   const clampToInitial = props.clampToInitialDomain;
 
   const clampDomain = (domain: [number, number], base: [number, number]) => {
@@ -413,8 +431,43 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
     return [min, max] as [number, number];
   };
 
-  const xDomain = clampDomain(rawXDomain, computedXDomain);
+  // Width-preserving fit inside `base` (a panned window stops at the data edge).
+  const fitWithin = (domain: [number, number], base: [number, number]): [number, number] => {
+    const span = domain[1] - domain[0];
+    if (!(span < base[1] - base[0])) return base;
+    const min = Math.max(base[0], Math.min(domain[0], base[1] - span));
+    return [min, min + span];
+  };
+
+  const xDomain = brushBound ? clampBrushRange(rawXDomain, computedXDomain) : clampDomain(rawXDomain, computedXDomain);
+  const xWindowed = xDomain[0] > computedXDomain[0] || xDomain[1] < computedXDomain[1];
+  // A brushed window refits y to the data inside it (unless y was zoomed explicitly).
+  const windowYDomain = React.useMemo<[number, number] | null>(() => {
+    if (!brushBound || !xWindowed) return null;
+    const inside = decimatedSeries
+      .filter((s) => s.visible !== false)
+      .flatMap((s) => s.data.filter((p) => p.x >= xDomain[0] && p.x <= xDomain[1]));
+    if (inside.length === 0) return null;
+    const domain = getDataDomain(inside, (d) => d.y);
+    return domain[0] === domain[1] ? null : domain;
+  }, [brushBound, xWindowed, decimatedSeries, xDomain]);
+  const rawYDomain = yDomainState || windowYDomain || computedYDomain;
   const yDomain = clampDomain(rawYDomain, computedYDomain);
+
+  /** The single writer of x-domain changes: brush, pan/zoom, box zoom, reset. */
+  const commitXDomain = (next: [number, number]) => {
+    const resolved = brushBound ? fitWithin(next, computedXDomain) : next;
+    const unchanged = resolved[0] === xDomain[0] && resolved[1] === xDomain[1];
+    if (brushRange === undefined) {
+      const isFull = brushBound && resolved[0] === computedXDomain[0] && resolved[1] === computedXDomain[1];
+      setXDomainState(isFull ? null : resolved);
+    }
+    setDomains?.({ x: resolved });
+    if (brushBound && !unchanged) {
+      onBrushChange?.(resolved);
+      brushProps?.onChange?.(resolved);
+    }
+  };
   // Push initial domains to context once (only if provider exists and not yet set)
   React.useEffect(() => {
     if (initializeDomains && interaction?.domains == null) {
@@ -474,6 +527,8 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
     [yTickLabels, xTickLabels, yAxis?.title, xAxis?.title, yAxis?.show, xAxis?.show,
      yAxis?.showLabels, xAxis?.showLabels, width, height]
   );
+  const brushHeight = brushProps?.height ?? CHART_BRUSH_HEIGHT;
+  const brushBand = measureChartBrushBand(withBrush, brushHeight);
   const padding = React.useMemo(
     () =>
       withChartBandPadding(axisPadding, {
@@ -484,8 +539,9 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
         legendFontSize: legend?.fontSize,
         containerWidth: width,
         topAllowance: axisPadding.top,
+        bottomAllowance: brushBand,
       }),
-    [axisPadding, title, subtitle, legend?.show, legend?.position, legend?.fontSize, legendLabels, width]
+    [axisPadding, title, subtitle, legend?.show, legend?.position, legend?.fontSize, legendLabels, width, brushBand]
   );
   const plotWidth = Math.max(width - padding.left - padding.right, 0);
   const plotHeight = Math.max(height - padding.top - padding.bottom, 0);
@@ -505,6 +561,13 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
       default: return scaleLinear(v, domain, range);
     }
   }, [props.yScaleType]);
+  // Reference marks share the series scales, so they pan/zoom with the data.
+  const referenceScales = React.useMemo<ReferenceMarkScales>(() => ({
+    xToPx: numericReference((x) => xScaleFn(x, xDomain, [0, plotWidth])),
+    yToPx: numericReference((y) => yScaleFn(y, yDomain, [plotHeight, 0])),
+    plotWidth,
+    plotHeight,
+  }), [xScaleFn, yScaleFn, xDomain, yDomain, plotWidth, plotHeight]);
 
   // Animation effect
   // Build a lightweight signature of the data (series id + length)
@@ -525,7 +588,9 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
         };
       }
 
-      const chartPoints = seriesItem.data.map((point) => {
+      // Only the window (plus a neighbor each side, so lines reach the plot edge) is drawn.
+      const windowData = xWindowed ? sliceToBrushWindow(seriesItem.data, (p) => p.x, xDomain) : seriesItem.data;
+      const chartPoints = windowData.map((point) => {
         const coords = dataToChartCoordinates(
           point.x,
           point.y,
@@ -539,6 +604,7 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
       const visibleFlag = ctxVis === undefined ? true : ctxVis === true; // normalize to boolean
       return {
         ...seriesItem,
+        data: windowData,
         chartPoints,
         color: seriesColor,
         visible: visibleFlag,
@@ -548,7 +614,7 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
         smooth: seriesItem.smooth,
       };
     });
-  }, [decimatedSeries, interaction?.series, plotWidth, plotHeight, xDomain, yDomain, defaultScheme, lineColor]);
+  }, [decimatedSeries, interaction?.series, plotWidth, plotHeight, xDomain, yDomain, defaultScheme, lineColor, xWindowed]);
   const filledSeriesIndices = React.useMemo(() => {
     return chartSeriesData.reduce<number[]>((indices, seriesData, seriesIndex) => {
       const fillPreference = seriesData.areaFill;
@@ -593,7 +659,7 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
       name: s.name || `Series ${i + 1}`,
       color: s.color,
       visible: s.visible !== false,
-      marks: (s.chartPoints ?? []).map((p: any, idx: number): Mark => ({
+      marks: (s.chartPoints ?? []).flatMap((p: any, idx: number): Mark[] => (p.chartX < -0.5 || p.chartX > plotWidth + 0.5) ? [] : [{
         id: p.id ?? idx,
         pixel: { x: p.chartX + padding.left, y: p.chartY + padding.top },
         value: p.y,
@@ -603,10 +669,10 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
         label: s.name || `Series ${i + 1}`,
         color: p.color || s.color,
         formattedValue: String(p.y),
-      })),
+      }]),
     }));
     return new PointSeriesHitTester(hitSeries);
-  }, [chartSeriesData, padding.left, padding.top]);
+  }, [chartSeriesData, padding.left, padding.top, plotWidth]);
 
   const evaluateNearestPoint = useCallback((chartX: number, chartY: number, nativeEvent?: any, fireCallbacks: boolean = false) => {
     const px = chartX + padding.left;
@@ -665,8 +731,12 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
     { xDomain: xDomain, yDomain: yDomain },
     (next) => {
       if (next.xDomain) {
-        setXDomainState(next.xDomain);
-        setDomains?.({ x: next.xDomain });
+        if (brushBound) {
+          commitXDomain(next.xDomain);
+        } else {
+          setXDomainState(next.xDomain);
+          setDomains?.({ x: next.xDomain });
+        }
       }
       if (next.yDomain) {
         setYDomainState(next.yDomain);
@@ -788,7 +858,8 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
         if (wasTap) {
           const now = Date.now();
           if (now - lastTapTimeRef.current < 300) { // double within 300ms
-            setXDomainState(null);
+            if (brushBound) commitXDomain(computedXDomain);
+            else setXDomainState(null);
             setYDomainState(null);
             setActiveTarget?.(null); setActiveSlice?.([]);
             setSelectedPoint(null);
@@ -858,6 +929,26 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
   const xAxisTickSize = xAxis?.tickLength ?? 4;
   const yAxisTickSize = yAxis?.tickLength ?? 4;
   const axisTickPadding = 4;
+
+  // Brush preview: every visible series over the full x extent.
+  const brushSeries = React.useMemo(() => {
+    if (!withBrush) return [];
+    const all = decimatedSeries
+      .map((seriesItem, index) => ({
+        id: seriesItem.id ?? index,
+        name: seriesItem.name,
+        color: chartSeriesData[index]?.color,
+        data: seriesItem.data,
+        visible: chartSeriesData[index]?.visible !== false && seriesItem.visible !== false,
+      }))
+      .filter((item) => item.visible);
+    return pickBrushSeries(all, brushProps?.series);
+  }, [withBrush, decimatedSeries, chartSeriesData, brushProps?.series]);
+  const brushStep = React.useMemo(
+    () => brushProps?.step ?? (withBrush ? inferBrushStep(decimatedSeries.flatMap((s) => s.data.map((p) => p.x)), computedXDomain) : 1),
+    [brushProps?.step, withBrush, decimatedSeries, computedXDomain]
+  );
+  const brushTraveller = brushProps?.travellerWidth ?? 8;
 
   return (
     <ChartContainer
@@ -1020,7 +1111,8 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
             const dataX1 = xDomain[0] + (x1 / plotWidth) * (xDomain[1] - xDomain[0]);
             const dataY1 = yDomain[1] - (y0 / plotHeight) * (yDomain[1] - yDomain[0]);
             const dataY0 = yDomain[1] - (y1 / plotHeight) * (yDomain[1] - yDomain[0]);
-            setXDomainState([dataX0, dataX1]);
+            // Same writer as the brush, so the brush window follows a box zoom.
+            commitXDomain([dataX0, dataX1]);
             setYDomainState([dataY0, dataY1]);
             props.onDomainChange?.([dataX0, dataX1], [dataY0, dataY1]);
           }
@@ -1110,6 +1202,8 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
               </Defs>
             )}
 
+            <ReferenceAreas areas={referenceAreas} scales={referenceScales} />
+
             {/* Render all series */}
             {chartSeriesData.map((seriesData, seriesIndex) => {
               const shouldFillSeries = filledSeriesSet.has(seriesIndex);
@@ -1147,6 +1241,8 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
                 opacity={0.9}
               />
             )}
+            <ReferenceLines lines={referenceLines} scales={referenceScales} />
+            <ReferenceDots dots={referenceDots} scales={referenceScales} />
           </Svg>
 
           {/* Annotation overlays */}
@@ -1351,6 +1447,32 @@ export const LineChart: React.FC<LineChartProps> = (props) => {
           )}
         </Pressable>
       </View>
+
+      {withBrush && plotWidth > 0 && (
+        <ChartBrush
+          testID="line-chart-brush"
+          // Track aligned with the plot; the handles overhang it by half their width.
+          style={{
+            position: 'absolute',
+            left: padding.left - brushTraveller / 2,
+            top: padding.top + plotHeight + axisPadding.bottom + CHART_BRUSH_GAP,
+          }}
+          w={plotWidth + brushTraveller}
+          h={brushHeight}
+          domain={computedXDomain}
+          value={xDomain}
+          onChange={commitXDomain}
+          onChangeEnd={(range) => props.onDomainChange?.(range, yDomain)}
+          series={brushSeries}
+          previewType={fill ? 'area' : 'line'}
+          step={brushStep}
+          travellerWidth={brushTraveller}
+          fill={brushProps?.fill}
+          stroke={brushProps?.stroke}
+          formatValue={brushProps?.formatValue ?? xTickFormat}
+          disabled={disabled}
+        />
+      )}
 
       {/* Legend */}
       {legend?.show && (

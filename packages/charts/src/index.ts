@@ -26,6 +26,12 @@ export { DonutChart } from './components/DonutChart';
 export { NetworkChart } from './components/NetworkChart';
 export { ParetoChart } from './components/ParetoChart';
 export { MarimekkoChart } from './components/MarimekkoChart';
+export { WaffleChart } from './components/WaffleChart';
+export { MatrixChart } from './components/MatrixChart';
+export { BulletChart } from './components/BulletChart';
+export { CalendarHeatmapChart } from './components/CalendarHeatmapChart';
+export { SunburstChart } from './components/SunburstChart';
+export { ChartBrush } from './components/ChartBrush';
 
 // Core chart building blocks and context
 export { ChartRoot } from './core/ChartContext';

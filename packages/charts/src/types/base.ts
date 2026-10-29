@@ -280,3 +280,67 @@ export interface ChartAnnotation {
   /** Arbitrary additional data associated with the annotation */
   data?: any;
 }
+
+// Reference marks — Mantine-style referenceLines / referenceAreas / referenceDots.
+
+/**
+ * A position on a chart axis. Numbers are data values; on the category axis of
+ * a categorical chart (BarChart) a number is the category index and a string is
+ * the category label. Strings never resolve on a numeric axis.
+ */
+export type ChartReferenceValue = number | string;
+
+export interface ChartReferenceLine {
+  /** Draw a vertical line at this x position */
+  x?: ChartReferenceValue;
+  /** Draw a horizontal line at this y position */
+  y?: ChartReferenceValue;
+  /** Stroke color (defaults to the theme's secondary text color) */
+  color?: string;
+  /** Label drawn beside the line */
+  label?: string;
+  /** Stroke width in px (default 1) */
+  strokeWidth?: number;
+  /** Dashed stroke */
+  dashed?: boolean;
+}
+
+export interface ChartReferenceArea {
+  /** Left edge; omit to start at the plot's left edge */
+  x1?: ChartReferenceValue;
+  /** Right edge; omit to end at the plot's right edge */
+  x2?: ChartReferenceValue;
+  /** Lower edge; omit to start at the plot's bottom edge */
+  y1?: ChartReferenceValue;
+  /** Upper edge; omit to end at the plot's top edge */
+  y2?: ChartReferenceValue;
+  /** Fill color (defaults to the first accent color) */
+  color?: string;
+  /** Fill opacity (default 0.12) */
+  opacity?: number;
+  /** Label drawn in the area's top-left corner */
+  label?: string;
+}
+
+export interface ChartReferenceDot {
+  /** X position of the dot */
+  x: ChartReferenceValue;
+  /** Y position of the dot */
+  y: ChartReferenceValue;
+  /** Radius in px (default 5) */
+  r?: number;
+  /** Fill color (defaults to the first accent color) */
+  color?: string;
+  /** Label drawn above the dot */
+  label?: string;
+}
+
+/** Reference marks shared by the cartesian charts. */
+export interface ChartReferenceMarksProps {
+  /** Vertical (`x`) or horizontal (`y`) guide lines drawn above the series */
+  referenceLines?: ChartReferenceLine[];
+  /** Shaded rectangular regions drawn below the series */
+  referenceAreas?: ChartReferenceArea[];
+  /** Point markers drawn above the series */
+  referenceDots?: ChartReferenceDot[];
+}

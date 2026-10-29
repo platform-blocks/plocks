@@ -4,7 +4,9 @@ import type {
   ChartGrid,
   ChartInteractionCallbacks,
   ChartLegend,
+  ChartReferenceMarksProps,
 } from '../../types/base';
+import type { ChartBrushChartProps } from '../ChartBrush/types';
 
 export interface ComboChartXYPoint {
   /** X-axis value for the data point */
@@ -117,7 +119,9 @@ export type ComboChartLayer =
 
 export interface ComboChartProps
   extends BaseChartProps,
-    ChartInteractionCallbacks<ComboChartXYPoint> {
+    ChartInteractionCallbacks<ComboChartXYPoint>,
+    ChartReferenceMarksProps,
+    ChartBrushChartProps {
   /** Ordered set of layers to render in the combo chart */
   layers: ComboChartLayer[];
   /** Enable crosshair indicator across layers */
