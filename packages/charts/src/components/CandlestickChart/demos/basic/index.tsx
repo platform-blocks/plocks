@@ -22,6 +22,7 @@ export function Demo() {
       xAxis={{
         show: true,
         labelFormatter: (value) => new Date(value).toLocaleDateString('en-US', {
+          timeZone: 'UTC',
           month: 'short',
           day: 'numeric',
         }),

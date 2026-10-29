@@ -3,6 +3,7 @@ import { CandlestickChart } from '@plocks/charts';
 import { TREASURY_SERIES, TreasuryCandle, annotations } from './data';
 
 const formatWeek = (value: number) => new Date(value).toLocaleDateString('en-US', {
+  timeZone: 'UTC',
   month: 'short',
   day: 'numeric',
 });

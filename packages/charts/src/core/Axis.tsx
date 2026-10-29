@@ -226,8 +226,11 @@ export const Axis: React.FC<AxisProps> = ({
           ...(orientation === 'left' && {
             left: -(tickTextGap + vLabelBoxWidth), top: -halfLine, width: vLabelBoxWidth, textAlign: 'right',
           }),
+          // Right-axis labels grow outward, toward the container edge, so they take
+          // their text's width (capped by maxWidth) instead of a fixed box that would
+          // overflow the chart.
           ...(orientation === 'right' && {
-            left: tickTextGap, top: -halfLine, width: vLabelBoxWidth, textAlign: 'left',
+            left: tickTextGap, top: -halfLine, textAlign: 'left',
           }),
         };
         const combinedTickLabelStyle = [baseLabelStyle, tickLabelStyle];

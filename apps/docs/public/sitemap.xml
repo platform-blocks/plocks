@@ -871,6 +871,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://plocks.dev/ui/Toolbar</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://plocks.dev/ui/Tooltip</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -926,6 +931,16 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://plocks.dev/charts/BulletChart</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://plocks.dev/charts/CalendarHeatmapChart</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://plocks.dev/charts/CandlestickChart</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -967,6 +982,11 @@
   </url>
   <url>
     <loc>https://plocks.dev/charts/MarimekkoChart</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://plocks.dev/charts/MatrixChart</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -1026,7 +1046,17 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://plocks.dev/charts/SunburstChart</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://plocks.dev/charts/ViolinChart</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://plocks.dev/charts/WaffleChart</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -1167,6 +1197,11 @@
   </url>
   <url>
     <loc>https://plocks.dev/hooks/useListNavigation</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://plocks.dev/hooks/useLongPress</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>

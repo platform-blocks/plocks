@@ -99,8 +99,10 @@ describe('secondary axis labels', () => {
       (node) => node.children.length === 0 && node.textContent === '30%',
     ) as HTMLElement | undefined;
     expect(label).toBeTruthy();
-    // '%' is about an em wide; at 11px "30%" needs ~23px. The box must hold it
-    // with room to spare rather than ellipsising it to "30...".
-    expect(parseFloat(label!.style.width)).toBeGreaterThanOrEqual(30);
+    // '%' is about an em wide; at 11px "30%" needs ~23px. The label may grow to
+    // hold it with room to spare rather than ellipsising it to "30...", but it
+    // takes its text's width instead of a fixed box that overflows the chart.
+    expect(parseFloat(label!.style.maxWidth)).toBeGreaterThanOrEqual(30);
+    expect(label!.style.width).toBe('');
   });
 });

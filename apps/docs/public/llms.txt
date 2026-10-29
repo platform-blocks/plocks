@@ -47,7 +47,7 @@ Website: https://plocks.dev • GitHub: https://github.com/platform-blocks/plock
 - [Getting started](https://plocks.dev/llms/guides/getting-started.md): Install plocks, wire up the provider, and render your first component
 - [Theming](https://plocks.dev/llms/guides/theming.md): Color schemes, custom palettes, and reading theme tokens in your own components
 - [Shared props and tokens](https://plocks.dev/llms/guides/shared-props.md): The style, field and chart props many components accept — spacing, sizing, radius, shadow, label/error/helperText, chart options — and the size and color tokens their values use
-- [Icons](https://plocks.dev/llms/guides/icons.md): The 226 built-in icon names `<Icon name>` and `IconButton` accept, and how to use any other icon
+- [Icons](https://plocks.dev/llms/guides/icons.md): The 230 built-in icon names `<Icon name>` and `IconButton` accept, and how to use any other icon
 - [Accessibility](https://plocks.dev/llms/guides/accessibility.md): How plocks meets WCAG 2.1 AA for keyboard, screen reader, low-vision, and motion-sensitive users
 - [Localization](https://plocks.dev/llms/guides/localization.md): plocks ships a lightweight i18n layer. Provide locale resource objects, wrap your app with I18nProvider, then translate via the tx prop or the useI18n hook
 
