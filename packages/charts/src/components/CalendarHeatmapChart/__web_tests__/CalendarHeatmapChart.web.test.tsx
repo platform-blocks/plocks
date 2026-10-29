@@ -1,7 +1,7 @@
-// A zone west of Greenwich: `new Date('2025-03-10')` here is March 9th, 4 PM, so
-// any UTC parsing of keys would shift every day back by one. The range in these
-// tests also spans the US DST change on 2025-03-09.
-process.env.TZ = 'America/Los_Angeles';
+// jest.web.config.cjs pins TZ to America/Los_Angeles, a zone west of Greenwich:
+// `new Date('2025-03-10')` there is March 9th, 4 PM, so any UTC parsing of keys
+// would shift every day back by one. The range in these tests also spans the US
+// DST change on 2025-03-09.
 
 import React from 'react';
 import { render } from '@testing-library/react';
