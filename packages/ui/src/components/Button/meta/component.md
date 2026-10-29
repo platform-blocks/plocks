@@ -20,10 +20,11 @@ props:
 examples:
   - basic
   - variants
+  - unstyled
   - colors
   - sizes
   - loading
   - tooltip
   - width
 ---
-A flexible interactive button element supporting variants, sizes, icons, loading state, and full-width layout.
+A flexible interactive button element supporting variants, sizes, icons, loading state, and full-width layout. `variant="none"` makes it the library's unstyled pressable: custom tiles, pads and rows keep real button behavior without a bare `Pressable`.

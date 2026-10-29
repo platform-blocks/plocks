@@ -27,6 +27,7 @@ examples:
   videoSync: Waveform synced to the Video component
   interactive: Interactive waveform controls
   fullWidth: Full width responsive layout
+  regions: Pressable regions and an externally driven playhead
 ---
 
-Waveform visualizes audio data and can provide a seek control.
+Waveform visualizes audio data and can provide a seek control. `regions` lay pressable spans over it (slices of a chopped sample: `onRegionPress(index)`, one named button per region), and `playhead` takes a Reanimated shared value the caller writes every frame, so a live playback line moves without re-rendering the waveform.
