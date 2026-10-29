@@ -1,7 +1,7 @@
 # plocks
 
-> A cross-platform React Native UI library — 131 components, 24 charts,
-> and 48 hooks that render natively on iOS and Android and as real DOM on the web,
+> A cross-platform React Native UI library — 132 components, 30 charts,
+> and 49 hooks that render natively on iOS and Android and as real DOM on the web,
 > from one themeable component model.
 
 This index lists plocks documentation pages formatted for LLMs.
@@ -9,8 +9,8 @@ Each link points to a standalone Markdown file under the /llms path; any docs UR
 with `.md` appended (https://plocks.dev/ui/Button.md) serves the same file.
 
 Whole-library files:
-- https://plocks.dev/llms-small.txt (~180k tokens) — every component, chart and hook: imports, own props, one example each. Loads the whole API at once.
-- https://plocks.dev/llms-full.txt (~445k tokens) — every page in full, nothing truncated. Larger than most context windows; suited to search and embedding.
+- https://plocks.dev/llms-small.txt (~190k tokens) — every component, chart and hook: imports, own props, one example each. Loads the whole API at once.
+- https://plocks.dev/llms-full.txt (~475k tokens) — every page in full, nothing truncated. Larger than most context windows; suited to search and embedding.
 
 Agent skills for Claude Code, Cursor and others: https://github.com/platform-blocks/skills (`npx skills add https://github.com/platform-blocks/skills --skill plocks-setup`)
 
@@ -114,9 +114,9 @@ Website: https://plocks.dev • GitHub: https://github.com/platform-blocks/plock
 - [KeyboardAvoidingArea](https://plocks.dev/llms/components/KeyboardAvoidingArea.md): KeyboardAvoidingArea moves content clear of the mobile keyboard
 - [KeyboardAwareLayout](https://plocks.dev/llms/components/KeyboardAwareLayout.md): KeyboardAwareLayout adjusts screen content when the on-screen keyboard appears
 - [KeyCap](https://plocks.dev/llms/components/KeyCap.md): A visual component for displaying keyboard keys, shortcuts, and key combinations with proper styling. Also: `useKeyCapStyles`
-- [Knob](https://plocks.dev/llms/components/Knob.md): Knob provides a rotary control for selecting a value within a range. Also: `Knob.Fill`, `Knob.Pointer`, `Knob.Progress`, `Knob.Ring`, `Knob.RingSegment`, …
+- [Knob](https://plocks.dev/llms/components/Knob.md): Knob provides a rotary control for selecting a value within a range. Also: `Knob.Body`, `Knob.Pointer`, `Knob.Progress`, `Knob.Ring`, `Knob.RingSegment`, …
 - [Layout](https://plocks.dev/llms/components/Layout.md): Row and Column arrange content horizontally and vertically with Flex alignment, spacing, and sizing props
-- [Lightbox](https://plocks.dev/llms/components/Lightbox.md): Lightbox displays images in a full-screen viewer with navigation and optional metadata
+- [Lightbox](https://plocks.dev/llms/components/Lightbox.md): Lightbox displays images and videos in a full-screen viewer with zoom, navigation, and optional metadata
 - [Link](https://plocks.dev/llms/components/Link.md): A versatile component for creating styled hyperlinks and navigation elements with hover states and accessibility features. Also: `LinkBox`
 - [ListGroup](https://plocks.dev/llms/components/ListGroup.md): Provides an organized list structure with items, dividers, and sections for displaying grouped content. Also: `ListGroupItem`, `ListGroupDivider`, `ListGroupBody`
 - [Loader](https://plocks.dev/llms/components/Loader.md): A animated loading component for indicating ongoing processes and loading states with various sizes and styles
@@ -176,6 +176,7 @@ Website: https://plocks.dev • GitHub: https://github.com/platform-blocks/plock
 - [Title](https://plocks.dev/llms/components/Title.md): Semantic heading component mapping order={1..6} to typography variants h1..h6 while offering decorative enhancements like underline, afterline, and prefix adornments. Also: `Heading1`, `Heading2`, `Heading3`, `Heading4`, `Heading5`, …
 - [Toast](https://plocks.dev/llms/components/Toast.md): Toast displays a temporary notification about an action or event. Also: `ToastProvider`, `useToast`, `useToastApi`, `useToastViewportOffset`, …
 - [Toggle](https://plocks.dev/llms/components/Toggle.md): Toggle provides an intuitive way to select between multiple options. Also: `ToggleButton`, `ToggleGroup`, `ToggleBar`
+- [Toolbar](https://plocks.dev/llms/components/Toolbar.md): Toolbar groups formatting and tool toggles the way an editor does. Also: `ToolbarToggle`, `ToolbarToggleGroup`, `ToolbarToggleItem`, `ToolbarDivider`, `Toolbar.Divider`, …
 - [Tooltip](https://plocks.dev/llms/components/Tooltip.md): Tooltip provides contextual information without disrupting the user's workflow
 - [Tree](https://plocks.dev/llms/components/Tree.md): Tree displays hierarchical data with expandable branches. Also: `useTreeState`
 - [TreeSelect](https://plocks.dev/llms/components/TreeSelect.md): Branches open within the dropdown; in single and multiple mode, leaves are selectable
@@ -190,7 +191,10 @@ Website: https://plocks.dev • GitHub: https://github.com/platform-blocks/plock
 - [AreaChart](https://plocks.dev/llms/components/AreaChart.md): Area (filled) chart for visualizing cumulative or stacked trends
 - [BarChart](https://plocks.dev/llms/components/BarChart.md): Discrete / categorical bar chart visualization component
 - [BubbleChart](https://plocks.dev/llms/components/BubbleChart.md): Scatter-style plot where point radius encodes a third quantitative dimension
+- [BulletChart](https://plocks.dev/llms/components/BulletChart.md): Compare a measure against a target and qualitative ranges in a compact bar, after Stephen Few's bullet graph
+- [CalendarHeatmapChart](https://plocks.dev/llms/components/CalendarHeatmapChart.md): A GitHub-style calendar heatmap: one cell per day, weeks as columns and weekdays as rows, colored by the value keyed to each YYYY-MM-DD date
 - [CandlestickChart](https://plocks.dev/llms/components/CandlestickChart.md): Visualizes financial OHLC price movements over time
+- [ChartBrush](https://plocks.dev/llms/components/ChartBrush.md): A range selector for cartesian charts: a miniature of the data with a draggable window
 - [ComboChart](https://plocks.dev/llms/components/ComboChart.md): Combines multiple chart types (e.g., bars and line) for richer comparison
 - [DonutChart](https://plocks.dev/llms/components/DonutChart.md): Circular proportional chart with a hollow center (variant of pie chart)
 - [FunnelChart](https://plocks.dev/llms/components/FunnelChart.md): Shows progressive reduction of data through stages (conversion pipeline)
@@ -199,6 +203,7 @@ Website: https://plocks.dev • GitHub: https://github.com/platform-blocks/plock
 - [HistogramChart](https://plocks.dev/llms/components/HistogramChart.md): HistogramChart groups continuous values into bins to show their distribution
 - [LineChart](https://plocks.dev/llms/components/LineChart.md): Basic line chart visualization component
 - [MarimekkoChart](https://plocks.dev/llms/components/MarimekkoChart.md): Visualize categorical mix alongside overall weight with a mosaic-style variable-width column chart
+- [MatrixChart](https://plocks.dev/llms/components/MatrixChart.md): A compact x/y heatmap with categorical axes: string-keyed cells colored by value, with fixed-size cells and empty slots
 - [NetworkChart](https://plocks.dev/llms/components/NetworkChart.md): NetworkChart visualizes relationships among nodes and links
 - [ParetoChart](https://plocks.dev/llms/components/ParetoChart.md): Highlight the small number of categories that drive the majority of impact with a bar plus cumulative line visualization
 - [PieChart](https://plocks.dev/llms/components/PieChart.md): Proportional slice chart for categorical part-to-whole representation
@@ -210,7 +215,9 @@ Website: https://plocks.dev • GitHub: https://github.com/platform-blocks/plock
 - [SparklineChart](https://plocks.dev/llms/components/SparklineChart.md): Compact inline trend indicator for dense data summaries
 - [StackedAreaChart](https://plocks.dev/llms/components/StackedAreaChart.md): Area chart with multiple series stacked to show cumulative contributions
 - [StackedBarChart](https://plocks.dev/llms/components/StackedBarChart.md): Bar chart with segments stacked to show part-to-whole by category
+- [SunburstChart](https://plocks.dev/llms/components/SunburstChart.md): Show a hierarchy as concentric rings, with the root at the center and each node's arc sized by its value
 - [ViolinChart](https://plocks.dev/llms/components/ViolinChart.md): ViolinChart shows a data distribution with a mirrored density shape and summary statistics
+- [WaffleChart](https://plocks.dev/llms/components/WaffleChart.md): Show parts of a whole as a grid of colored cells, with each segment taking cells in proportion to its value
 
 ## Hooks
 
@@ -242,6 +249,7 @@ Website: https://plocks.dev • GitHub: https://github.com/platform-blocks/plock
 - [useLatestCallback](https://plocks.dev/llms/hooks/useLatestCallback.md): Wrap a callback in a function whose identity never changes but always calls the latest version, so effects, timers and subscriptions that call it don't restart when an inline handler changes
 - [useLayer](https://plocks.dev/llms/hooks/useLayer.md): Register a custom overlay in the app-wide layer stack (no provider needed), so Escape and Android back close only the topmost layer, a press inside a nested layer doesn't close its parent, and focus moves in on open, can be trapped, and returns on close
 - [useListNavigation](https://plocks.dev/llms/hooks/useListNavigation.md): Keyboard navigation for a combobox or listbox with virtual focus
+- [useLongPress](https://plocks.dev/llms/hooks/useLongPress.md): Fire a callback once a press is held for a threshold, with handlers that cover React Native's press events and the DOM's mouse and touch events
 - [useMaskedInput](https://plocks.dev/llms/hooks/useMaskedInput.md): Keep controlled inputs in sync with formatted masks while exposing the unmasked value and completion status
 - [useMediaQuery](https://plocks.dev/llms/hooks/useMediaQuery.md): Evaluate a CSS media query on web and width/height queries on native, updating as the viewport changes
 - [useMergedRef](https://plocks.dev/llms/hooks/useMergedRef.md): Combine any number of object or callback refs into one stable callback ref, so a component can keep its own ref to a node and still honor the ref its parent forwarded
@@ -252,7 +260,7 @@ Website: https://plocks.dev • GitHub: https://github.com/platform-blocks/plock
 - [usePopoverPositioning](https://plocks.dev/llms/hooks/usePopoverPositioning.md): The measure-and-place engine under useFloating: attach anchorRef (and popoverRef) and it returns where the popover fits in the viewport — coordinates, the side it landed on after flipping, and the space available
 - [useReducedMotion](https://plocks.dev/llms/hooks/useReducedMotion.md): Whether animations should be reduced: the OS preference (prefers-reduced-motion on web, AccessibilityInfo on native), or the override set by the nearest ReducedMotionProvider
 - [useRovingFocus](https://plocks.dev/llms/hooks/useRovingFocus.md): Give a composite widget (toolbar, tab list, radio group, grid) a single tab stop
-- [useScrollSpy](https://plocks.dev/llms/hooks/useScrollSpy.md): Collect headings from the DOM or title registry and track which section is currently visible
+- [useScrollSpy](https://plocks.dev/llms/hooks/useScrollSpy.md): Collect headings from the DOM or title registry and track which section is currently visible, in the page or inside a nested scroll container (scrollHost)
 - [useSpotlightToggle](https://plocks.dev/llms/hooks/useSpotlightToggle.md): Provide a convenience wrapper for the global command palette shortcut so feature teams can open Spotlight without touching implementation details
 - [useStyleProps](https://plocks.dev/llms/hooks/useStyleProps.md): Turn the library's style props (m, p, w, h, bg, opacity, …) into a React Native style resolved against the current theme, so your own components can accept them like the built-in ones do
 - [useTheme](https://plocks.dev/llms/hooks/useTheme.md): Read the active PlocksTheme (color ramps, text and background roles, spacing, radii, font sizes) to style your own primitives; outside a provider it returns DEFAULT_THEME
