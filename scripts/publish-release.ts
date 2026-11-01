@@ -10,16 +10,18 @@ const PACKAGE_DIRS = [
   'spotlight', 'brands', 'qrcode', 'emoji-picker', 'create-plocks',
 ];
 
+const env = {
+  ...process.env,
+  NPM_CONFIG_CACHE: process.env.NPM_CONFIG_CACHE ?? path.join(os.tmpdir(), 'plocks-npm-cache'),
+};
+
 const run = (command: string, args: string[], cwd = ROOT): string =>
-  execFileSync(command, args, {
-    cwd,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'inherit'],
-    env: {
-      ...process.env,
-      NPM_CONFIG_CACHE: process.env.NPM_CONFIG_CACHE ?? path.join(os.tmpdir(), 'plocks-npm-cache'),
-    },
-  });
+  execFileSync(command, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], env });
+
+// npm publish asks for a 2FA one-time password, so it needs the terminal.
+const runInteractive = (command: string, args: string[], cwd = ROOT): void => {
+  execFileSync(command, args, { cwd, stdio: 'inherit', env });
+};
 
 const readJson = (file: string) => JSON.parse(fs.readFileSync(file, 'utf8'));
 
@@ -89,8 +91,7 @@ const main = () => {
     console.log(`${manifest.name}@${manifest.version}: ${pack.files.length} files, ${pack.size} bytes`);
     if (dryRun) continue;
     try {
-      const result = run('npm', ['publish', '--access=public', '--tag=latest'], cwd);
-      process.stdout.write(result);
+      runInteractive('npm', ['publish', '--access=public', '--tag=latest'], cwd);
       published.push(manifest.name);
     } catch (error) {
       throw new Error(`Publishing stopped at ${manifest.name}. Already published: ${published.join(', ') || 'none'}. Check npm before retrying.`, { cause: error });
