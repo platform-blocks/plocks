@@ -281,6 +281,7 @@ export { Title, Heading1, Heading2, Heading3, Heading4, Heading5, Heading6 } fro
 // Form Components
 export { Button } from './components/Button';
 export { Input, PasswordInput, TextInputBase } from './components/Input';
+export { validationRules, validateValue } from './components/Input';
 export { TextArea } from './components/TextArea';
 export { NumberInput } from './components/NumberInput';
 export { PinInput } from './components/PinInput';

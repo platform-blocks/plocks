@@ -36,8 +36,9 @@ function toDialogOptions({ width, height, ...rest }: UseSimpleDialogOptions) {
  *
  * `modal(content, options)`, `bottomSheet(content, options)` and
  * `fullScreen(content, options)` wrap arbitrary content;
- * `confirm(message, { onConfirm, onCancel, confirmText, cancelText })` renders
- * a message with Cancel / Confirm buttons that close the dialog.
+ * `confirm(message, { onConfirm, onCancel, confirmText, cancelText, destructive, variant })` renders
+ * a message with Cancel / Confirm buttons that close the dialog; `destructive`
+ * colours the confirm button as an error, `variant` opens it as a bottom sheet.
  */
 export function useSimpleDialog() {
   const { openDialog, closeDialog, closeAllDialogs } = useDialog();
@@ -74,6 +75,10 @@ export function useSimpleDialog() {
       onCancel?: () => void;
       confirmText?: string;
       cancelText?: string;
+      /** The confirm button in the error colour: for an action that deletes or cannot be undone. */
+      destructive?: boolean;
+      /** `modal` (default) or `bottomsheet`. */
+      variant?: 'modal' | 'bottomsheet';
     } = {}
   ) => {
     const {
@@ -81,13 +86,15 @@ export function useSimpleDialog() {
       onCancel,
       confirmText = 'Confirm',
       cancelText = 'Cancel',
+      destructive = false,
+      variant = 'modal',
       ...dialogOptions
     } = options;
 
     // Assigned before any button can be pressed, so the handlers close this dialog.
     let dialogId = '';
     dialogId = openDialog({
-      variant: 'modal',
+      variant,
       title: 'Confirm',
       content: (
         <View style={{ gap: 16 }}>
@@ -103,6 +110,7 @@ export function useSimpleDialog() {
             />
             <Button
               title={confirmText}
+              color={destructive ? 'error' : undefined}
               onPress={() => {
                 onConfirm?.();
                 closeDialog(dialogId);

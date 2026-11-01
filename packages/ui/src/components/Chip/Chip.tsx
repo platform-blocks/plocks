@@ -121,7 +121,8 @@ export const Chip = factory<{ props: ChipProps; ref: View }>((props, ref) => {
     // Chips are flat unless the consumer opts in via `shadow`.
     ...resolveShadow(theme, shadow),
   };
-  const labelStyle: TextStyle = { fontSize: control.fontSize, textAlign: 'center', color: roles.text };
+  // The line height follows the chip's font size: left at body size, a small chip's label sat in a box too tall for it.
+  const labelStyle: TextStyle = { fontSize: control.fontSize, lineHeight: Math.round(control.fontSize * 1.35), textAlign: 'center', color: roles.text };
   const gap = control.gap;
 
   // Leading status dot. Defaults to the resolved label color so it stays legible
