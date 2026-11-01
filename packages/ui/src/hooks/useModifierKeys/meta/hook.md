@@ -4,7 +4,7 @@ category: keyboard
 order: 12
 tags: [keyboard, modifiers, shift, alt, held, web]
 status: stable
-since: 0.3.0
+since: 0.3.1
 hidden: false
 ---
 
