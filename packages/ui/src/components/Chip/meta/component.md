@@ -1,6 +1,7 @@
 ---
 name: Chip
 title: Chip
+since: 0.1.0
 summary: Compact tag the user can select (`checked` / `onChange`), press or remove — for filters and input tokens; use Badge for static status labels
 category: data
 tags: [chip, tag, badge, label, removable]

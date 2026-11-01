@@ -1,6 +1,7 @@
 ---
 name: Alert
 title: Alert
+since: 0.1.0
 category: feedback
 tags: [alert, notice, notification, message, status, feedback, callout]
 playground: true

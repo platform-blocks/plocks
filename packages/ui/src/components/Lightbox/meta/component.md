@@ -3,7 +3,8 @@ playground: true
 title: Lightbox
 description: Full-screen media viewer with zoom, video slides, swipe and keyboard navigation, thumbnails, and metadata.
 source: ui/src/components/Lightbox
-status: experimental
+status: stable
+since: 0.3.0
 category: media
 tags: [lightbox, gallery, images, video, zoom, thumbnails, media]
 props:

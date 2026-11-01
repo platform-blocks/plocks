@@ -2,6 +2,7 @@
 name: Search
 playground: true
 title: Search
+since: 0.1.0
 category: input
 tags: [search, input, filter, debounce]
 ---

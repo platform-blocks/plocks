@@ -1,6 +1,7 @@
 ---
 name: TextArea
 title: TextArea
+since: 0.1.0
 category: input
 tags: [input, textarea, multiline, text, form, validation]
 playground: true

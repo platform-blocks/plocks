@@ -2,7 +2,8 @@
 title: Toolbar
 description: A row or column of toggles with toggle groups, dividers and one shared tab stop.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: input
 playground: true
 accessibility: "The root is a toolbar with aria-orientation. Toggles are buttons with aria-pressed and share one tab stop: arrow keys (RTL-aware) move between them across groups and dividers, Home/End jump to the ends, Space/Enter press. Icon-only toggles need an accessibilityLabel."

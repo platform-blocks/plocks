@@ -2,7 +2,8 @@
 title: Splitter
 description: Resizable layout with adjacent panes and keyboard handles.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: layout
 accessibility: "Each handle is a focusable separator with orientation, value, and controls attributes. Arrow keys resize; Home/End move to limits; Enter toggles a collapsible pane."
 related:

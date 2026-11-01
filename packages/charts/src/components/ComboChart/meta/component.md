@@ -1,6 +1,7 @@
 ---
 playground: true
 title: Combo Chart
+since: 0.1.0
 tags: [chart, combo, mixed]
 category: charts
 order: 16

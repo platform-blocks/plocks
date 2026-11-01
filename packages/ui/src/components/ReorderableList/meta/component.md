@@ -4,7 +4,8 @@ description: Reorder a controlled list by dragging or using accessible move cont
 category: data
 subcategory: Data
 tags: [list, reorder, drag, sort]
-status: beta
+status: stable
+since: 0.3.0
 playground: true
 platform:
   web: true

@@ -2,7 +2,8 @@
 title: ComboboxPopover
 description: Searchable option list anchored to any trigger.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: input
 accessibility: "The target announces a listbox popup and expanded state. Options use listbox roles, keyboard navigation, and selected state."
 related:

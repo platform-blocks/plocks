@@ -4,7 +4,8 @@ description: Reveal contextual actions on a row with a swipe or an accessible ac
 category: data
 subcategory: Data
 tags: [swipe, row, actions, list]
-status: beta
+status: stable
+since: 0.3.0
 playground: true
 platform:
   web: true

@@ -4,6 +4,7 @@ title: Menu
 description: A dropdown menu component for navigation and actions
 source: ui/src/components/Menu
 status: stable
+since: 0.1.0
 category: navigation
 accessibility: "Menu button pattern: the trigger carries aria-haspopup / aria-expanded / aria-controls, the dropdown is role=menu with role=menuitem items. Focus moves to the first item on open; Arrow keys, Home/End and typeahead move between items (disabled items are skipped), Enter/Space activate, Escape closes and returns focus to the trigger, Tab closes. Submenus open with ArrowRight and close with ArrowLeft (mirrored in RTL)."
 props:

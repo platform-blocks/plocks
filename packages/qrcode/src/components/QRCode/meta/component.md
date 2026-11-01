@@ -1,6 +1,7 @@
 ---
 playground: true
 title: QRCode
+since: 0.1.0
 category: data
 tags: [qrcode, barcode, scan, data, encoding]
 ---

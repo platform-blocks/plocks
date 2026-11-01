@@ -5,6 +5,7 @@ category: media
 subcategory: Visualization
 tags: [audio, waveform, visualization, media, interactive]
 status: stable
+since: 0.1.0
 playground: true
 platform:
   web: true

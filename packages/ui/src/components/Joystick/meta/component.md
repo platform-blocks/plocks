@@ -1,5 +1,6 @@
 ---
 title: Joystick
+since: 0.1.0
 category: input
 tags: [joystick, xy, pad, gesture, two-axis, input]
 playground: true

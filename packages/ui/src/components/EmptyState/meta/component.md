@@ -2,7 +2,8 @@
 title: EmptyState
 description: Placeholder for empty results, first-run screens, and unavailable content.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.1.0
 category: feedback
 accessibility: "The root has no landmark role. Set Title order to expose a heading; actions keep their own accessible names."
 related:

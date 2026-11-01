@@ -1,6 +1,7 @@
 ---
 name: MonthPicker
 title: MonthPicker
+since: 0.1.0
 category: dates
 tags: [date, month, picker, calendar]
 playground: true

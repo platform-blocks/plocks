@@ -4,6 +4,7 @@ category: feedback
 order: 80
 tags: [haptics, feedback]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

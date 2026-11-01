@@ -4,6 +4,7 @@ category: navigation
 order: 70
 tags: [toc, navigation, scroll]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

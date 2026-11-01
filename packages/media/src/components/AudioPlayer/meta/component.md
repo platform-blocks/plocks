@@ -5,7 +5,8 @@ description: Audio playback with a seekable waveform, transport controls and pro
 category: media
 subcategory: Media
 tags: [audio, player, waveform, media, playback]
-status: beta
+status: stable
+since: 0.3.0
 platform:
   web: true
   ios: true

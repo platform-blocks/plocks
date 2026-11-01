@@ -4,6 +4,7 @@ category: keyboard
 order: 10
 tags: [keyboard, shortcuts, scoped]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

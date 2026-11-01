@@ -2,7 +2,8 @@
 title: Gauge
 description: Radial measurement with ranges, ticks, labels, and an animated needle.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.1.0
 category: data
 accessibility: "The gauge exposes its name, minimum, maximum, current value, and active range to assistive technology."
 related:

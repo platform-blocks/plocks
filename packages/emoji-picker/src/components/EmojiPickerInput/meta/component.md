@@ -2,7 +2,8 @@
 title: EmojiPickerInput
 description: Form field that opens the searchable emoji picker.
 source: "@plocks/emoji-picker"
-status: beta
+status: stable
+since: 0.3.0
 category: input
 tags: [emoji, input, picker, form]
 related:

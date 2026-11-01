@@ -4,6 +4,7 @@ category: input
 order: 20
 tags: [haptics, settings, feedback, native]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

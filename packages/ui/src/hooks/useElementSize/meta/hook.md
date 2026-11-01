@@ -4,6 +4,7 @@ category: layout
 order: 40
 tags: [layout, size, measure, onLayout, resize]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

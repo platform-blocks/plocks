@@ -3,6 +3,7 @@ title: Stepper
 description: A component for displaying step-by-step navigation and progress
 source: ui/src/components/Stepper
 status: stable
+since: 0.1.0
 category: navigation
 playground: true
 props:

@@ -2,7 +2,8 @@
 title: Cascader
 description: Selects a path through hierarchical options in cascading columns.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: input
 accessibility: "The trigger is a combobox. Each column is a listbox with selected and disabled states; keyboard arrows navigate levels and rows. Phone sheets use flat paths."
 related:

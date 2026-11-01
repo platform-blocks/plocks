@@ -4,6 +4,7 @@ category: overlay
 order: 10
 tags: [overlay, layer, dismiss, escape, focus]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

@@ -1,6 +1,7 @@
 ---
 playground: true
 title: Sunburst Chart
+since: 0.3.0
 tags: [chart, sunburst, hierarchy, radial, part-to-whole]
 category: charts
 order: 33

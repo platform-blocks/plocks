@@ -4,6 +4,7 @@ category: navigation
 order: 20
 tags: [pagination, pager, navigation, headless]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

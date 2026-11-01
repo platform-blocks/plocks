@@ -2,7 +2,8 @@
 title: Popover
 description: Layered surface that displays contextual content next to a trigger without blocking the rest of the UI.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.1.0
 category: overlay
 playground: true
 accessibility: "Supports keyboard navigation, Escape to close, focus return, and optional focus trapping"

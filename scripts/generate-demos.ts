@@ -1669,14 +1669,16 @@ function buildComponentMarkdown(name: string, context: ComponentMarkdownContext,
   const importNames = (COMPONENT_FAMILIES[name] ?? [name]).join(', ');
   if (compact) {
     // One line in place of the Metadata section.
+    const since = componentMeta.since ? ` · Since: ${componentMeta.since}` : '';
     const status = componentMeta.status && componentMeta.status !== 'stable' ? ` · Status: ${componentMeta.status}` : '';
-    lines.push('', `\`import { ${importNames} } from '${packageName}';\`${status} · Full page: ${SITE_URL}/llms/components/${name}.md`);
+    lines.push('', `\`import { ${importNames} } from '${packageName}';\`${since}${status} · Full page: ${SITE_URL}/llms/components/${name}.md`);
   }
   const metaList: string[] = [];
   metaList.push(`- Import: \`import { ${importNames} } from '${packageName}';\``);
   if (packageName !== UI_PACKAGE) {
     metaList.push(`- Install: \`npm install ${packageName}\` — a separate package from \`${UI_PACKAGE}\``);
   }
+  if (componentMeta.since) metaList.push(`- Since: ${componentMeta.since}`);
   if (componentMeta.status && componentMeta.status !== 'stable') metaList.push(`- Status: ${componentMeta.status}`);
   if (!compact) {
     const componentTags = formatTagList(componentMeta.tags);

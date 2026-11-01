@@ -5,6 +5,7 @@ category: data
 subcategory: Data
 tags: [datalist, description, definition, key-value, label, value, details]
 status: stable
+since: 0.1.0
 playground: true
 platform:
   web: true

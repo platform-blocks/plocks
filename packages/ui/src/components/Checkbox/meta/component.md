@@ -1,6 +1,7 @@
 ---
 name: Checkbox
 title: Checkbox
+since: 0.1.0
 category: input
 tags: [checkbox, input, form, selection, toggle]
 playground: true

@@ -3,6 +3,7 @@ title: Space
 description: Spacer utility that adds vertical or horizontal gaps using theme spacing tokens.
 source: ui/src/components/Space
 status: stable
+since: 0.1.0
 category: layout
 tags: [spacing, layout, utility]
 examples:

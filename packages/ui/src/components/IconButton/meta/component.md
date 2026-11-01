@@ -2,6 +2,7 @@
 name: IconButton
 category: input
 status: stable
+since: 0.1.0
 tags: [button, icon, clickable, action]
 playground: true
 ---

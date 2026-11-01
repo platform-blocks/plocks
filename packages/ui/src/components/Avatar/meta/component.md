@@ -1,6 +1,7 @@
 ---
 name: Avatar
 title: Avatar
+since: 0.1.0
 category: display
 tags: [avatar, profile, user, image, initials]
 playground: true

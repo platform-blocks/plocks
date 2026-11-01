@@ -4,6 +4,7 @@ title: ColorInput
 description: A hex color field with a live preview and a swatch palette
 source: ui/src/components/ColorInput
 status: stable
+since: 0.1.0
 category: input
 props:
   - name: value

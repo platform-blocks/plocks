@@ -2,7 +2,8 @@
 title: TreeSelect
 description: Form field for choosing values from a nested tree.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: input
 accessibility: "The trigger announces a tree popup; the popup uses Tree's keyboard navigation and selection semantics."
 related:

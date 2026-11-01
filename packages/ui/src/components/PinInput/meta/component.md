@@ -4,6 +4,7 @@ displayName: PinInput
 description: A specialized input component for entering PIN codes, OTP, and other sequential digit/character inputs.
 category: input
 status: stable
+since: 0.1.0
 tags: [pin, otp, security, input, verification]
 props:
   value: The current PIN value as a string

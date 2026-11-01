@@ -1,6 +1,7 @@
 ---
 name: Highlight
 title: Highlight
+since: 0.1.0
 category: typography
 tags: [text, emphasis, highlight, mark]
 playground: true

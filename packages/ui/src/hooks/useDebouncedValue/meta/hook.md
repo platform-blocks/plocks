@@ -4,6 +4,7 @@ category: state
 order: 20
 tags: [debounce, search, performance]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

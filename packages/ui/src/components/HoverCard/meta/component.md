@@ -2,7 +2,8 @@
 title: HoverCard
 description: Floating preview card shown while the pointer rests on (or keyboard focus is on) a target, for supplementary details like profile or link previews.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.1.0
 category: overlay
 playground: true
 accessibility: "The target itself carries the handlers (no extra tab stop) plus aria-expanded / aria-controls. Hover cards also open on keyboard focus, stay open while hovered or while focus moves into them, and close on Escape; `trigger=\"click\"` moves focus into the card. Focus returns to the target on close unless `returnFocus` is off."

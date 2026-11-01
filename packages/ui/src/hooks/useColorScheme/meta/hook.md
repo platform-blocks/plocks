@@ -4,6 +4,7 @@ category: theme
 order: 30
 tags: [theme, dark-mode, color-scheme, system]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

@@ -2,7 +2,8 @@
 title: Menubar
 description: A horizontal group of menus for application commands.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: navigation
 accessibility: "The root has menubar orientation. Targets are menuitems; Left/Right and Home/End move between them, with RTL direction reversal. Dropdowns use Menu keyboard navigation."
 related:

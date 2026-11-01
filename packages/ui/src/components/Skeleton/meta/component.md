@@ -3,6 +3,7 @@ title: Skeleton
 description: Placeholder loading indicator that mimics the shape of content while data loads.
 source: ui/src/components/Skeleton
 status: stable
+since: 0.1.0
 category: feedback
 tags: [loading, placeholder, skeleton]
 playground: true

@@ -2,7 +2,8 @@
 title: Scroller
 description: Horizontal scrolling with controls shown at overflowing edges.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: layout
 accessibility: "The edge buttons have Scroll start and Scroll end labels; native touch scrolling remains available."
 related:

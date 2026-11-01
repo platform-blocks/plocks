@@ -1031,6 +1031,7 @@ async function buildHookPages(): Promise<LlmsPage[]> {
 
     const importLine = `- Import: \`import { ${name} } from '@plocks/ui';\``;
     const metaList: string[] = [importLine];
+    if (meta.since) metaList.push(`- Since: ${meta.since}`);
     if (meta.status && meta.status !== 'stable') metaList.push(`- Status: ${meta.status}`);
     if (Array.isArray(meta.tags) && meta.tags.length) {
       metaList.push(`- Tags: ${(meta.tags as string[]).join(', ')}`);
@@ -1120,7 +1121,7 @@ function guidanceLines(packages: WorkspacePackage[]): string[] {
   const addOns = packages.filter(pkg => pkg.name !== UI_PACKAGE).map(pkg => `\`${pkg.name}\``);
   return [
     `Install: \`npm install ${UI_PACKAGE}\`${addOns.length ? ` — separate packages, installed alongside it: ${addOns.join(', ')}. A component page's Import line names the package it comes from.` : ''}`,
-    `Version: generated from the \`${GITHUB_BRANCH}\` branch — ${packages.map(pkg => `\`${pkg.name}\` ${pkg.version}`).join(', ')}. The branch can be ahead of the latest npm release; if an API here is missing from your installed version, check the changelog: ${GITHUB_TREE}/changelog`,
+    `Version: generated from the \`${GITHUB_BRANCH}\` branch — ${packages.map(pkg => `\`${pkg.name}\` ${pkg.version}`).join(', ')}. The branch can be ahead of the latest npm release; a page's Since line is the release that added it, and if an API here is missing from your installed version, check the changelog: ${GITHUB_TREE}/changelog`,
     `Website: ${SITE_URL} • GitHub: ${GITHUB_REPO} • npm: ${NPM_PACKAGE}`,
     '',
     '**Conventions**',

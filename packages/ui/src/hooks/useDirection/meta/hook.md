@@ -4,6 +4,7 @@ category: localization
 order: 10
 tags: [rtl, direction, layout, i18n]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

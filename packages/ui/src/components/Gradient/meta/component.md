@@ -2,7 +2,8 @@
 title: Gradient
 description: Gradient fills a layout container with a color transition.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.1.0
 category: layout
 examples:
   - basic

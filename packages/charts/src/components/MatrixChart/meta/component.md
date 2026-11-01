@@ -1,6 +1,7 @@
 ---
 playground: true
 title: Matrix Chart
+since: 0.3.0
 tags: [chart, matrix, heatmap, categorical]
 category: charts
 order: 31

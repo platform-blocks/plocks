@@ -4,6 +4,7 @@ title: CodeBlock
 description: Display formatted source code with optional syntax highlighting, copy, GitHub integration, and adaptive width.
 source: ui/src/components/CodeBlock
 status: stable
+since: 0.1.0
 category: typography
 tags: [code, syntax, formatting, developer, github]
 playground: true

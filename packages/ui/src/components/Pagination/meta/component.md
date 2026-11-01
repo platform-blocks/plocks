@@ -3,6 +3,7 @@ displayName: Pagination
 description: A navigation component for dividing content across multiple pages with customizable controls.
 category: navigation
 status: stable
+since: 0.1.0
 tags: [pagination, navigation, pages, data]
 playground: true
 props:

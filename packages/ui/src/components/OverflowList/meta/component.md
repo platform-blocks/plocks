@@ -2,7 +2,8 @@
 title: OverflowList
 description: Collapses entries that do not fit into a compact overflow item.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: layout
 accessibility: "Visible items keep their own semantics; the hidden measuring copy is removed from the accessibility tree. Give the overflow control an accessible name."
 related:

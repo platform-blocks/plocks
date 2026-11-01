@@ -4,6 +4,7 @@ category: theme
 order: 20
 tags: [theme, dark-mode, color-scheme, persistence]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

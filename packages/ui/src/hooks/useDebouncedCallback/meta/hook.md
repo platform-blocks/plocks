@@ -4,6 +4,7 @@ category: state
 order: 30
 tags: [debounce, callback, performance]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: Divider
 title: Divider
+since: 0.1.0
 category: layout
 tags: [divider, separator, line, section]
 playground: true

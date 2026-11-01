@@ -1,6 +1,7 @@
 ---
 name: Breadcrumbs
 title: Breadcrumbs
+since: 0.1.0
 category: navigation
 tags: [navigation, breadcrumb, path, hierarchy]
 playground: true

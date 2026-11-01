@@ -2,7 +2,8 @@
 title: FloatingIndicator
 description: Animated highlight that follows a target inside a positioned parent.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: display
 accessibility: "The indicator is decorative and does not intercept pointer events. Targets must carry their own accessible states."
 related:

@@ -4,6 +4,7 @@ category: accessibility
 order: 70
 tags: [motion, animation, accessibility, reduced-motion]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

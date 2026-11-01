@@ -1,6 +1,7 @@
 ---
 name: ColorSwatch
 title: ColorSwatch
+since: 0.1.0
 category: display
 tags: [color, swatch, palette, picker]
 playground: true

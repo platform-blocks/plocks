@@ -1,5 +1,6 @@
 ---
 title: Rating
+since: 0.1.0
 description: An interactive rating component for displaying and collecting star ratings from users.
 category: input
 tags: [rating, stars, review, score, feedback]

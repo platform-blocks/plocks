@@ -1,6 +1,7 @@
 ---
 name: Badge
 title: Badge
+since: 0.1.0
 summary: Compact label for a status, category or count, optionally pressable or removable — use Chip for tags the user selects and Indicator for a dot or count pinned to another element
 category: data
 tags: [chip, tag, badge, label, removable]

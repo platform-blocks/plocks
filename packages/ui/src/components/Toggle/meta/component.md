@@ -3,6 +3,7 @@ title: Toggle
 description: "A toggle button group component for selecting between multiple options with support for single and multi-selection modes."
 source: "@plocks/ui"
 status: "stable"  
+since: 0.1.0
 category: input
 playground: true
 accessibility: "One tab stop; arrow keys (RTL-aware) move focus, Home/End jump, Space/Enter toggle. Standalone and multi-select toggles expose aria-pressed; exclusive groups are radio groups with aria-checked."

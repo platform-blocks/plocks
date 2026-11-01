@@ -6,6 +6,7 @@ tags: [layout, building-block, polymorphic, foundational]
 category: layout
 order: 1
 status: stable
+since: 0.1.0
 props:
   bg: Background color — accepts palette names ('primary' → palette[1]), 'palette.shade' syntax ('primary.6'), theme.backgrounds keys ('surface' / 'subtle' / 'elevated' / 'base' / 'border'), or any CSS color
   radius: Border radius (size token or px)

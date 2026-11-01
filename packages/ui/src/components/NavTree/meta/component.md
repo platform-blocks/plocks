@@ -1,6 +1,7 @@
 ---
 name: NavTree
 title: NavTree
+since: 0.1.0
 summary: Sidebar navigation that groups a flat list of routes into a collapsible tree, opening and marking the current page
 category: navigation
 tags: [navigation, sidebar, tree, menu, routes]

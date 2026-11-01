@@ -4,6 +4,7 @@ category: overlay
 order: 30
 tags: [overlay, positioning, popover, tooltip, dropdown]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

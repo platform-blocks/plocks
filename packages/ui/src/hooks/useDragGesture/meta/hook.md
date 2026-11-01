@@ -4,6 +4,7 @@ category: gestures
 order: 10
 tags: [gesture, drag, pan, touch, scroll]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

@@ -4,6 +4,7 @@ title: DatePickerInput
 description: Input-based date picker that opens a modal calendar for selecting single dates, ranges, or multiple values.
 source: "@plocks/ui"
 status: "stable"
+since: 0.1.0
 category: dates
 accessibility: "The field is a button (aria-haspopup=dialog, aria-expanded) named by its label; native reads label then value. The calendar opens in a modal sheet (focus moved in and restored, Escape / Android back close it) or, with dropdownType=popover on desktop web, an anchored dialog. Day cells stay individual, fully named grid cells with arrow-key navigation."
 variants:

@@ -1,6 +1,7 @@
 ---
 playground: true
 title: Waffle Chart
+since: 0.3.0
 tags: [chart, waffle, part-to-whole]
 category: charts
 order: 30

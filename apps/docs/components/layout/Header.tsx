@@ -53,7 +53,7 @@ export const AppHeader: React.FC = () => {
           ) : (
             <Breadcrumbs
               items={breadcrumbs}
-              size="xs"
+              size="md"
               maxItems={4}
             />
           )}

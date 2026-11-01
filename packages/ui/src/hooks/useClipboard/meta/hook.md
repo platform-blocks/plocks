@@ -4,6 +4,7 @@ category: productivity
 order: 60
 tags: [clipboard, copy]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

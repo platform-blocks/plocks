@@ -2,7 +2,8 @@
 title: FloatingWindow
 description: Draggable, resizable viewport window for persistent tools.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: overlay
 accessibility: "DragHandle is the move surface. ResizeHandle is a focusable separator with arrow and Home/End keyboard controls on web."
 related:

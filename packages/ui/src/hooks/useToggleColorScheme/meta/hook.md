@@ -4,6 +4,7 @@ category: keyboard
 order: 40
 tags: [keyboard, theme]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

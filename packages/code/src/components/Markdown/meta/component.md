@@ -3,6 +3,7 @@ title: Markdown
 description: Render Markdown content with custom styling and components
 source: ui/src/components/Markdown
 status: stable
+since: 0.1.0
 version: 0.1.0
 category: data
 subcategory: Content

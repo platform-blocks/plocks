@@ -2,7 +2,8 @@
 name: TimePicker
 playground: true
 category: dates
-status: beta
+status: stable
+since: 0.1.0
 props:
   value: Controlled time value (TimePickerValue)
   defaultValue: Initial value when uncontrolled

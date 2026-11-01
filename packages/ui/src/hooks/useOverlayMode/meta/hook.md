@@ -3,7 +3,8 @@ title: useOverlayMode
 category: layout
 order: 70
 tags: [modal, overlay, responsive]
-status: beta
+status: stable
+since: 0.3.0
 hidden: false
 ---
 

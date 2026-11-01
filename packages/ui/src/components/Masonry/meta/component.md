@@ -4,6 +4,7 @@ title: Masonry
 description: A masonry layout component that arranges items in columns with varying heights, creating a Pinterest-style layout using FlashList for optimal performance.
 source: "@plocks/ui"
 status: "stable"
+since: 0.1.0
 category: layout
 accessibility: "Semantic layout structure with proper focus management and screen reader support for grid navigation"
 variants:

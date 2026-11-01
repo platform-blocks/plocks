@@ -4,6 +4,7 @@ category: interaction
 order: 12
 tags: [press, long-press, pressable, web]
 status: stable
+since: 0.3.0
 hidden: false
 ---
 

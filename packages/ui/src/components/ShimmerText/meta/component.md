@@ -1,6 +1,7 @@
 ---
 name: ShimmerText
 title: ShimmerText
+since: 0.1.0
 category: typography
 tags: [text, shimmer, animation, gradient]
 playground: true

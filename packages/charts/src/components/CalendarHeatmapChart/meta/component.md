@@ -1,6 +1,7 @@
 ---
 playground: true
 title: Calendar Heatmap
+since: 0.3.0
 tags: [chart, heatmap, calendar, contributions, activity]
 category: charts
 order: 34

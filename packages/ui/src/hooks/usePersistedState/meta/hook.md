@@ -4,6 +4,7 @@ category: state
 order: 20
 tags: [state, storage, localStorage, persistence, AsyncStorage]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

@@ -2,7 +2,8 @@
 name: YearPickerInput
 playground: true
 category: dates
-status: beta
+status: stable
+since: 0.1.0
 inherits: Shared field props (label, description, error, helperText, required, disabled, readOnly, size, radius, variant, labelProps, descriptionProps, placeholder, placeholderTextColor, clearable, startSection, endSection, startSectionProps, endSectionProps)
 props:
   dropdownType: "'modal' (default) — a centered sheet; 'popover' — anchored to the field on desktop web"

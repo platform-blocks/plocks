@@ -3,7 +3,8 @@ playground: true
 title: Overlay
 description: Dim or highlight areas of the interface with configurable color, opacity, gradients, and blur.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.1.0
 category: overlay
 accessibility: "Non-interactive layer; ensure interactive overlays include appropriate focus management and keyboard escape affordances."
 variants:

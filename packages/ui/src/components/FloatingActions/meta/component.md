@@ -2,7 +2,8 @@
 title: FloatingActions
 description: FloatingActions groups related commands in a floating speed dial.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.1.0
 category: overlay
 examples:
   - basic

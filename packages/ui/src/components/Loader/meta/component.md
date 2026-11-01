@@ -1,5 +1,6 @@
 ---
 title: Loader
+since: 0.1.0
 description: A loading indicator component for showing progress and pending states.
 category: feedback
 tags: [loader, loading, progress, indicator, animation]

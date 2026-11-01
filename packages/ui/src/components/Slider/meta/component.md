@@ -1,5 +1,6 @@
 ---
 title: Slider
+since: 0.1.0
 category: input
 tags: [slider, range, input, numeric, control]
 playground: true

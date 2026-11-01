@@ -5,6 +5,7 @@ category: input
 subcategory: Form Controls
 tags: [input, form, selection, choice]
 status: stable
+since: 0.1.0
 playground: true
 props:
   value: Value reported to onChange when this radio is picked

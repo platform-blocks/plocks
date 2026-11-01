@@ -1,5 +1,6 @@
 ---
 title: MenuItemButton
+since: 0.1.0
 description: A row button used inside menus and command palettes — supports tones, icons, hover/active states, and full label customization.
 source: ui/src/components/MenuItemButton
 category: navigation

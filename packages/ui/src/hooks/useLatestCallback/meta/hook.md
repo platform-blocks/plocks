@@ -4,6 +4,7 @@ category: utilities
 order: 20
 tags: [callbacks, effects, stable-identity]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

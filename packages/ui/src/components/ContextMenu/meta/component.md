@@ -2,6 +2,7 @@
 name: ContextMenu
 playground: true
 title: ContextMenu
+since: 0.1.0
 category: overlay
 tags: [menu, context, rightclick, longpress, actions]
 accessibility: "Opens on right-click (web), long-press (native), Shift+F10 or the ContextMenu key (web keyboard), and the screen-reader long-press / \"Open menu\" actions. The menu is role=menu with role=menuitem items, focus moves to the first item, Arrow keys / Home / End / typeahead move between items, Escape closes and restores focus."

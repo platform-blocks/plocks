@@ -4,6 +4,7 @@ category: localization
 order: 20
 tags: [i18n, localization, translation, locale, formatting]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

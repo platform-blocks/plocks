@@ -2,7 +2,8 @@
 title: EmojiPicker
 description: Searchable emoji picker for chats, reactions, and other Unicode emoji selection.
 source: "@plocks/emoji-picker"
-status: "beta"
+status: stable
+since: 0.3.0
 category: input
 tags: [emoji, reactions, chat, picker, search]
 accessibility: "Search field, category tabs, skin tone buttons, and individually named emoji buttons."

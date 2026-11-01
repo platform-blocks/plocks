@@ -4,6 +4,7 @@ category: accessibility
 order: 50
 tags: [accessibility, keyboard, slider, value]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

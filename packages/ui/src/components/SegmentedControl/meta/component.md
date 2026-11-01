@@ -4,7 +4,8 @@ description: Toggle between preset options with an animated pill indicator
 category: input
 subcategory: Selection Controls
 tags: [input, segmentation, toggle, selection]
-status: beta
+status: stable
+since: 0.1.0
 playground: true
 platform:
   web: true

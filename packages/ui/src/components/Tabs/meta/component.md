@@ -3,6 +3,7 @@ title: Tabs
 description: A tab navigation component for organizing content into switchable sections with support for multiple variants and orientations.
 source: "@plocks/ui"
 status: "stable"
+since: 0.1.0
 category: navigation
 playground: true
 accessibility: "WAI-ARIA tabs pattern: tablist/tab/tabpanel roles, aria-selected and aria-controls/aria-labelledby wiring, one tab stop with Arrow (RTL-aware), Home and End keys"

@@ -1,6 +1,7 @@
 ---
 playground: true
 title: Bullet Chart
+since: 0.3.0
 tags: [chart, bullet, target, kpi, progress]
 category: charts
 order: 32

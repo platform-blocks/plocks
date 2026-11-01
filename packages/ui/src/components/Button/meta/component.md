@@ -1,13 +1,14 @@
 ---
 name: Button
 title: Button
+since: 0.1.0
 category: input
 tags: [action, pressable, interactive]
 playground: true
 resources: [{"label":"Apple HIG – Buttons","href":"https://developer.apple.com/design/human-interface-guidelines/buttons"},{"label":"Material 3 Buttons","href":"https://m3.material.io/components/buttons/overview"}]
 props:
   title: Button label (alternative to children)
-  variant: 'default' (default; 'filled' when `color` is set) | 'filled' | 'light' | 'subtle' | 'secondary' | 'outline' | 'ghost' | 'gradient' | 'link' | 'none'
+  variant: 'default' (default; 'filled' when `color` is set) | 'filled' | 'light' | 'subtle' | 'secondary' | 'outline' | 'ghost' | 'gradient' | 'link' | 'none' — `none` is the unstyled pressable (no fill, border, padding or fixed height; children are the whole look) that keeps the button role, focus ring, press feedback, haptics, `disabled`, `tooltip` and `onLongPress`
   size: Size token (xs–3xl)
   color: Tint for the color-bearing variants (filled, light, subtle, outline, gradient) and the text of ghost/link — palette name, 'palette.shade' syntax, or raw CSS color. Ignored by the neutral variants (default, secondary, none). With no `variant`, a `color` gives a filled button with auto-contrasting text
   textColor: Explicit text color override

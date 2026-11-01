@@ -2,7 +2,8 @@
 title: Wheel
 description: Spinning picker column for choosing one value.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: input
 accessibility: "A Wheel is one adjustable control. Arrow keys and assistive actions move between items; its label and selected value are announced."
 related:

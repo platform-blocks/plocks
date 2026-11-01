@@ -3,6 +3,7 @@ title: Flex
 description: A flexible layout component based on CSS Flexbox for arranging children with customizable direction, alignment, justification, and spacing.
 source: "@plocks/ui"
 status: "stable"
+since: 0.1.0
 category: layout
 accessibility: "Semantic layout structure with proper focus management and screen reader support"
 variants:

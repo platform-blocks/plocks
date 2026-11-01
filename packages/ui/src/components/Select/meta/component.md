@@ -3,6 +3,7 @@ title: Select
 description: A dropdown component for selecting from a list of options with support for disabled states, custom styling, and multi-value selection.
 source: "@plocks/ui"
 status: "stable"
+since: 0.1.0
 category: input
 playground: true
 accessibility: "Select-only combobox (web): Arrow keys, Home/End, PageUp/PageDown, typeahead, Enter/Space to select, Escape to close; the active option is exposed with aria-activedescendant. Native: a button announcing label and value, options in a modal sheet."

@@ -1,6 +1,7 @@
 ---
 name: Indicator
 title: Indicator
+since: 0.1.0
 category: data
 tags: [indicator, badge, status, count, dot]
 playground: true

@@ -1,6 +1,7 @@
 ---
 name: Card
 title: Card
+since: 0.1.0
 category: display
 tags: [card, container, content, layout]
 playground: true

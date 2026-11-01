@@ -3,6 +3,7 @@ title: Tooltip
 description: A contextual information overlay that appears on hover, focus, or press to provide additional details without cluttering the interface.
 source: "@plocks/ui"
 status: "stable"
+since: 0.1.0
 category: overlay
 playground: true
 accessibility: "role=tooltip bubble linked to the trigger with aria-describedby (web) and exposed as the trigger's accessibilityHint (native). Shows on keyboard focus as well as hover/press, never moves focus, dismisses with Escape, and stays hoverable with `interactive` (WCAG 1.4.13)."

@@ -1,5 +1,6 @@
 ---
 title: AppShell
+since: 0.1.0
 category: layout
 props:
   layout: "'default' | 'alt' — 'alt' lets the navbar and aside span the full height"

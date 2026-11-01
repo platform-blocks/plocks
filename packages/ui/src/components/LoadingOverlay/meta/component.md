@@ -3,7 +3,8 @@ playground: true
 title: LoadingOverlay
 description: Overlay helper that blocks a section with a centered loader while background work completes.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.1.0
 category: feedback
 accessibility: "The covered region (the overlay's parent) is marked aria-busy on web while loading; the overlay is an indeterminate role=progressbar named `loadingLabel`, and waits longer than `announceAfter` (1s) are announced to screen readers. It is non-modal: disable the covered controls (as the demo does) when they must not be used."
 variants:

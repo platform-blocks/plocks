@@ -4,6 +4,7 @@ category: theme
 order: 40
 tags: [theme, styles, stylesheet, performance, memoization]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

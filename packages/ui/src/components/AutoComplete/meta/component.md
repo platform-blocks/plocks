@@ -1,6 +1,7 @@
 ---
 name: AutoComplete
 title: AutoComplete
+since: 0.1.0
 category: input
 tags: [input, search, typeahead, autocomplete, suggestions]
 playground: true

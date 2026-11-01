@@ -4,6 +4,7 @@ category: accessibility
 order: 60
 tags: [accessibility, announce, screen-reader, provider]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

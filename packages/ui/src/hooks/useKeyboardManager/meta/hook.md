@@ -4,6 +4,7 @@ category: input
 order: 10
 tags: [keyboard, on-screen-keyboard, focus, native]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

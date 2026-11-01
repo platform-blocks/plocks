@@ -4,6 +4,7 @@ category: state
 order: 10
 tags: [state, toggle, open-close, modal, dialog]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

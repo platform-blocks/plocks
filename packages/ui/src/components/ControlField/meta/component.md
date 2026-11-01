@@ -1,6 +1,7 @@
 ---
 name: ControlField
 title: ControlField
+since: 0.1.0
 category: input
 tags: [control, field, checkbox, switch, radio, toggle, form, selection, row]
 playground: true

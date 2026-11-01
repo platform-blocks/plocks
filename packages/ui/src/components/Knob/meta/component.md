@@ -1,5 +1,6 @@
 ---
 title: Knob
+since: 0.1.0
 category: input
 tags: [knob, dial, rotary, gesture, input]
 playground: true

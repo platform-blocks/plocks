@@ -2,6 +2,7 @@
 name: Carousel
 playground: true
 title: Carousel
+since: 0.1.0
 category: display
 tags: [carousel, slider, gallery, swipe]
 ---

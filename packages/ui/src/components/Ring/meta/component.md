@@ -1,5 +1,6 @@
 ---
 title: Ring
+since: 0.1.0
 category: feedback
 tags: [ring, progress, indicator, radial]
 playground: true

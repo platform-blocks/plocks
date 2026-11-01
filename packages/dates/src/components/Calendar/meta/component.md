@@ -1,6 +1,7 @@
 ---
 playground: true
 title: Calendar
+since: 0.1.0
 category: dates
 description: A versatile calendar component for selecting dates, months, and years with customizable styles and behaviors.
 slug: /components/Calendar

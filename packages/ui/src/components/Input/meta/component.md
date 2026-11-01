@@ -3,6 +3,7 @@ displayName: Input
 description: A versatile text input component with support for different types, states, and validation.
 category: input
 status: stable
+since: 0.1.0
 tags: [input, form, text, validation]
 playground: true
 props:

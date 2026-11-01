@@ -4,6 +4,7 @@ category: navigation
 order: 100
 tags: [toc, titles]
 status: stable
+since: 0.1.0
 hidden: false
 ---
 

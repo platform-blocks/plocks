@@ -4,6 +4,7 @@ title: DatePicker
 description: Inline calendar component for selecting single dates, ranges, and multiple values without an input trigger.
 source: "@plocks/ui"
 status: "stable"
+since: 0.1.0
 category: dates
 accessibility: "Days form a labelled grid on web (one tab stop; arrow keys, Home/End and PageUp/PageDown move focus, crossing months; Space/Enter select). Each day is named by its full localized date and exposes selected, today (aria-current=date) and disabled state. accessibilityLabel names the surrounding group without merging the days into one element."
 variants:

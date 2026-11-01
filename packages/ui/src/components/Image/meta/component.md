@@ -3,7 +3,8 @@ playground: true
 title: Image
 category: media
 group: Media
-status: beta
+status: stable
+since: 0.1.0
 description: Displays images with optional captions and overlays.
 ---
 

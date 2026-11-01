@@ -2,7 +2,8 @@
 title: Dialog
 description: Accessible modal dialog / sheet for interruptive content, confirmations, and forms.
 source: ui/src/components/Dialog
-status: experimental
+status: stable
+since: 0.1.0
 category: overlay
 tags: [modal, dialog, overlay, sheet]
 playground: true

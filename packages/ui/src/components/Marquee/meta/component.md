@@ -2,7 +2,8 @@
 title: Marquee
 description: Continuously scrolls repeated content across one axis.
 source: "@plocks/ui"
-status: "beta"
+status: stable
+since: 0.3.0
 category: display
 accessibility: "Only the first copy is exposed to assistive technology; reduced motion shows one static copy."
 related:

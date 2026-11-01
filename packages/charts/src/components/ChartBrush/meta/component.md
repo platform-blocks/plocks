@@ -1,6 +1,7 @@
 ---
 playground: false
 title: Chart Brush
+since: 0.3.0
 tags: [chart, brush, range, zoom, selector]
 category: charts
 order: 35

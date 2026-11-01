@@ -3,7 +3,8 @@ title: useDeviceInfo
 category: platform
 order: 10
 tags: [device, responsive, platform]
-status: beta
+status: stable
+since: 0.1.0
 hidden: false
 ---
 

@@ -3,7 +3,8 @@ playground: true
 title: Table
 description: Simple semantic table primitive for lightweight tabular layouts.
 source: ui/src/components/Table
-status: experimental
+status: stable
+since: 0.1.0
 category: data
 tags: [table, layout, semantic]
 examples: []

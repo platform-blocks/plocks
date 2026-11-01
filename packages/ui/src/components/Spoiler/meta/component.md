@@ -5,6 +5,7 @@ summary: Collapses content taller than `mah` behind a show more / show less togg
 description: A component that collapses overflowing content beyond a specified height
 source: ui/src/components/Spoiler
 status: stable
+since: 0.1.0
 category: display
 props:
   - name: children
