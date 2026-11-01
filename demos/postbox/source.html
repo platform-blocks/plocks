@@ -1,0 +1,959 @@
+<!doctype html>
+<html lang="en"><head><!--plocks-demo-seo--><title>Postbox demo source | plocks</title><meta name="description" content="Browse the source code for the Postbox demo built with plocks."/><link rel="canonical" href="https://plocks.dev/demos/postbox/source.html"/><!--/plocks-demo-seo--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>body{margin:0;background:#111319;color:#eef0f3;font:15px system-ui,sans-serif}header{padding:24px;position:sticky;top:0;background:#1b1e26;border-bottom:1px solid #353a46}h1{font-size:20px;margin:0 0 12px}nav{display:flex;gap:12px;flex-wrap:wrap}a{color:#9dbeff}main{max-width:1100px;margin:auto;padding:24px}section{margin-bottom:32px;scroll-margin-top:130px}h2{font-size:18px}pre{overflow:auto;background:#1b1e26;border:1px solid #353a46;border-radius:10px;padding:18px;line-height:1.5}code{font:13px ui-monospace,SFMono-Regular,monospace}</style>
+</head><body><header><h1>postbox source</h1><nav><a href="/demos/postbox/">Open live demo</a><a href="#file-0">App.tsx</a><a href="#file-1">index.ts</a></nav></header><main><section id="file-0"><h2>App.tsx</h2><pre><code>import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from &#39;react&#39;;
+import { StatusBar, useWindowDimensions } from &#39;react-native&#39;;
+import AsyncStorage from &#39;@react-native-async-storage/async-storage&#39;;
+import * as DocumentPicker from &#39;expo-document-picker&#39;;
+import { SafeAreaProvider } from &#39;react-native-safe-area-context&#39;;
+import {
+  TextArea,
+  AppShell,
+  Input,
+  ScrollArea,
+  SafeArea,
+  Block,
+  Avatar,
+  Button,
+  Chip,
+  Dialog,
+  Icon,
+  IconButton,
+  KeyboardAvoidingArea,
+  Menu,
+  MenuDivider,
+  MenuDropdown,
+  MenuItem,
+  PlocksProvider,
+  Text,
+  useAppShellApi,
+  useToast,
+} from &#39;@plocks/ui&#39;;
+
+function NavbarControls({ children }: { children: (actions: ReturnType&lt;typeof useAppShellApi&gt;) =&gt; ReactNode }) {
+  return &lt;&gt;{children(useAppShellApi())}&lt;/&gt;;
+}
+
+const C = {
+  bg: &#39;#F7F8FC&#39;,
+  white: &#39;#FFF&#39;,
+  ink: &#39;#202124&#39;,
+  muted: &#39;#697279&#39;,
+  line: &#39;#E6E9EF&#39;,
+  blue: &#39;#0B57D0&#39;,
+  pale: &#39;#DDE9FF&#39;,
+  red: &#39;#EA4335&#39;,
+};
+type Folder = &#39;inbox&#39; | &#39;starred&#39; | &#39;sent&#39; | &#39;drafts&#39; | &#39;archive&#39; | &#39;trash&#39;;
+type Attachment = { name: string; size?: number };
+type Mail = {
+  id: string;
+  from: string;
+  to: string;
+  cc?: string;
+  bcc?: string;
+  attachments?: Attachment[];
+  subject: string;
+  body: string;
+  time: string;
+  folder: Folder;
+  starred: boolean;
+  read: boolean;
+};
+const INITIAL: Mail[] = [
+  {
+    id: &#39;m1&#39;,
+    from: &#39;Maya Chen&#39;,
+    to: &#39;you@example.com&#39;,
+    subject: &#39;Coffee this weekend?&#39;,
+    body: &#39;Hey! I found a new little café near the park. Want to catch up on Saturday morning? I can bring that book I was telling you about.&#39;,
+    time: &#39;10:42 AM&#39;,
+    folder: &#39;inbox&#39;,
+    starred: true,
+    read: false,
+  },
+  {
+    id: &#39;m2&#39;,
+    from: &#39;The Weekly Edit&#39;,
+    to: &#39;you@example.com&#39;,
+    subject: &#39;Five things worth your time this week&#39;,
+    body: &#39;Hello! This week we are sharing a thoughtful article, a beautiful photo essay, and a recipe for a very slow Sunday.&#39;,
+    time: &#39;9:18 AM&#39;,
+    folder: &#39;inbox&#39;,
+    starred: false,
+    read: false,
+  },
+  {
+    id: &#39;m3&#39;,
+    from: &#39;Alex Rivera&#39;,
+    to: &#39;you@example.com&#39;,
+    subject: &#39;Re: project notes&#39;,
+    body: &#39;These notes look great. I added a couple of comments to the layout section. Let us review them together tomorrow.&#39;,
+    time: &#39;Yesterday&#39;,
+    folder: &#39;inbox&#39;,
+    starred: false,
+    read: true,
+  },
+  {
+    id: &#39;m4&#39;,
+    from: &#39;Studio North&#39;,
+    to: &#39;you@example.com&#39;,
+    subject: &#39;Your workshop is confirmed&#39;,
+    body: &#39;Thanks for signing up! We look forward to seeing you at the illustration workshop next Tuesday at 6 PM.&#39;,
+    time: &#39;Yesterday&#39;,
+    folder: &#39;inbox&#39;,
+    starred: true,
+    read: true,
+  },
+  {
+    id: &#39;m5&#39;,
+    from: &#39;Jordan Lee&#39;,
+    to: &#39;you@example.com&#39;,
+    subject: &#39;Photos from the coast&#39;,
+    body: &#39;Finally sorted the pictures from our weekend trip. The sunset ones came out especially well. I will send over a folder soon!&#39;,
+    time: &#39;Mon&#39;,
+    folder: &#39;inbox&#39;,
+    starred: false,
+    read: true,
+  },
+  {
+    id: &#39;m6&#39;,
+    from: &#39;you@example.com&#39;,
+    to: &#39;sam@example.com&#39;,
+    subject: &#39;Thanks for your help&#39;,
+    body: &#39;Hi Sam, thank you for walking me through the setup. Everything is working smoothly now.&#39;,
+    time: &#39;Sun&#39;,
+    folder: &#39;sent&#39;,
+    starred: false,
+    read: true,
+  },
+  {
+    id: &#39;m7&#39;,
+    from: &#39;Local Library&#39;,
+    to: &#39;you@example.com&#39;,
+    subject: &#39;A book is ready for pickup&#39;,
+    body: &#39;The title you requested is now available at the front desk. We will hold it for one week.&#39;,
+    time: &#39;Sat&#39;,
+    folder: &#39;archive&#39;,
+    starred: false,
+    read: true,
+  },
+];
+const STORAGE = &#39;plocks-postbox-example:v1&#39;;
+const FOLDERS: { id: Folder; label: string; icon: string }[] = [
+  { id: &#39;inbox&#39;, label: &#39;Inbox&#39;, icon: &#39;mail&#39; },
+  { id: &#39;starred&#39;, label: &#39;Starred&#39;, icon: &#39;star&#39; },
+  { id: &#39;sent&#39;, label: &#39;Sent&#39;, icon: &#39;arrowRight&#39; },
+  { id: &#39;drafts&#39;, label: &#39;Drafts&#39;, icon: &#39;edit&#39; },
+  { id: &#39;archive&#39;, label: &#39;Archive&#39;, icon: &#39;folder&#39; },
+  { id: &#39;trash&#39;, label: &#39;Trash&#39;, icon: &#39;trash&#39; },
+];
+const avatarColor = (name: string) =&gt; [&#39;#9874BD&#39;, &#39;#6C9CA5&#39;, &#39;#CA8C70&#39;, &#39;#7DA371&#39;][name.length % 4];
+
+const ME = &#39;you@example.com&#39;;
+const CONTACTS = [
+  { name: &#39;Maya Chen&#39;, email: &#39;maya@example.com&#39; },
+  { name: &#39;Alex Rivera&#39;, email: &#39;alex@example.com&#39; },
+  { name: &#39;Jordan Lee&#39;, email: &#39;jordan@example.com&#39; },
+  { name: &#39;Sam Patel&#39;, email: &#39;sam@example.com&#39; },
+  { name: &#39;Studio North&#39;, email: &#39;hello@studionorth.example&#39; },
+  { name: &#39;Local Library&#39;, email: &#39;desk@library.example&#39; },
+];
+type Field = &#39;to&#39; | &#39;cc&#39; | &#39;bcc&#39;;
+// The plocks TextInput type (the app and the library resolve separate react-native copies).
+type InputRef = ComponentProps&lt;typeof Input&gt;[&#39;inputRef&#39;];
+type TextInput = NonNullable&lt;InputRef&gt; extends infer R ? (R extends { current: infer T } ? NonNullable&lt;T&gt; : never) : never;
+type Draft = {
+  id?: string;
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  body: string;
+  attachments: Attachment[];
+};
+const EMPTY_DRAFT: Draft = { to: [], cc: [], bcc: [], subject: &#39;&#39;, body: &#39;&#39;, attachments: [] };
+const splitList = (value?: string) =&gt; (value ?? &#39;&#39;).split(&#39;,&#39;).map((item) =&gt; item.trim()).filter(Boolean);
+const contactFor = (value: string) =&gt;
+  CONTACTS.find((item) =&gt; item.email === value.toLowerCase() || item.name.toLowerCase() === value.toLowerCase());
+const labelFor = (value: string) =&gt; contactFor(value)?.name ?? value;
+const isAddress = (value: string) =&gt; !!contactFor(value) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+const hasContent = (draft: Draft) =&gt;
+  draft.to.length + draft.cc.length + draft.bcc.length + draft.attachments.length &gt; 0 ||
+  !!draft.subject.trim() ||
+  !!draft.body.trim();
+const fileSize = (size?: number) =&gt;
+  size == null ? &#39;&#39; : size &lt; 1024 * 1024 ? ` · ${Math.max(1, Math.round(size / 1024))} KB` : ` · ${(size / 1048576).toFixed(1)} MB`;
+
+function RecipientRow({
+  label,
+  values,
+  text,
+  onValues,
+  onText,
+  inputRef,
+  children,
+}: {
+  label: string;
+  values: string[];
+  text: string;
+  onValues: (change: (old: string[]) =&gt; string[]) =&gt; void;
+  onText: (next: string) =&gt; void;
+  inputRef?: InputRef;
+  children?: ReactNode;
+}) {
+  const query = text.trim().toLowerCase();
+  const suggestions = query
+    ? CONTACTS.filter(
+        (item) =&gt;
+          !values.includes(item.name) &amp;&amp;
+          (item.name.toLowerCase().includes(query) || item.email.includes(query)),
+      ).slice(0, 5)
+    : [];
+  const add = (value: string) =&gt; {
+    const next = value.trim();
+    if (next) onValues((old) =&gt; (old.includes(next) ? old : [...old, next]));
+    onText(&#39;&#39;);
+  };
+  return (
+    &lt;Block gap={0} zIndex={suggestions.length ? 10 : 0}&gt;
+      &lt;Block
+        direction=&quot;row&quot;
+        align=&quot;flex-start&quot;
+        gap={12}
+        px={16}
+        mih={52}
+        borderBottomWidth={1}
+        borderBottomColor={C.line}
+      &gt;
+        &lt;Text c={C.muted} size={15} w={44} mt={16}&gt;
+          {label}
+        &lt;/Text&gt;
+        &lt;Block flex={1} miw={0} direction=&quot;row&quot; wrap=&quot;wrap&quot; align=&quot;center&quot; gap={6} py={8}&gt;
+          {values.map((value) =&gt; (
+            &lt;Chip
+              key={value}
+              size=&quot;md&quot;
+              variant={isAddress(value) ? &#39;surface&#39; : &#39;light&#39;}
+              color={isAddress(value) ? undefined : &#39;error&#39;}
+              startSection={
+                &lt;Avatar size=&quot;xs&quot; fallback={labelFor(value).slice(0, 1).toUpperCase()} bg={avatarColor(labelFor(value))} textColor={C.white} /&gt;
+              }
+              labelProps={{ c: isAddress(value) ? C.ink : C.red }}
+              onRemove={() =&gt; onValues((old) =&gt; old.filter((item) =&gt; item !== value))}
+              removeButtonLabel={`Remove ${labelFor(value)}`}
+            &gt;
+              {labelFor(value)}
+            &lt;/Chip&gt;
+          ))}
+          &lt;Input
+            variant=&quot;unstyled&quot;
+            inputRef={inputRef}
+            value={text}
+            onChangeText={(next) =&gt; (/[,;]$/.test(next) ? add(next.slice(0, -1)) : onText(next))}
+            onEnter={() =&gt; add(suggestions[0]?.name ?? text)}
+            textInputProps={{
+              onKeyPress: (event) =&gt; {
+                if (event.nativeEvent.key === &#39;Backspace&#39; &amp;&amp; !text) onValues((old) =&gt; old.slice(0, -1));
+              },
+            }}
+            accessibilityLabel={label}
+            autoCapitalize=&quot;none&quot;
+            autoCorrect={false}
+            keyboardType=&quot;email-address&quot;
+            returnKeyType=&quot;next&quot;
+            mb={0}
+            flex={1}
+            miw={80}
+            inputColor={C.ink}
+            inputFontSize={15}
+          /&gt;
+        &lt;/Block&gt;
+        {children}
+      &lt;/Block&gt;
+      {suggestions.length &gt; 0 &amp;&amp; (
+        &lt;Block gap={0} position=&quot;absolute&quot; top=&quot;100%&quot; left={0} right={0} bg={C.white} shadow=&quot;md&quot; py={6}&gt;
+          {suggestions.map((item) =&gt; (
+            &lt;Block
+              key={item.email}
+              onPress={() =&gt; add(item.name)}
+              accessibilityRole=&quot;button&quot;
+              accessibilityLabel={`Add ${item.name}`}
+              direction=&quot;row&quot;
+              align=&quot;center&quot;
+              gap={14}
+              px={16}
+              py={9}
+            &gt;
+              &lt;Avatar size=&quot;md&quot; fallback={item.name.slice(0, 2).toUpperCase()} bg={avatarColor(item.name)} textColor={C.white} /&gt;
+              &lt;Block gap={1} flex={1} miw={0}&gt;
+                &lt;Text c={C.ink} size={14} fw=&quot;medium&quot; numberOfLines={1}&gt;
+                  {item.name}
+                &lt;/Text&gt;
+                &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+                  {item.email}
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+            &lt;/Block&gt;
+          ))}
+        &lt;/Block&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+function ComposeScreen({
+  initial,
+  onClose,
+  onSend,
+  onDiscard,
+}: {
+  initial: Draft;
+  onClose: (draft: Draft) =&gt; void;
+  onSend: (draft: Draft) =&gt; void;
+  onDiscard: () =&gt; void;
+}) {
+  const { width, height } = useWindowDimensions();
+  const wide = width &gt;= 768;
+  const [draft, setDraft] = useState&lt;Draft&gt;(initial);
+  const [typed, setTyped] = useState&lt;Record&lt;Field, string&gt;&gt;({ to: &#39;&#39;, cc: &#39;&#39;, bcc: &#39;&#39; });
+  const [showCc, setShowCc] = useState(initial.cc.length + initial.bcc.length &gt; 0);
+  const toRef = useRef&lt;TextInput&gt;(null);
+  const bodyRef = useRef&lt;TextInput&gt;(null);
+  // Text still in a recipient field counts as a recipient, as in Gmail.
+  const current = (): Draft =&gt; ({
+    ...draft,
+    to: typed.to.trim() ? [...draft.to, typed.to.trim()] : draft.to,
+    cc: typed.cc.trim() ? [...draft.cc, typed.cc.trim()] : draft.cc,
+    bcc: typed.bcc.trim() ? [...draft.bcc, typed.bcc.trim()] : draft.bcc,
+  });
+  const canSend = current().to.length &gt; 0 &amp;&amp; !!draft.body.trim();
+  const update = (patch: Partial&lt;Draft&gt;) =&gt; setDraft((old) =&gt; ({ ...old, ...patch }));
+  const close = () =&gt; onClose(current());
+  const send = () =&gt; canSend &amp;&amp; onSend(current());
+  async function attach() {
+    const result = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: false });
+    if (result.canceled) return;
+    setDraft((old) =&gt; ({
+      ...old,
+      attachments: [...old.attachments, ...result.assets.map((item) =&gt; ({ name: item.name, size: item.size }))],
+    }));
+  }
+  const recipientRow = (field: Field, label: string, children?: ReactNode) =&gt; (
+    &lt;RecipientRow
+      label={label}
+      values={draft[field]}
+      text={typed[field]}
+      onValues={(change) =&gt; setDraft((old) =&gt; ({ ...old, [field]: change(old[field]) }))}
+      onText={(next) =&gt; setTyped((old) =&gt; ({ ...old, [field]: next }))}
+      inputRef={field === &#39;to&#39; ? toRef : undefined}
+    &gt;
+      {children}
+    &lt;/RecipientRow&gt;
+  );
+  const overflow = (
+    &lt;Menu position=&quot;bottom-end&quot;&gt;
+      &lt;IconButton icon=&quot;dots-vertical&quot; variant=&quot;ghost&quot; iconColor={C.muted} accessibilityLabel=&quot;More options&quot; /&gt;
+      &lt;MenuDropdown&gt;
+        &lt;MenuItem onPress={() =&gt; setShowCc((old) =&gt; !old)}&gt;{showCc ? &#39;Hide Cc/Bcc&#39; : &#39;Add Cc/Bcc&#39;}&lt;/MenuItem&gt;
+        &lt;MenuItem onPress={close}&gt;Save draft&lt;/MenuItem&gt;
+        &lt;MenuDivider /&gt;
+        &lt;MenuItem color=&quot;error&quot; onPress={onDiscard}&gt;
+          Discard
+        &lt;/MenuItem&gt;
+      &lt;/MenuDropdown&gt;
+    &lt;/Menu&gt;
+  );
+
+  const form = (
+    &lt;&gt;
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={12} px={16} h={52} borderBottomWidth={1} borderBottomColor={C.line}&gt;
+        &lt;Text c={C.muted} size={15} w={44}&gt;
+          From
+        &lt;/Text&gt;
+        &lt;Text c={C.ink} size={15} flex={1} numberOfLines={1}&gt;
+          {ME}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      {recipientRow(
+        &#39;to&#39;,
+        &#39;To&#39;,
+        wide ? (
+          !showCc &amp;&amp; (
+            &lt;Block gap={0} onPress={() =&gt; setShowCc(true)} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Add Cc and Bcc&quot; mt={16}&gt;
+              &lt;Text c={C.muted} size={14}&gt;
+                Cc  Bcc
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          )
+        ) : (
+          &lt;IconButton
+            icon={showCc ? &#39;chevronUp&#39; : &#39;chevronDown&#39;}
+            variant=&quot;ghost&quot;
+            iconColor={C.muted}
+            accessibilityLabel={showCc ? &#39;Hide Cc and Bcc&#39; : &#39;Show Cc and Bcc&#39;}
+            onPress={() =&gt; setShowCc((old) =&gt; !old)}
+            mt={8}
+          /&gt;
+        ),
+      )}
+      {showCc &amp;&amp; recipientRow(&#39;cc&#39;, &#39;Cc&#39;)}
+      {showCc &amp;&amp; recipientRow(&#39;bcc&#39;, &#39;Bcc&#39;)}
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; px={16} h={52} borderBottomWidth={1} borderBottomColor={C.line}&gt;
+        &lt;Input
+          variant=&quot;unstyled&quot;
+          value={draft.subject}
+          onChangeText={(subject) =&gt; update({ subject })}
+          onEnter={() =&gt; bodyRef.current?.focus()}
+          placeholder=&quot;Subject&quot;
+          placeholderTextColor={C.muted}
+          accessibilityLabel=&quot;Subject&quot;
+          returnKeyType=&quot;next&quot;
+          mb={0}
+          flex={1}
+          inputColor={C.ink}
+          inputFontSize={15}
+        /&gt;
+      &lt;/Block&gt;
+      &lt;Block gap={0} flex={1} px={16} pt={14} pb={8}&gt;
+        &lt;TextArea
+          ref={bodyRef}
+          variant=&quot;unstyled&quot;
+          value={draft.body}
+          onChangeText={(body) =&gt; update({ body })}
+          placeholder=&quot;Compose email&quot;
+          placeholderTextColor={C.muted}
+          accessibilityLabel=&quot;Message body&quot;
+          flex={1}
+          size=&quot;lg&quot;
+          mb={0}
+        /&gt;
+      &lt;/Block&gt;
+      {draft.attachments.length &gt; 0 &amp;&amp; (
+        &lt;Block direction=&quot;row&quot; wrap=&quot;wrap&quot; gap={8} px={16} py={10}&gt;
+          {draft.attachments.map((item, index) =&gt; (
+            &lt;Chip
+              key={`${item.name}-${index}`}
+              size=&quot;md&quot;
+              variant=&quot;surface&quot;
+              startSection={&lt;Icon name=&quot;file&quot; color={C.red} size={16} /&gt;}
+              labelProps={{ c: C.ink }}
+              onRemove={() =&gt; update({ attachments: draft.attachments.filter((_, other) =&gt; other !== index) })}
+              removeButtonLabel={`Remove ${item.name}`}
+            &gt;
+              {`${item.name}${fileSize(item.size)}`}
+            &lt;/Chip&gt;
+          ))}
+        &lt;/Block&gt;
+      )}
+    &lt;/&gt;
+  );
+
+  return (
+    &lt;Dialog
+      opened
+      variant={wide ? &#39;modal&#39; : &#39;fullscreen&#39;}
+      w={wide ? Math.min(width - 64, 1120) : undefined}
+      radius={wide ? 16 : undefined}
+      p={0}
+      accessibilityLabel={draft.subject.trim() || &#39;New message&#39;}
+      autoFocus={initial.to.length ? bodyRef : toRef}
+      onClose={close}
+    &gt;
+      {wide ? (
+        &lt;Block gap={0} h={height - 64} bg={C.white}&gt;
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={4} bg=&quot;#F2F6FC&quot; pl={18} pr={6} h={44}&gt;
+            &lt;Text c={C.ink} fw=&quot;medium&quot; size={14} flex={1} numberOfLines={1}&gt;
+              {draft.subject.trim() || &#39;New message&#39;}
+            &lt;/Text&gt;
+            &lt;IconButton icon=&quot;x&quot; variant=&quot;ghost&quot; iconColor={C.ink} accessibilityLabel=&quot;Save draft and close&quot; onPress={close} /&gt;
+          &lt;/Block&gt;
+          {form}
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={6} px={16} py={12}&gt;
+            &lt;Button title=&quot;Send&quot; color={C.blue} radius=&quot;xl&quot; disabled={!canSend} onPress={send} mr={6} /&gt;
+            &lt;IconButton icon=&quot;paperclip&quot; variant=&quot;ghost&quot; iconColor={C.muted} accessibilityLabel=&quot;Attach files&quot; onPress={attach} /&gt;
+            &lt;Block gap={0} flex={1} /&gt;
+            {overflow}
+            &lt;IconButton icon=&quot;trash&quot; variant=&quot;ghost&quot; iconColor={C.muted} accessibilityLabel=&quot;Discard draft&quot; onPress={onDiscard} /&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      ) : (
+        &lt;KeyboardAvoidingArea gap={0} flex={1} bg={C.white}&gt;
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={2} px={4} h={56}&gt;
+            &lt;IconButton icon=&quot;arrowLeft&quot; variant=&quot;ghost&quot; iconColor={C.ink} accessibilityLabel=&quot;Save draft and close&quot; onPress={close} /&gt;
+            &lt;Block gap={0} flex={1} /&gt;
+            &lt;IconButton icon=&quot;paperclip&quot; variant=&quot;ghost&quot; iconColor={C.ink} accessibilityLabel=&quot;Attach files&quot; onPress={attach} /&gt;
+            &lt;IconButton
+              icon=&quot;send&quot;
+              variant=&quot;ghost&quot;
+              iconColor={canSend ? C.blue : &#39;#B4BAC2&#39;}
+              accessibilityLabel=&quot;Send&quot;
+              disabled={!canSend}
+              onPress={send}
+            /&gt;
+            {overflow}
+          &lt;/Block&gt;
+          {form}
+        &lt;/KeyboardAvoidingArea&gt;
+      )}
+    &lt;/Dialog&gt;
+  );
+}
+
+function PostboxScreen() {
+  const { width } = useWindowDimensions();
+  const wide = width &gt;= 768;
+  const [folder, setFolder] = useState&lt;Folder&gt;(&#39;inbox&#39;);
+  const [messages, setMessages] = useState&lt;Mail[]&gt;(INITIAL);
+  const [query, setQuery] = useState(&#39;&#39;);
+  const [selected, setSelected] = useState&lt;string | null&gt;(null);
+  const [compose, setCompose] = useState&lt;Draft | null&gt;(null);
+  const toast = useToast();
+  const [ready, setReady] = useState(false);
+  const active = messages.find((item) =&gt; item.id === selected);
+  const unread = messages.filter((item) =&gt; item.folder === &#39;inbox&#39; &amp;&amp; !item.read).length;
+  const shown = messages.filter(
+    (item) =&gt;
+      (query.trim()
+        ? item.folder !== &#39;trash&#39;
+        : folder === &#39;starred&#39;
+          ? item.starred &amp;&amp; item.folder !== &#39;trash&#39;
+          : item.folder === folder) &amp;&amp;
+      `${item.from} ${item.to} ${item.subject} ${item.body}`.toLowerCase().includes(query.toLowerCase()),
+  );
+
+  useEffect(() =&gt; {
+    AsyncStorage.getItem(STORAGE)
+      .then((raw) =&gt; {
+        if (!raw) return;
+        const data = JSON.parse(raw) as Mail[];
+        if (Array.isArray(data)) setMessages(data);
+      })
+      .catch(() =&gt; {})
+      .finally(() =&gt; setReady(true));
+  }, []);
+  useEffect(() =&gt; {
+    if (ready) AsyncStorage.setItem(STORAGE, JSON.stringify(messages)).catch(() =&gt; {});
+  }, [messages, ready]);
+  const changeFolder = (next: Folder) =&gt; {
+    setFolder(next);
+    setQuery(&#39;&#39;);
+    setSelected(null);
+  };
+  const openMessage = (id: string) =&gt; {
+    const mail = messages.find((item) =&gt; item.id === id);
+    if (mail?.folder === &#39;drafts&#39;) return openDraft(mail);
+    setSelected(id);
+    setMessages((old) =&gt; old.map((item) =&gt; (item.id === id ? { ...item, read: true } : item)));
+  };
+  const toggleStar = (id: string) =&gt;
+    setMessages((old) =&gt; old.map((item) =&gt; (item.id === id ? { ...item, starred: !item.starred } : item)));
+  const moveMessage = (id: string, next: Folder) =&gt; {
+    setMessages((old) =&gt; old.map((item) =&gt; (item.id === id ? { ...item, folder: next } : item)));
+    setSelected(null);
+  };
+  const notify = (message: string) =&gt;
+    toast.show({ message, variant: &#39;filled&#39;, color: &#39;#303134&#39;, position: wide ? &#39;bottom-left&#39; : &#39;bottom-center&#39;, autoHide: 3500 });
+  function startCompose(reply?: Mail) {
+    setCompose({
+      ...EMPTY_DRAFT,
+      to: reply ? [reply.from] : [],
+      subject: reply ? `Re: ${reply.subject.replace(/^Re: /, &#39;&#39;)}` : &#39;&#39;,
+    });
+  }
+  function openDraft(mail: Mail) {
+    setCompose({
+      id: mail.id,
+      to: splitList(mail.to),
+      cc: splitList(mail.cc),
+      bcc: splitList(mail.bcc),
+      subject: mail.subject === &#39;(no subject)&#39; ? &#39;&#39; : mail.subject,
+      body: mail.body,
+      attachments: mail.attachments ?? [],
+    });
+  }
+  const toMail = (draft: Draft, id: string, folder: Folder, time: string): Mail =&gt; ({
+    id,
+    from: ME,
+    to: draft.to.join(&#39;, &#39;),
+    cc: draft.cc.join(&#39;, &#39;),
+    bcc: draft.bcc.join(&#39;, &#39;),
+    attachments: draft.attachments,
+    subject: draft.subject.trim() || &#39;(no subject)&#39;,
+    body: draft.body.trim(),
+    time,
+    folder,
+    starred: false,
+    read: true,
+  });
+  // Closing keeps whatever was written as a draft, as Gmail does.
+  function saveDraft(draft: Draft) {
+    if (hasContent(draft)) {
+      const mail = toMail(draft, draft.id ?? `draft-${Date.now()}`, &#39;drafts&#39;, &#39;Draft&#39;);
+      setMessages((old) =&gt; [mail, ...old.filter((item) =&gt; item.id !== mail.id)]);
+      notify(&#39;Draft saved&#39;);
+    } else if (draft.id) {
+      setMessages((old) =&gt; old.filter((item) =&gt; item.id !== draft.id));
+    }
+    setCompose(null);
+  }
+  function discardDraft() {
+    const id = compose?.id;
+    if (id) setMessages((old) =&gt; old.filter((item) =&gt; item.id !== id));
+    setCompose(null);
+    notify(&#39;Draft discarded&#39;);
+  }
+  function send(draft: Draft) {
+    setMessages((old) =&gt; [
+      toMail(draft, `sent-${Date.now()}`, &#39;sent&#39;, &#39;Just now&#39;),
+      ...old.filter((item) =&gt; item.id !== draft.id),
+    ]);
+    setCompose(null);
+    setFolder(&#39;sent&#39;);
+    setSelected(null);
+    notify(&#39;Message sent&#39;);
+  }
+  const sidebar = (closeNavbar: () =&gt; void) =&gt; (
+    &lt;Block flex={1} bg={C.bg} p={12} gap={8}&gt;
+      &lt;Button
+        title=&quot;✎  Compose&quot;
+        color={C.pale}
+        textColor={C.ink}
+        radius=&quot;lg&quot;
+        onPress={() =&gt; {
+          if (!wide) closeNavbar();
+          startCompose();
+        }}
+      /&gt;
+      &lt;Block gap={0} h={8} /&gt;
+      {FOLDERS.map((item) =&gt; (
+        &lt;Block
+          key={item.id}
+          onPress={() =&gt; {
+            changeFolder(item.id);
+            if (!wide) closeNavbar();
+          }}
+          accessibilityRole=&quot;button&quot;
+          accessibilityLabel={`Open ${item.label}`}
+          direction=&quot;row&quot;
+          align=&quot;center&quot;
+          gap={15}
+          px={14}
+          py={10}
+          radius={19}
+          bg={folder === item.id ? C.pale : &#39;transparent&#39;}
+        &gt;
+          &lt;Icon
+            name={item.icon}
+            variant={folder === item.id ? &#39;filled&#39; : &#39;outlined&#39;}
+            color={folder === item.id ? C.ink : C.muted}
+            size={19}
+          /&gt;
+          &lt;Text c={C.ink} fw={folder === item.id ? &#39;bold&#39; : &#39;normal&#39;} flex={1}&gt;
+            {item.label}
+          &lt;/Text&gt;
+          {item.id === &#39;inbox&#39; &amp;&amp; unread &gt; 0 &amp;&amp; (
+            &lt;Text c={C.ink} fw=&quot;bold&quot; size={12}&gt;
+              {unread}
+            &lt;/Text&gt;
+          )}
+        &lt;/Block&gt;
+      ))}
+      &lt;Block gap={0} flex={1} /&gt;
+      &lt;Text c={C.muted} size={11} p={12}&gt;
+        Local mail demo · no delivery
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+
+  return (
+    &lt;SafeArea gap={0} flex={1} bg={C.white}&gt;
+      &lt;StatusBar barStyle=&quot;dark-content&quot; /&gt;
+      &lt;AppShell
+        withSafeArea={false}
+        withBorder={false}
+        header={{ height: 65 }}
+        navbar={{ width: 230, breakpoint: &#39;md&#39;, expandOnHover: false }}
+      &gt;
+        &lt;AppShell.Header withBorder={false}&gt;
+          &lt;Block h={65} direction=&quot;row&quot; align=&quot;center&quot; px={17} gap={14} borderBottomWidth={1} borderBottomColor={C.line}&gt;
+            {!wide &amp;&amp; (
+              &lt;NavbarControls&gt;
+                {({ openNavbar }) =&gt; (
+                  &lt;IconButton icon=&quot;menu&quot; variant=&quot;ghost&quot; iconColor={C.muted} accessibilityLabel=&quot;Show folders&quot; onPress={openNavbar} /&gt;
+                )}
+              &lt;/NavbarControls&gt;
+            )}
+            &lt;Icon name=&quot;mail&quot; variant=&quot;filled&quot; color={C.red} size={27} /&gt;
+            &lt;Text c={C.ink} fw=&quot;bold&quot; size={wide ? 24 : 19}&gt;
+              Postbox
+            &lt;/Text&gt;
+            &lt;Block
+              gap={0}
+              flex={1}
+              maw={650}
+              ml={wide ? 40 : 0}
+              direction=&quot;row&quot;
+              bg=&quot;#F0F4F9&quot;
+              radius={22}
+              align=&quot;center&quot;
+              px={13}
+            &gt;
+              &lt;Icon name=&quot;search&quot; color={C.muted} size={19} /&gt;
+              &lt;Input
+                variant=&quot;unstyled&quot;
+                value={query}
+                onChangeText={setQuery}
+                placeholder=&quot;Search mail&quot;
+                mb={0}
+                flex={1}
+                inputColor={C.ink}
+                inputFontSize={14}
+              /&gt;
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        &lt;/AppShell.Header&gt;
+        &lt;AppShell.Navbar accessibilityLabel=&quot;Mail folders&quot; withBorder={false}&gt;
+          &lt;NavbarControls&gt;{({ closeNavbar }) =&gt; sidebar(closeNavbar)}&lt;/NavbarControls&gt;
+        &lt;/AppShell.Navbar&gt;
+        &lt;AppShell.Main centerContent={false}&gt;
+          &lt;Block gap={0} flex={1} direction=&quot;row&quot;&gt;
+            {(!selected || wide) &amp;&amp; (
+              &lt;Block
+                gap={0}
+                w={wide ? 390 : &#39;100%&#39;}
+                bg={C.white}
+                borderRightWidth={wide ? 1 : 0}
+                borderRightColor={C.line}
+              &gt;
+                &lt;Block
+                  gap={0}
+                  px={18}
+                  py={15}
+                  borderBottomWidth={1}
+                  borderBottomColor={C.line}
+                  direction=&quot;row&quot;
+                  justify=&quot;space-between&quot;
+                &gt;
+                  &lt;Text c={C.ink} fw=&quot;bold&quot; size={20}&gt;
+                    {query ? &#39;Search results&#39; : FOLDERS.find((item) =&gt; item.id === folder)?.label}
+                  &lt;/Text&gt;
+                  &lt;Text c={C.muted} size={11}&gt;
+                    {shown.length} messages
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+                &lt;ScrollArea flex={1}&gt;
+                  {shown.length === 0 &amp;&amp; (
+                    &lt;Text c={C.muted} p={24}&gt;
+                      No messages here.
+                    &lt;/Text&gt;
+                  )}
+                  {shown.map((item) =&gt; (
+                    &lt;Block
+                      key={item.id}
+                      onPress={() =&gt; openMessage(item.id)}
+                      accessibilityRole=&quot;button&quot;
+                      accessibilityLabel={`Open ${item.subject}`}
+                      direction=&quot;row&quot;
+                      gap={10}
+                      px={14}
+                      py={13}
+                      bg={selected === item.id ? &#39;#EAF1FB&#39; : item.read ? C.white : &#39;#F4F7FC&#39;}
+                      borderBottomWidth={1}
+                      borderBottomColor={C.line}
+                    &gt;
+                      &lt;Avatar
+                        size=&quot;md&quot;
+                        fallback={item.from.slice(0, 2).toUpperCase()}
+                        bg={avatarColor(item.from)}
+                        textColor={C.white}
+                      /&gt;
+                      &lt;Block flex={1} miw={0} gap={3}&gt;
+                        &lt;Block direction=&quot;row&quot; justify=&quot;space-between&quot; gap={5}&gt;
+                          &lt;Text c={C.ink} fw={item.read ? &#39;medium&#39; : &#39;bold&#39;} size={13} numberOfLines={1} flex={1}&gt;
+                            {item.from}
+                          &lt;/Text&gt;
+                          &lt;Text c={C.muted} size={10}&gt;
+                            {item.time}
+                          &lt;/Text&gt;
+                        &lt;/Block&gt;
+                        &lt;Text c={C.ink} fw={item.read ? &#39;normal&#39; : &#39;bold&#39;} size={12} numberOfLines={1}&gt;
+                          {item.subject}
+                        &lt;/Text&gt;
+                        &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+                          {item.body}
+                        &lt;/Text&gt;
+                      &lt;/Block&gt;
+                      &lt;Block
+                        gap={0}
+                        onPress={(event) =&gt; {
+                          event.stopPropagation();
+                          toggleStar(item.id);
+                        }}
+                        accessibilityLabel={item.starred ? &#39;Unstar message&#39; : &#39;Star message&#39;}
+                        alignSelf=&quot;center&quot;
+                        p={4}
+                      &gt;
+                        &lt;Icon
+                          name=&quot;star&quot;
+                          variant={item.starred ? &#39;filled&#39; : &#39;outlined&#39;}
+                          color={item.starred ? &#39;#F2B632&#39; : C.muted}
+                          size={19}
+                        /&gt;
+                      &lt;/Block&gt;
+                    &lt;/Block&gt;
+                  ))}
+                &lt;/ScrollArea&gt;
+                {!wide &amp;&amp; (
+                  &lt;Block
+                    gap={0}
+                    onPress={() =&gt; startCompose()}
+                    accessibilityRole=&quot;button&quot;
+                    accessibilityLabel=&quot;Compose message&quot;
+                    position=&quot;absolute&quot;
+                    right={18}
+                    bottom={18}
+                    bg={C.pale}
+                    radius={17}
+                    px={17}
+                    py={13}
+                  &gt;
+                    &lt;Text c={C.ink} fw=&quot;bold&quot;&gt;
+                      ✎ Compose
+                    &lt;/Text&gt;
+                  &lt;/Block&gt;
+                )}
+              &lt;/Block&gt;
+            )}
+            {(wide || selected) &amp;&amp; (
+              &lt;Block gap={0} flex={1} bg={C.white}&gt;
+                {active ? (
+                  &lt;&gt;
+                    &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={4} p={10} borderBottomWidth={1} borderBottomColor={C.line}&gt;
+                      {!wide &amp;&amp; (
+                        &lt;IconButton
+                          icon=&quot;arrowLeft&quot;
+                          variant=&quot;ghost&quot;
+                          iconColor={C.ink}
+                          accessibilityLabel=&quot;Back to messages&quot;
+                          onPress={() =&gt; setSelected(null)}
+                        /&gt;
+                      )}
+                      &lt;IconButton
+                        icon=&quot;folder&quot;
+                        variant=&quot;ghost&quot;
+                        iconColor={C.muted}
+                        accessibilityLabel=&quot;Archive message&quot;
+                        onPress={() =&gt; moveMessage(active.id, &#39;archive&#39;)}
+                      /&gt;
+                      &lt;IconButton
+                        icon=&quot;trash&quot;
+                        variant=&quot;ghost&quot;
+                        iconColor={C.muted}
+                        accessibilityLabel=&quot;Delete message&quot;
+                        onPress={() =&gt; moveMessage(active.id, &#39;trash&#39;)}
+                      /&gt;
+                      &lt;IconButton
+                        icon=&quot;mail&quot;
+                        variant=&quot;ghost&quot;
+                        iconColor={C.muted}
+                        accessibilityLabel=&quot;Mark unread&quot;
+                        onPress={() =&gt; {
+                          setMessages((old) =&gt;
+                            old.map((item) =&gt; (item.id === active.id ? { ...item, read: false } : item)),
+                          );
+                          setSelected(null);
+                        }}
+                      /&gt;
+                    &lt;/Block&gt;
+                    &lt;ScrollArea contentProps={{ p: wide ? 32 : 20, maw: 850, w: &#39;100%&#39; }}&gt;
+                      &lt;Text c={C.ink} fw=&quot;bold&quot; size={27}&gt;
+                        {active.subject}
+                      &lt;/Text&gt;
+                      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={12} mt={27}&gt;
+                        &lt;Avatar
+                          size=&quot;lg&quot;
+                          fallback={active.from.slice(0, 2).toUpperCase()}
+                          bg={avatarColor(active.from)}
+                          textColor={C.white}
+                        /&gt;
+                        &lt;Block gap={0} flex={1}&gt;
+                          &lt;Text c={C.ink} fw=&quot;bold&quot; size={14}&gt;
+                            {active.from}
+                          &lt;/Text&gt;
+                          &lt;Text c={C.muted} size={11}&gt;
+                            to {active.to}
+                            {active.cc ? `, cc ${active.cc}` : &#39;&#39;} · {active.time}
+                          &lt;/Text&gt;
+                        &lt;/Block&gt;
+                        &lt;IconButton
+                          icon=&quot;star&quot;
+                          variant=&quot;ghost&quot;
+                          iconColor={active.starred ? &#39;#F2B632&#39; : C.muted}
+                          accessibilityLabel=&quot;Toggle star&quot;
+                          onPress={() =&gt; toggleStar(active.id)}
+                        /&gt;
+                      &lt;/Block&gt;
+                      &lt;Text c={C.ink} size={15} lh={25} mt={30} mb={30}&gt;
+                        {active.body}
+                      &lt;/Text&gt;
+                      {!!active.attachments?.length &amp;&amp; (
+                        &lt;Block direction=&quot;row&quot; wrap=&quot;wrap&quot; gap={8} mt={-10} mb={30}&gt;
+                          {active.attachments.map((item, index) =&gt; (
+                            &lt;Chip
+                              key={`${item.name}-${index}`}
+                              size=&quot;md&quot;
+                              variant=&quot;surface&quot;
+                              startSection={&lt;Icon name=&quot;file&quot; color={C.red} size={16} /&gt;}
+                              labelProps={{ c: C.ink }}
+                            &gt;
+                              {`${item.name}${fileSize(item.size)}`}
+                            &lt;/Chip&gt;
+                          ))}
+                        &lt;/Block&gt;
+                      )}
+                      {active.folder !== &#39;sent&#39; &amp;&amp; (
+                        &lt;Block gap={0} alignSelf=&quot;flex-start&quot;&gt;
+                          &lt;Button
+                            title=&quot;↩  Reply&quot;
+                            variant=&quot;outline&quot;
+                            color={C.muted}
+                            onPress={() =&gt; startCompose(active)}
+                          /&gt;
+                        &lt;/Block&gt;
+                      )}
+                      &lt;Text c={C.muted} size={11} mt={20}&gt;
+                        Demo inbox. Replies stay on this device.
+                      &lt;/Text&gt;
+                    &lt;/ScrollArea&gt;
+                  &lt;/&gt;
+                ) : (
+                  &lt;Block flex={1} align=&quot;center&quot; justify=&quot;center&quot; gap={12}&gt;
+                    &lt;Icon name=&quot;mail&quot; color=&quot;#C8CED7&quot; size={55} /&gt;
+                    &lt;Text c={C.muted}&gt;Select a message to read it.&lt;/Text&gt;
+                  &lt;/Block&gt;
+                )}
+              &lt;/Block&gt;
+            )}
+          &lt;/Block&gt;
+        &lt;/AppShell.Main&gt;
+      &lt;/AppShell&gt;
+      {compose &amp;&amp; &lt;ComposeScreen initial={compose} onClose={saveDraft} onSend={send} onDiscard={discardDraft} /&gt;}
+    &lt;/SafeArea&gt;
+  );
+}
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;PlocksProvider theme={{ colorScheme: &#39;light&#39; }}&gt;
+        &lt;PostboxScreen /&gt;
+      &lt;/PlocksProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</code></pre></section><section id="file-1"><h2>index.ts</h2><pre><code>import { registerRootComponent } from &#39;expo&#39;;
+import App from &#39;./App&#39;;
+
+registerRootComponent(App);
+</code></pre></section></main></body></html>

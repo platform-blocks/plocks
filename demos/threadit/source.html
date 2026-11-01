@@ -1,0 +1,2128 @@
+<!doctype html>
+<html lang="en"><head><!--plocks-demo-seo--><title>Threadit demo source | plocks</title><meta name="description" content="Browse the source code for the Threadit demo built with plocks."/><link rel="canonical" href="https://plocks.dev/demos/threadit/source.html"/><!--/plocks-demo-seo--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>body{margin:0;background:#111319;color:#eef0f3;font:15px system-ui,sans-serif}header{padding:24px;position:sticky;top:0;background:#1b1e26;border-bottom:1px solid #353a46}h1{font-size:20px;margin:0 0 12px}nav{display:flex;gap:12px;flex-wrap:wrap}a{color:#9dbeff}main{max-width:1100px;margin:auto;padding:24px}section{margin-bottom:32px;scroll-margin-top:130px}h2{font-size:18px}pre{overflow:auto;background:#1b1e26;border:1px solid #353a46;border-radius:10px;padding:18px;line-height:1.5}code{font:13px ui-monospace,SFMono-Regular,monospace}</style>
+</head><body><header><h1>threadit source</h1><nav><a href="/demos/threadit/">Open live demo</a><a href="#file-0">App.tsx</a><a href="#file-1">data.ts</a><a href="#file-2">index.ts</a></nav></header><main><section id="file-0"><h2>App.tsx</h2><pre><code>import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from &#39;react&#39;;
+import { BackHandler, Platform, Share, StatusBar, useWindowDimensions } from &#39;react-native&#39;;
+import AsyncStorage from &#39;@react-native-async-storage/async-storage&#39;;
+import * as Clipboard from &#39;expo-clipboard&#39;;
+import { SafeAreaProvider } from &#39;react-native-safe-area-context&#39;;
+import {
+  IconArrowBigDown,
+  IconArrowBigDownFilled,
+  IconArrowBigUp,
+  IconArrowBigUpFilled,
+  IconArrowLeft,
+  IconArrowRight,
+  IconBell,
+  IconBookmark,
+  IconBookmarkFilled,
+  IconCake,
+  IconChevronDown,
+  IconCirclePlus,
+  IconDots,
+  IconFlame,
+  IconHome,
+  IconMessageCircle,
+  IconPlus,
+  IconSearch,
+  IconShare3,
+  IconSparkles,
+  IconTrendingUp,
+  IconUserCircle,
+  IconUsersGroup,
+  IconX,
+} from &#39;@tabler/icons-react-native&#39;;
+import {
+  BottomAppBar,
+  Block,
+  Button,
+  IconButton,
+  Input,
+  KeyboardAvoidingArea,
+  Menu,
+  MenuDropdown,
+  MenuItem,
+  PlocksProvider,
+  SafeArea,
+  ScrollArea,
+  SegmentedControl,
+  Text,
+  TextArea,
+} from &#39;@plocks/ui&#39;;
+import { COMMENTS, COMMUNITIES, NOTICES, POSTS, type Comment, type Community, type Post } from &#39;./data&#39;;
+
+const C = {
+  orange: &#39;#F65335&#39;,
+  down: &#39;#6A5CFF&#39;,
+  ink: &#39;#1A1A1B&#39;,
+  muted: &#39;#6F7477&#39;,
+  line: &#39;#E5E7E9&#39;,
+  chip: &#39;#EEF0F2&#39;,
+  bg: &#39;#F3F4F6&#39;,
+  white: &#39;#FFF&#39;,
+  blue: &#39;#2969B1&#39;,
+  green: &#39;#2DB357&#39;,
+};
+const RAILS = [&#39;#D5D8DC&#39;, &#39;#C9D7F2&#39;, &#39;#F2D3C9&#39;, &#39;#CFEBD6&#39;, &#39;#E6D3F2&#39;, &#39;#F2E8C4&#39;];
+const AVATARS = [&#39;#F65335&#39;, &#39;#2969B1&#39;, &#39;#1F9E89&#39;, &#39;#7A5AF8&#39;, &#39;#D9473B&#39;, &#39;#C2410C&#39;, &#39;#3E9B4F&#39;, &#39;#334FB4&#39;];
+const IMAGE_TILES = [
+  { emoji: &#39;📸&#39;, bg: &#39;#E2E6EA&#39; },
+  { emoji: &#39;🌄&#39;, bg: &#39;#FAD7B5&#39; },
+  { emoji: &#39;🍜&#39;, bg: &#39;#F8DCCF&#39; },
+  { emoji: &#39;🌱&#39;, bg: &#39;#D6EFD9&#39; },
+  { emoji: &#39;🎲&#39;, bg: &#39;#FBE0CE&#39; },
+  { emoji: &#39;🌌&#39;, bg: &#39;#D9DFF7&#39; },
+  { emoji: &#39;🧶&#39;, bg: &#39;#F4E3D3&#39; },
+  { emoji: &#39;🖌️&#39;, bg: &#39;#D5F0EA&#39; },
+];
+const STORAGE = &#39;plocks-threadit-example:v2&#39;;
+type Vote = -1 | 0 | 1;
+type Sort = &#39;Hot&#39; | &#39;New&#39; | &#39;Top&#39;;
+type CommentSort = &#39;Best&#39; | &#39;Top&#39; | &#39;New&#39;;
+type Tab = &#39;home&#39; | &#39;communities&#39; | &#39;inbox&#39; | &#39;profile&#39;;
+type Route =
+  | { name: &#39;post&#39;; id: string; focus?: string }
+  | { name: &#39;community&#39;; id: string }
+  | { name: &#39;create&#39;; community?: string }
+  | { name: &#39;search&#39; };
+
+const compact = (value: number) =&gt;
+  Math.abs(value) &gt;= 1000 ? `${(value / 1000).toFixed(1).replace(/\.0$/, &#39;&#39;)}k` : String(value);
+const since = (ts: number) =&gt; {
+  const minutes = Math.max(0, Math.floor((Date.now() - ts) / 60000));
+  if (minutes &lt; 1) return &#39;now&#39;;
+  if (minutes &lt; 60) return `${minutes}m`;
+  if (minutes &lt; 1440) return `${Math.floor(minutes / 60)}h`;
+  if (minutes &lt; 43200) return `${Math.floor(minutes / 1440)}d`;
+  return `${Math.floor(minutes / 43200)}mo`;
+};
+const communityOf = (id: string) =&gt; COMMUNITIES.find((item) =&gt; item.id === id) ?? COMMUNITIES[0];
+const hue = (name: string) =&gt; AVATARS[[...name].reduce((sum, ch) =&gt; sum + ch.charCodeAt(0), 0) % AVATARS.length];
+const stop = (event: { stopPropagation?: () =&gt; void }) =&gt; event.stopPropagation?.();
+
+type AppState = ReturnType&lt;typeof useThreadit&gt;;
+const AppContext = createContext&lt;AppState | null&gt;(null);
+const useApp = () =&gt; useContext(AppContext)!;
+
+function useThreadit() {
+  const { width } = useWindowDimensions();
+  const wide = width &gt;= 1000;
+  const [localPosts, setLocalPosts] = useState&lt;Post[]&gt;([]);
+  const [localComments, setLocalComments] = useState&lt;Comment[]&gt;([]);
+  const [votes, setVotes] = useState&lt;Record&lt;string, Vote&gt;&gt;({});
+  const [saved, setSaved] = useState&lt;string[]&gt;([]);
+  const [joined, setJoined] = useState&lt;string[]&gt;([&#39;cozyspaces&#39;, &#39;askhere&#39;, &#39;plantparents&#39;, &#39;curiouscosmos&#39;]);
+  const [hidden, setHidden] = useState&lt;string[]&gt;([]);
+  const [read, setRead] = useState&lt;string[]&gt;([]);
+  const [tab, setTab] = useState&lt;Tab&gt;(&#39;home&#39;);
+  const [feed, setFeed] = useState&lt;&#39;home&#39; | &#39;popular&#39;&gt;(&#39;home&#39;);
+  const [stack, setStack] = useState&lt;Route[]&gt;([]);
+  const [toast, setToast] = useState(&#39;&#39;);
+  const [ready, setReady] = useState(false);
+  const posts = useMemo(
+    () =&gt; [...localPosts, ...POSTS].filter((post) =&gt; !hidden.includes(post.id)),
+    [localPosts, hidden],
+  );
+  const comments = useMemo(() =&gt; [...COMMENTS, ...localComments], [localComments]);
+  const counts = useMemo(() =&gt; {
+    const result: Record&lt;string, number&gt; = {};
+    comments.forEach((item) =&gt; (result[item.postId] = (result[item.postId] ?? 0) + 1));
+    return result;
+  }, [comments]);
+
+  useEffect(() =&gt; {
+    AsyncStorage.getItem(STORAGE)
+      .then((raw) =&gt; {
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (Array.isArray(data.posts)) setLocalPosts(data.posts);
+        if (Array.isArray(data.comments)) setLocalComments(data.comments);
+        if (data.votes &amp;&amp; typeof data.votes === &#39;object&#39;) setVotes(data.votes);
+        if (Array.isArray(data.saved)) setSaved(data.saved);
+        if (Array.isArray(data.joined)) setJoined(data.joined);
+        if (Array.isArray(data.hidden)) setHidden(data.hidden);
+        if (Array.isArray(data.read)) setRead(data.read);
+      })
+      .catch(() =&gt; {})
+      .finally(() =&gt; setReady(true));
+  }, []);
+  useEffect(() =&gt; {
+    if (!ready) return;
+    const data = { posts: localPosts, comments: localComments, votes, saved, joined, hidden, read };
+    AsyncStorage.setItem(STORAGE, JSON.stringify(data)).catch(() =&gt; {});
+  }, [localPosts, localComments, votes, saved, joined, hidden, read, ready]);
+  useEffect(() =&gt; {
+    if (!toast) return;
+    const timer = setTimeout(() =&gt; setToast(&#39;&#39;), 2200);
+    return () =&gt; clearTimeout(timer);
+  }, [toast]);
+  useEffect(() =&gt; {
+    if (Platform.OS === &#39;web&#39;) return;
+    const sub =BackHandler.addEventListener(&#39;hardwareBackPress&#39;, () =&gt; {
+      if (!stack.length) return false;
+      setStack((old) =&gt; old.slice(0, -1));
+      return true;
+    });
+    return () =&gt; sub.remove();
+  }, [stack.length]);
+
+  const toggle = (list: string[], id: string) =&gt; (list.includes(id) ? list.filter((item) =&gt; item !== id) : [...list, id]);
+  return {
+    wide,
+    posts,
+    comments,
+    counts,
+    votes,
+    saved,
+    joined,
+    read,
+    tab,
+    feed,
+    setFeed,
+    route: stack[stack.length - 1] as Route | undefined,
+    toast,
+    flash: setToast,
+    score: (id: string, base: number) =&gt; base + (votes[id] ?? 0),
+    vote: (id: string, dir: 1 | -1) =&gt; setVotes((old) =&gt; ({ ...old, [id]: old[id] === dir ? 0 : dir })),
+    toggleSave: (id: string) =&gt; {
+      setToast(saved.includes(id) ? &#39;Removed from saved&#39; : &#39;Saved&#39;);
+      setSaved((old) =&gt; toggle(old, id));
+    },
+    toggleJoin: (id: string) =&gt; {
+      setToast(joined.includes(id) ? `Left t/${id}` : `Joined t/${id}`);
+      setJoined((old) =&gt; toggle(old, id));
+    },
+    hide: (id: string) =&gt; {
+      setHidden((old) =&gt; [...old, id]);
+      setStack((old) =&gt; old.filter((item) =&gt; !(item.name === &#39;post&#39; &amp;&amp; item.id === id)));
+      setToast(&#39;Post hidden&#39;);
+    },
+    markRead: (ids: string[]) =&gt; setRead((old) =&gt; [...new Set([...old, ...ids])]),
+    push: (route: Route) =&gt; setStack((old) =&gt; [...old, route]),
+    replace: (route: Route) =&gt; setStack((old) =&gt; [...old.slice(0, -1), route]),
+    pop: () =&gt; setStack((old) =&gt; old.slice(0, -1)),
+    go: (next: Tab, nextFeed?: &#39;home&#39; | &#39;popular&#39;) =&gt; {
+      setStack([]);
+      setTab(next);
+      if (nextFeed) setFeed(nextFeed);
+    },
+    share: (post: Post) =&gt; {
+      const link = `https://threadit.example/t/${post.community}/${post.id}`;
+      if (Platform.OS === &#39;web&#39;) {
+        Clipboard.setStringAsync(link)
+          .then(() =&gt; setToast(&#39;Link copied&#39;))
+          .catch(() =&gt; setToast(link));
+      } else Share.share({ message: `${post.title}\n${link}` }).catch(() =&gt; {});
+    },
+    addPost: (post: Omit&lt;Post, &#39;id&#39; | &#39;ts&#39; | &#39;votes&#39; | &#39;author&#39;&gt;) =&gt; {
+      const created: Post = { ...post, id: `local-${Date.now()}`, ts: Date.now(), votes: 1, author: &#39;you&#39; };
+      setLocalPosts((old) =&gt; [created, ...old]);
+      setVotes((old) =&gt; ({ ...old, [created.id]: 0 }));
+      return created.id;
+    },
+    addComment: (postId: string, parentId: string | null, text: string) =&gt; {
+      const created: Comment = { id: `c-${Date.now()}`, postId, parentId, text, author: &#39;you&#39;, ts: Date.now(), votes: 1 };
+      setLocalComments((old) =&gt; [...old, created]);
+      return created.id;
+    },
+  };
+}
+
+const hot = (post: Post, score: number) =&gt; score / Math.pow((Date.now() - post.ts) / 3600000 + 2, 1.5);
+function sortPosts(list: Post[], sort: Sort, score: AppState[&#39;score&#39;]) {
+  return [...list].sort((a, b) =&gt;
+    sort === &#39;New&#39;
+      ? b.ts - a.ts
+      : sort === &#39;Top&#39;
+        ? score(b.id, b.votes) - score(a.id, a.votes)
+        : hot(b, score(b.id, b.votes)) - hot(a, score(a.id, a.votes)),
+  );
+}
+
+function CommunityIcon({ community, size = 24 }: { community: Community; size?: number }) {
+  return (
+    &lt;Block gap={0} w={size} h={size} radius={size / 2} bg={community.color} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+      &lt;Text size={size * 0.55}&gt;{community.emoji}&lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function UserAvatar({ name, size = 24 }: { name: string; size?: number }) {
+  return (
+    &lt;Block gap={0} w={size} h={size} radius={size / 2} bg={hue(name)} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+      &lt;Text c={C.white} fw=&quot;bold&quot; size={size * 0.45}&gt;
+        {name[0].toUpperCase()}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function VotePill({ id, base, flat }: { id: string; base: number; flat?: boolean }) {
+  const { votes, vote, score } = useApp();
+  const value = votes[id] ?? 0;
+  const tint = flat ? (value === 1 ? C.orange : value === -1 ? C.down : C.muted) : value ? C.white : C.ink;
+  return (
+    &lt;Block
+      direction=&quot;row&quot;
+      align=&quot;center&quot;
+      gap={2}
+      radius={20}
+      px={4}
+      bg={flat ? undefined : value === 1 ? C.orange : value === -1 ? C.down : C.chip}
+    &gt;
+      &lt;Block
+        gap={0}
+        p={5}
+        radius={16}
+        onPress={(event) =&gt; {
+          stop(event);
+          vote(id, 1);
+        }}
+        accessibilityRole=&quot;button&quot;
+        accessibilityLabel=&quot;Upvote&quot;
+        accessibilityState={{ selected: value === 1 }}
+      &gt;
+        {value === 1 ? &lt;IconArrowBigUpFilled size={18} color={tint} /&gt; : &lt;IconArrowBigUp size={18} color={tint} /&gt;}
+      &lt;/Block&gt;
+      &lt;Text c={tint} fw=&quot;bold&quot; size={12}&gt;
+        {compact(score(id, base))}
+      &lt;/Text&gt;
+      &lt;Block
+        gap={0}
+        p={5}
+        radius={16}
+        onPress={(event) =&gt; {
+          stop(event);
+          vote(id, -1);
+        }}
+        accessibilityRole=&quot;button&quot;
+        accessibilityLabel=&quot;Downvote&quot;
+        accessibilityState={{ selected: value === -1 }}
+      &gt;
+        {value === -1 ? (
+          &lt;IconArrowBigDownFilled size={18} color={tint} /&gt;
+        ) : (
+          &lt;IconArrowBigDown size={18} color={tint} /&gt;
+        )}
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function Pill({ icon, label, onPress, active }: { icon: ReactNode; label?: string; onPress: () =&gt; void; active?: boolean }) {
+  return (
+    &lt;Block
+      direction=&quot;row&quot;
+      align=&quot;center&quot;
+      gap={6}
+      radius={20}
+      px={label ? 12 : 9}
+      py={7}
+      bg={active ? &#39;#FFE6DF&#39; : C.chip}
+      onPress={(event) =&gt; {
+        stop(event);
+        onPress();
+      }}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={label}
+    &gt;
+      {icon}
+      {!!label &amp;&amp; (
+        &lt;Text c={C.ink} fw=&quot;semibold&quot; size={12}&gt;
+          {label}
+        &lt;/Text&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+function Flair({ label, color }: { label: string; color: string }) {
+  return (
+    &lt;Block gap={0} alignSelf=&quot;flex-start&quot; bg={color + &#39;22&#39;} radius={10} px={8} py={2}&gt;
+      &lt;Text c={color} fw=&quot;semibold&quot; size={11}&gt;
+        {label}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function SortMenu&lt;T extends string&gt;({ value, options, onChange, label }: { value: T; options: T[]; onChange: (v: T) =&gt; void; label?: string }) {
+  return (
+    &lt;Menu position=&quot;bottom-start&quot;&gt;
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={4} py={6} px={4} onPress={() =&gt; {}} accessibilityRole=&quot;button&quot; accessibilityLabel={`Sort by ${value}`}&gt;
+        {value === &#39;Hot&#39; || value === &#39;Best&#39; ? (
+          &lt;IconFlame size={16} color={C.muted} /&gt;
+        ) : value === &#39;New&#39; ? (
+          &lt;IconSparkles size={16} color={C.muted} /&gt;
+        ) : (
+          &lt;IconTrendingUp size={16} color={C.muted} /&gt;
+        )}
+        &lt;Text c={C.muted} fw=&quot;bold&quot; size={12}&gt;
+          {label ? `${label} ${value}` : value}
+        &lt;/Text&gt;
+        &lt;IconChevronDown size={14} color={C.muted} /&gt;
+      &lt;/Block&gt;
+      &lt;MenuDropdown&gt;
+        {options.map((option) =&gt; (
+          &lt;MenuItem key={option} onPress={() =&gt; onChange(option)}&gt;
+            {option === value ? `✓ ${option}` : option}
+          &lt;/MenuItem&gt;
+        ))}
+      &lt;/MenuDropdown&gt;
+    &lt;/Menu&gt;
+  );
+}
+
+function Header({ children, back, right }: { children?: ReactNode; back?: boolean; right?: ReactNode }) {
+  const { pop } = useApp();
+  return (
+    &lt;Block h={56} bg={C.white} borderBottomWidth={1} borderBottomColor={C.line} direction=&quot;row&quot; align=&quot;center&quot; px={8} gap={6}&gt;
+      {back &amp;&amp; &lt;IconButton icon={IconArrowLeft} variant=&quot;ghost&quot; iconColor={C.ink} accessibilityLabel=&quot;Back&quot; onPress={pop} /&gt;}
+      &lt;Block flex={1} direction=&quot;row&quot; align=&quot;center&quot; gap={8} miw={0}&gt;
+        {children}
+      &lt;/Block&gt;
+      {right}
+    &lt;/Block&gt;
+  );
+}
+
+function Page({ header, sidebar, footer, children }: { header: ReactNode; sidebar?: ReactNode; footer?: ReactNode; children: ReactNode }) {
+  const { wide, route } = useApp();
+  return (
+    &lt;Block flex={1} gap={0}&gt;
+      {header}
+      &lt;ScrollArea flex={1} keyboardShouldPersistTaps=&quot;handled&quot; contentProps={{ pb: footer ? 24 : !wide &amp;&amp; !route ? 96 : 32 }}&gt;
+        &lt;Block direction=&quot;row&quot; align=&quot;flex-start&quot; gap={20} w=&quot;100%&quot; maw={wide ? 1100 : 760} alignSelf=&quot;center&quot; px={wide ? 20 : 0} pt={wide ? 16 : 0}&gt;
+          &lt;Block flex={1} gap={0} miw={0}&gt;
+            {children}
+          &lt;/Block&gt;
+          {wide &amp;&amp; !!sidebar &amp;&amp; (
+            &lt;Block w={312} gap={14}&gt;
+              {sidebar}
+            &lt;/Block&gt;
+          )}
+        &lt;/Block&gt;
+      &lt;/ScrollArea&gt;
+      {footer}
+    &lt;/Block&gt;
+  );
+}
+
+function Panel({ children, title }: { children: ReactNode; title?: string }) {
+  const { wide } = useApp();
+  return (
+    &lt;Block bg={C.white} radius={wide ? 12 : 0} borderWidth={wide ? 1 : 0} borderColor={C.line} p={16} gap={10} mb={wide ? 0 : 6}&gt;
+      {!!title &amp;&amp; (
+        &lt;Text c={C.muted} fw=&quot;bold&quot; size={11} tt=&quot;uppercase&quot; lts={0.6}&gt;
+          {title}
+        &lt;/Text&gt;
+      )}
+      {children}
+    &lt;/Block&gt;
+  );
+}
+
+function JoinButton({ id, size = &#39;sm&#39; }: { id: string; size?: &#39;xs&#39; | &#39;sm&#39; }) {
+  const { joined, toggleJoin } = useApp();
+  const on = joined.includes(id);
+  return (
+    &lt;Button
+      title={on ? &#39;Joined&#39; : &#39;Join&#39;}
+      size={size}
+      variant={on ? &#39;outline&#39; : &#39;filled&#39;}
+      color={on ? C.muted : C.blue}
+      onPress={() =&gt; toggleJoin(id)}
+      accessibilityLabel={`${on ? &#39;Leave&#39; : &#39;Join&#39;} t/${id}`}
+    /&gt;
+  );
+}
+
+function PostCard({ post, inCommunity }: { post: Post; inCommunity?: boolean }) {
+  const app = useApp();
+  const group = communityOf(post.community);
+  return (
+    &lt;Block
+      onPress={() =&gt; app.push({ name: &#39;post&#39;, id: post.id })}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={`Open ${post.title}`}
+      bg={C.white}
+      radius={app.wide ? 12 : 0}
+      borderWidth={app.wide ? 1 : 0}
+      borderColor={C.line}
+      px={16}
+      py={12}
+      mb={app.wide ? 12 : 6}
+      gap={9}
+    &gt;
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={7}&gt;
+        {inCommunity ? (
+          &lt;&gt;
+            &lt;UserAvatar name={post.author} size={22} /&gt;
+            &lt;Text c={C.ink} fw=&quot;semibold&quot; size={12}&gt;
+              u/{post.author}
+            &lt;/Text&gt;
+          &lt;/&gt;
+        ) : (
+          &lt;Block
+            direction=&quot;row&quot;
+            align=&quot;center&quot;
+            gap={7}
+            onPress={(event) =&gt; {
+              stop(event);
+              app.push({ name: &#39;community&#39;, id: group.id });
+            }}
+            accessibilityRole=&quot;link&quot;
+            accessibilityLabel={`Open t/${group.id}`}
+          &gt;
+            &lt;CommunityIcon community={group} size={22} /&gt;
+            &lt;Text c={C.ink} fw=&quot;semibold&quot; size={12}&gt;
+              t/{group.id}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        )}
+        &lt;Text c={C.muted} size={12}&gt;
+          · {since(post.ts)}
+        &lt;/Text&gt;
+        &lt;Block flex={1} /&gt;
+        {!inCommunity &amp;&amp; !app.joined.includes(group.id) &amp;&amp; &lt;JoinButton id={group.id} size=&quot;xs&quot; /&gt;}
+      &lt;/Block&gt;
+      &lt;Text c={C.ink} fw=&quot;bold&quot; size={17} lh={23}&gt;
+        {post.title}
+      &lt;/Text&gt;
+      {!!post.flair &amp;&amp; &lt;Flair label={post.flair} color={group.color} /&gt;}
+      {post.image ? (
+        &lt;Block gap={0} h={app.wide ? 300 : 210} radius={12} bg={post.image.bg} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+          &lt;Text size={app.wide ? 110 : 84}&gt;{post.image.emoji}&lt;/Text&gt;
+        &lt;/Block&gt;
+      ) : (
+        &lt;Text c={C.muted} size={14} lh={20} numberOfLines={3}&gt;
+          {post.body}
+        &lt;/Text&gt;
+      )}
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8}&gt;
+        &lt;VotePill id={post.id} base={post.votes} /&gt;
+        &lt;Pill
+          icon={&lt;IconMessageCircle size={17} color={C.ink} /&gt;}
+          label={compact(app.counts[post.id] ?? 0)}
+          onPress={() =&gt; app.push({ name: &#39;post&#39;, id: post.id })}
+        /&gt;
+        &lt;Block flex={1} /&gt;
+        &lt;Pill
+          icon={
+            app.saved.includes(post.id) ? (
+              &lt;IconBookmarkFilled size={17} color={C.orange} /&gt;
+            ) : (
+              &lt;IconBookmark size={17} color={C.ink} /&gt;
+            )
+          }
+          onPress={() =&gt; app.toggleSave(post.id)}
+          active={app.saved.includes(post.id)}
+        /&gt;
+        &lt;Pill icon={&lt;IconShare3 size={17} color={C.ink} /&gt;} label=&quot;Share&quot; onPress={() =&gt; app.share(post)} /&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function CommunityAbout({ community, banner }: { community: Community; banner?: boolean }) {
+  const app = useApp();
+  const count = app.posts.filter((post) =&gt; post.community === community.id).length;
+  return (
+    &lt;&gt;
+      &lt;Block bg={C.white} radius={app.wide ? 12 : 0} borderWidth={app.wide ? 1 : 0} borderColor={C.line} overflow=&quot;hidden&quot; gap={0}&gt;
+        {banner &amp;&amp; &lt;Block gap={0} h={44} bg={community.banner} /&gt;}
+        &lt;Block p={16} gap={12}&gt;
+          {banner &amp;&amp; (
+            &lt;Block
+              direction=&quot;row&quot;
+              align=&quot;center&quot;
+              gap={10}
+              onPress={() =&gt; app.push({ name: &#39;community&#39;, id: community.id })}
+              accessibilityRole=&quot;link&quot;
+              accessibilityLabel={`Open t/${community.id}`}
+            &gt;
+              &lt;CommunityIcon community={community} size={36} /&gt;
+              &lt;Block gap={0} flex={1}&gt;
+                &lt;Text c={C.ink} fw=&quot;bold&quot; size={15}&gt;
+                  t/{community.id}
+                &lt;/Text&gt;
+                &lt;Text c={C.muted} size={12}&gt;
+                  {community.name}
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+              &lt;JoinButton id={community.id} /&gt;
+            &lt;/Block&gt;
+          )}
+          &lt;Text c={C.ink} size={14} lh={20}&gt;
+            {community.about}
+          &lt;/Text&gt;
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={6}&gt;
+            &lt;IconCake size={16} color={C.muted} /&gt;
+            &lt;Text c={C.muted} size={12}&gt;
+              Created {community.created}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;Block direction=&quot;row&quot; gap={24} pt={4}&gt;
+            {[
+              [compact(community.members), &#39;Members&#39;],
+              [compact(community.online), &#39;Online&#39;],
+              [String(count), &#39;Posts&#39;],
+            ].map(([value, label]) =&gt; (
+              &lt;Block key={label} gap={0}&gt;
+                &lt;Text c={C.ink} fw=&quot;bold&quot; size={15}&gt;
+                  {value}
+                &lt;/Text&gt;
+                &lt;Text c={C.muted} size={11}&gt;
+                  {label}
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+            ))}
+          &lt;/Block&gt;
+          {banner &amp;&amp; (
+            &lt;Button
+              title=&quot;Create post&quot;
+              variant=&quot;outline&quot;
+              color={C.ink}
+              fullWidth
+              onPress={() =&gt; app.push({ name: &#39;create&#39;, community: community.id })}
+            /&gt;
+          )}
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      &lt;Panel title={`t/${community.id} rules`}&gt;
+        {community.rules.map((rule, index) =&gt; (
+          &lt;Block key={rule} direction=&quot;row&quot; gap={10} py={4} borderTopWidth={index ? 1 : 0} borderTopColor={C.line} pt={index ? 10 : 0}&gt;
+            &lt;Text c={C.muted} fw=&quot;bold&quot; size={13}&gt;
+              {index + 1}
+            &lt;/Text&gt;
+            &lt;Text c={C.ink} size={13} flex={1}&gt;
+              {rule}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        ))}
+      &lt;/Panel&gt;
+    &lt;/&gt;
+  );
+}
+
+function CommunityRow({ community }: { community: Community }) {
+  const app = useApp();
+  return (
+    &lt;Block
+      direction=&quot;row&quot;
+      align=&quot;center&quot;
+      gap={12}
+      py={10}
+      onPress={() =&gt; app.push({ name: &#39;community&#39;, id: community.id })}
+      accessibilityRole=&quot;link&quot;
+      accessibilityLabel={`Open t/${community.id}`}
+    &gt;
+      &lt;CommunityIcon community={community} size={40} /&gt;
+      &lt;Block gap={1} flex={1} miw={0}&gt;
+        &lt;Text c={C.ink} fw=&quot;bold&quot; size={14}&gt;
+          t/{community.id}
+        &lt;/Text&gt;
+        &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+          {compact(community.members)} members · {community.about}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      &lt;JoinButton id={community.id} /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function YourCommunities() {
+  const app = useApp();
+  const list = COMMUNITIES.filter((item) =&gt; app.joined.includes(item.id));
+  return (
+    &lt;Panel title=&quot;Your communities&quot;&gt;
+      {list.map((community) =&gt; (
+        &lt;Block
+          key={community.id}
+          direction=&quot;row&quot;
+          align=&quot;center&quot;
+          gap={10}
+          onPress={() =&gt; app.push({ name: &#39;community&#39;, id: community.id })}
+          accessibilityRole=&quot;link&quot;
+          accessibilityLabel={`Open t/${community.id}`}
+        &gt;
+          &lt;CommunityIcon community={community} size={28} /&gt;
+          &lt;Block gap={0} flex={1}&gt;
+            &lt;Text c={C.ink} fw=&quot;semibold&quot; size={13}&gt;
+              t/{community.id}
+            &lt;/Text&gt;
+            &lt;Text c={C.muted} size={11}&gt;
+              {compact(community.members)} members
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      ))}
+      {!list.length &amp;&amp; (
+        &lt;Text c={C.muted} size={13}&gt;
+          Join communities to fill your home feed.
+        &lt;/Text&gt;
+      )}
+      &lt;Button title=&quot;Explore communities&quot; variant=&quot;light&quot; color={C.blue} fullWidth onPress={() =&gt; app.go(&#39;communities&#39;)} /&gt;
+    &lt;/Panel&gt;
+  );
+}
+
+function Logo() {
+  return (
+    &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={6}&gt;
+      &lt;Block gap={0} w={30} h={30} radius={15} bg={C.orange} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+        &lt;Text c={C.white} fw=&quot;bold&quot; size={17}&gt;
+          t
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      &lt;Text c={C.ink} fw=&quot;bold&quot; size={20} lts={-0.5}&gt;
+        threadit
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function HomeScreen() {
+  const app = useApp();
+  const [sort, setSort] = useState&lt;Sort&gt;(&#39;Hot&#39;);
+  const list = sortPosts(
+    app.feed === &#39;popular&#39;
+      ? app.posts
+      : app.posts.filter((post) =&gt; app.joined.includes(post.community) || post.author === &#39;you&#39;),
+    sort,
+    app.score,
+  );
+  return (
+    &lt;Page
+      header={
+        &lt;Header
+          right={
+            &lt;&gt;
+              &lt;IconButton icon={IconSearch} variant=&quot;ghost&quot; iconColor={C.ink} accessibilityLabel=&quot;Search&quot; onPress={() =&gt; app.push({ name: &#39;search&#39; })} /&gt;
+              {app.wide &amp;&amp; &lt;Button title=&quot;Create&quot; variant=&quot;filled&quot; color={C.orange} startSection={&lt;IconPlus size={16} color={C.white} /&gt;} onPress={() =&gt; app.push({ name: &#39;create&#39; })} /&gt;}
+            &lt;/&gt;
+          }
+        &gt;
+          {!app.wide &amp;&amp; &lt;Logo /&gt;}
+          &lt;Block direction=&quot;row&quot; gap={4} ml={app.wide ? 8 : 6}&gt;
+            {([&#39;home&#39;, &#39;popular&#39;] as const).map((key) =&gt; (
+              &lt;Block
+                key={key}
+                px={10}
+                py={6}
+                radius={16}
+                bg={app.feed === key ? C.chip : undefined}
+                onPress={() =&gt; app.setFeed(key)}
+                accessibilityRole=&quot;tab&quot;
+                accessibilityState={{ selected: app.feed === key }}
+              &gt;
+                &lt;Text c={app.feed === key ? C.ink : C.muted} fw=&quot;bold&quot; size={14}&gt;
+                  {key === &#39;home&#39; ? &#39;Home&#39; : &#39;Popular&#39;}
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+            ))}
+          &lt;/Block&gt;
+        &lt;/Header&gt;
+      }
+      sidebar={
+        &lt;&gt;
+          &lt;YourCommunities /&gt;
+          &lt;Panel title=&quot;About Threadit&quot;&gt;
+            &lt;Text c={C.ink} size={13} lh={19}&gt;
+              Your home for local discussion. Everything you post, vote and save stays on this device.
+            &lt;/Text&gt;
+            &lt;Button title=&quot;Create post&quot; color={C.orange} fullWidth onPress={() =&gt; app.push({ name: &#39;create&#39; })} /&gt;
+          &lt;/Panel&gt;
+        &lt;/&gt;
+      }
+    &gt;
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; px={app.wide ? 0 : 12} py={4}&gt;
+        &lt;SortMenu value={sort} options={[&#39;Hot&#39;, &#39;New&#39;, &#39;Top&#39;]} onChange={setSort} /&gt;
+      &lt;/Block&gt;
+      {list.map((post) =&gt; (
+        &lt;PostCard key={post.id} post={post} /&gt;
+      ))}
+      {!list.length &amp;&amp; (
+        &lt;Panel&gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={16}&gt;
+            Your home feed is empty
+          &lt;/Text&gt;
+          &lt;Text c={C.muted} size={13}&gt;
+            Join a few communities and their posts will show up here.
+          &lt;/Text&gt;
+          &lt;Button title=&quot;Explore communities&quot; color={C.blue} onPress={() =&gt; app.go(&#39;communities&#39;)} /&gt;
+        &lt;/Panel&gt;
+      )}
+    &lt;/Page&gt;
+  );
+}
+
+function CommunitiesScreen() {
+  const app = useApp();
+  const [query, setQuery] = useState(&#39;&#39;);
+  const match = COMMUNITIES.filter((item) =&gt; `${item.id} ${item.name} ${item.about}`.toLowerCase().includes(query.toLowerCase()));
+  const mine = match.filter((item) =&gt; app.joined.includes(item.id));
+  const rest = match.filter((item) =&gt; !app.joined.includes(item.id)).sort((a, b) =&gt; b.members - a.members);
+  return (
+    &lt;Page header={&lt;Header&gt;&lt;Text c={C.ink} fw=&quot;bold&quot; size={20} ml={8}&gt;Communities&lt;/Text&gt;&lt;/Header&gt;} sidebar={&lt;YourCommunities /&gt;}&gt;
+      &lt;Panel&gt;
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={6} bg={C.chip} radius={20} px={12}&gt;
+          &lt;IconSearch size={17} color={C.muted} /&gt;
+          &lt;Input variant=&quot;unstyled&quot; value={query} onChangeText={setQuery} placeholder=&quot;Search communities&quot; mb={0} flex={1} inputColor={C.ink} /&gt;
+        &lt;/Block&gt;
+      &lt;/Panel&gt;
+      {!!mine.length &amp;&amp; (
+        &lt;Panel title=&quot;Joined&quot;&gt;
+          {mine.map((community) =&gt; (
+            &lt;CommunityRow key={community.id} community={community} /&gt;
+          ))}
+        &lt;/Panel&gt;
+      )}
+      &lt;Panel title=&quot;Discover&quot;&gt;
+        {rest.map((community) =&gt; (
+          &lt;CommunityRow key={community.id} community={community} /&gt;
+        ))}
+        {!rest.length &amp;&amp; (
+          &lt;Text c={C.muted} size={13}&gt;
+            {query ? &#39;No communities match that search.&#39; : &#39;You have joined every community.&#39;}
+          &lt;/Text&gt;
+        )}
+      &lt;/Panel&gt;
+    &lt;/Page&gt;
+  );
+}
+
+function InboxScreen() {
+  const app = useApp();
+  const unread = NOTICES.filter((item) =&gt; !app.read.includes(item.id));
+  return (
+    &lt;Page
+      header={
+        &lt;Header
+          right={
+            !!unread.length &amp;&amp; (
+              &lt;Button title=&quot;Mark all read&quot; variant=&quot;subtle&quot; color={C.blue} size=&quot;sm&quot; onPress={() =&gt; app.markRead(NOTICES.map((item) =&gt; item.id))} /&gt;
+            )
+          }
+        &gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={20} ml={8}&gt;
+            Inbox
+          &lt;/Text&gt;
+        &lt;/Header&gt;
+      }
+      sidebar={&lt;YourCommunities /&gt;}
+    &gt;
+      &lt;Panel title=&quot;Notifications&quot;&gt;
+        {[...NOTICES]
+          .sort((a, b) =&gt; b.ts - a.ts)
+          .map((notice) =&gt; {
+            const post = POSTS.find((item) =&gt; item.id === notice.postId)!;
+            const fresh = !app.read.includes(notice.id);
+            return (
+              &lt;Block
+                key={notice.id}
+                direction=&quot;row&quot;
+                align=&quot;center&quot;
+                gap={12}
+                py={10}
+                onPress={() =&gt; {
+                  app.markRead([notice.id]);
+                  app.push({ name: &#39;post&#39;, id: notice.postId });
+                }}
+                accessibilityRole=&quot;button&quot;
+              &gt;
+                &lt;Block gap={0}&gt;
+                  &lt;CommunityIcon community={communityOf(post.community)} size={38} /&gt;
+                  {fresh &amp;&amp; &lt;Block gap={0} position=&quot;absolute&quot; right={-2} top={-2} w={11} h={11} radius={6} bg={C.orange} borderWidth={2} borderColor={C.white} /&gt;}
+                &lt;/Block&gt;
+                &lt;Block gap={2} flex={1}&gt;
+                  &lt;Text c={C.ink} fw={fresh ? &#39;bold&#39; : &#39;normal&#39;} size={13} lh={18}&gt;
+                    {notice.text}
+                  &lt;/Text&gt;
+                  &lt;Text c={C.muted} size={11}&gt;
+                    {notice.kind === &#39;reply&#39; ? &#39;Reply&#39; : notice.kind === &#39;upvote&#39; ? &#39;Milestone&#39; : &#39;Trending&#39;} · {since(notice.ts)}
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              &lt;/Block&gt;
+            );
+          })}
+      &lt;/Panel&gt;
+    &lt;/Page&gt;
+  );
+}
+
+function ProfileScreen() {
+  const app = useApp();
+  const [view, setView] = useState(&#39;posts&#39;);
+  const mine = app.posts.filter((post) =&gt; post.author === &#39;you&#39;);
+  const myComments = app.comments.filter((item) =&gt; item.author === &#39;you&#39;).sort((a, b) =&gt; b.ts - a.ts);
+  const karma =
+    mine.reduce((sum, post) =&gt; sum + app.score(post.id, post.votes), 0) +
+    myComments.reduce((sum, item) =&gt; sum + app.score(item.id, item.votes), 0);
+  const savedPosts = app.posts.filter((post) =&gt; app.saved.includes(post.id));
+  return (
+    &lt;Page header={&lt;Header&gt;&lt;Text c={C.ink} fw=&quot;bold&quot; size={20} ml={8}&gt;Profile&lt;/Text&gt;&lt;/Header&gt;} sidebar={&lt;YourCommunities /&gt;}&gt;
+      &lt;Block bg={C.white} radius={app.wide ? 12 : 0} borderWidth={app.wide ? 1 : 0} borderColor={C.line} overflow=&quot;hidden&quot; gap={0} mb={app.wide ? 12 : 6}&gt;
+        &lt;Block gap={0} h={80} bg=&quot;#FFD9CE&quot; /&gt;
+        &lt;Block px={16} pb={16} gap={8}&gt;
+          &lt;Block gap={0} mt={-32} w={72} h={72} radius={36} bg={C.white} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+            &lt;UserAvatar name=&quot;you&quot; size={64} /&gt;
+          &lt;/Block&gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={22}&gt;
+            u/you
+          &lt;/Text&gt;
+          &lt;Block direction=&quot;row&quot; gap={24}&gt;
+            {[
+              [compact(karma), &#39;Karma&#39;],
+              [String(mine.length), &#39;Posts&#39;],
+              [String(myComments.length), &#39;Comments&#39;],
+              [String(app.joined.length), &#39;Communities&#39;],
+            ].map(([value, label]) =&gt; (
+              &lt;Block key={label} gap={0}&gt;
+                &lt;Text c={C.ink} fw=&quot;bold&quot; size={15}&gt;
+                  {value}
+                &lt;/Text&gt;
+                &lt;Text c={C.muted} size={11}&gt;
+                  {label}
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+            ))}
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      &lt;Block px={app.wide ? 0 : 12} pb={10}&gt;
+        &lt;SegmentedControl
+          fullWidth
+          color={C.ink}
+          value={view}
+          onChange={setView}
+          data={[
+            { value: &#39;posts&#39;, label: &#39;Posts&#39; },
+            { value: &#39;comments&#39;, label: &#39;Comments&#39; },
+            { value: &#39;saved&#39;, label: &#39;Saved&#39; },
+          ]}
+        /&gt;
+      &lt;/Block&gt;
+      {view === &#39;posts&#39; &amp;&amp; mine.map((post) =&gt; &lt;PostCard key={post.id} post={post} /&gt;)}
+      {view === &#39;saved&#39; &amp;&amp; savedPosts.map((post) =&gt; &lt;PostCard key={post.id} post={post} /&gt;)}
+      {view === &#39;comments&#39; &amp;&amp;
+        myComments.map((item) =&gt; {
+          const post = app.posts.find((p) =&gt; p.id === item.postId);
+          return (
+            &lt;Block
+              key={item.id}
+              bg={C.white}
+              radius={app.wide ? 12 : 0}
+              borderWidth={app.wide ? 1 : 0}
+              borderColor={C.line}
+              p={16}
+              mb={app.wide ? 12 : 6}
+              gap={6}
+              onPress={() =&gt; post &amp;&amp; app.push({ name: &#39;post&#39;, id: post.id, focus: item.id })}
+              accessibilityRole=&quot;button&quot;
+            &gt;
+              &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+                t/{post?.community} · {post?.title ?? &#39;Removed post&#39;} · {since(item.ts)}
+              &lt;/Text&gt;
+              &lt;Text c={C.ink} size={14} lh={20}&gt;
+                {item.text}
+              &lt;/Text&gt;
+              &lt;Text c={C.muted} fw=&quot;semibold&quot; size={12}&gt;
+                {compact(app.score(item.id, item.votes))} points
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          );
+        })}
+      {((view === &#39;posts&#39; &amp;&amp; !mine.length) || (view === &#39;saved&#39; &amp;&amp; !savedPosts.length) || (view === &#39;comments&#39; &amp;&amp; !myComments.length)) &amp;&amp; (
+        &lt;Panel&gt;
+          &lt;Text c={C.muted} size={13} ta=&quot;center&quot;&gt;
+            {view === &#39;posts&#39; ? &#39;You have not posted yet.&#39; : view === &#39;saved&#39; ? &#39;Saved posts show up here.&#39; : &#39;Your comments show up here.&#39;}
+          &lt;/Text&gt;
+          {view === &#39;posts&#39; &amp;&amp; &lt;Button title=&quot;Create a post&quot; color={C.orange} onPress={() =&gt; app.push({ name: &#39;create&#39; })} /&gt;}
+        &lt;/Panel&gt;
+      )}
+    &lt;/Page&gt;
+  );
+}
+
+function CommunityScreen({ id }: { id: string }) {
+  const app = useApp();
+  const community = communityOf(id);
+  const [sort, setSort] = useState&lt;Sort&gt;(&#39;Hot&#39;);
+  const [view, setView] = useState(&#39;posts&#39;);
+  const list = sortPosts(app.posts.filter((post) =&gt; post.community === id), sort, app.score);
+  return (
+    &lt;Page
+      header={
+        &lt;Header
+          back
+          right={&lt;IconButton icon={IconPlus} variant=&quot;ghost&quot; iconColor={C.ink} accessibilityLabel=&quot;Create post&quot; onPress={() =&gt; app.push({ name: &#39;create&#39;, community: id })} /&gt;}
+        &gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={17} numberOfLines={1}&gt;
+            t/{id}
+          &lt;/Text&gt;
+        &lt;/Header&gt;
+      }
+      sidebar={&lt;CommunityAbout community={community} /&gt;}
+    &gt;
+      &lt;Block bg={C.white} radius={app.wide ? 12 : 0} borderWidth={app.wide ? 1 : 0} borderColor={C.line} overflow=&quot;hidden&quot; gap={0} mb={app.wide ? 12 : 6}&gt;
+        &lt;Block gap={0} h={app.wide ? 120 : 86} bg={community.banner} align=&quot;flex-end&quot; justify=&quot;center&quot; pr={24} overflow=&quot;hidden&quot;&gt;
+          &lt;Text size={app.wide ? 96 : 72} opacity={0.35}&gt;
+            {community.emoji}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+        &lt;Block px={16} pb={14} gap={6}&gt;
+          &lt;Block direction=&quot;row&quot; align=&quot;flex-end&quot; gap={12} mt={-26}&gt;
+            &lt;Block gap={0} p={3} radius={34} bg={C.white}&gt;
+              &lt;CommunityIcon community={community} size={62} /&gt;
+            &lt;/Block&gt;
+            &lt;Block flex={1} /&gt;
+            &lt;JoinButton id={id} /&gt;
+          &lt;/Block&gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={22}&gt;
+            t/{id}
+          &lt;/Text&gt;
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={6}&gt;
+            &lt;Text c={C.muted} size={12}&gt;
+              {compact(community.members)} members
+            &lt;/Text&gt;
+            &lt;Block gap={0} w={7} h={7} radius={4} bg={C.green} ml={6} /&gt;
+            &lt;Text c={C.muted} size={12}&gt;
+              {compact(community.online)} online
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;Text c={C.ink} size={13} lh={19} numberOfLines={app.wide ? undefined : 2}&gt;
+            {community.about}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      {!app.wide &amp;&amp; (
+        &lt;Block px={12} pb={8}&gt;
+          &lt;SegmentedControl
+            fullWidth
+            color={C.ink}
+            value={view}
+            onChange={setView}
+            data={[
+              { value: &#39;posts&#39;, label: &#39;Posts&#39; },
+              { value: &#39;about&#39;, label: &#39;About&#39; },
+            ]}
+          /&gt;
+        &lt;/Block&gt;
+      )}
+      {!app.wide &amp;&amp; view === &#39;about&#39; ? (
+        &lt;CommunityAbout community={community} /&gt;
+      ) : (
+        &lt;&gt;
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; px={app.wide ? 0 : 12} py={4}&gt;
+            &lt;SortMenu value={sort} options={[&#39;Hot&#39;, &#39;New&#39;, &#39;Top&#39;]} onChange={setSort} /&gt;
+          &lt;/Block&gt;
+          {list.map((post) =&gt; (
+            &lt;PostCard key={post.id} post={post} inCommunity /&gt;
+          ))}
+          {!list.length &amp;&amp; (
+            &lt;Panel&gt;
+              &lt;Text c={C.ink} fw=&quot;bold&quot; size={16}&gt;
+                No posts yet
+              &lt;/Text&gt;
+              &lt;Button title=&quot;Be the first to post&quot; color={C.orange} onPress={() =&gt; app.push({ name: &#39;create&#39;, community: id })} /&gt;
+            &lt;/Panel&gt;
+          )}
+        &lt;/&gt;
+      )}
+    &lt;/Page&gt;
+  );
+}
+
+function PostScreen({ id, focus }: { id: string; focus?: string }) {
+  const app = useApp();
+  const post = app.posts.find((item) =&gt; item.id === id);
+  const [sort, setSort] = useState&lt;CommentSort&gt;(&#39;Best&#39;);
+  const [collapsed, setCollapsed] = useState&lt;string[]&gt;([]);
+  const [replyTo, setReplyTo] = useState&lt;string | null | undefined&gt;(undefined);
+  const [draft, setDraft] = useState(&#39;&#39;);
+  const thread = useMemo(() =&gt; app.comments.filter((item) =&gt; item.postId === id), [app.comments, id]);
+  const children = useMemo(() =&gt; {
+    const map: Record&lt;string, Comment[]&gt; = {};
+    thread.forEach((item) =&gt; (map[item.parentId ?? &#39;root&#39;] ??= []).push(item));
+    const order = (a: Comment, b: Comment) =&gt;
+      sort === &#39;New&#39;
+        ? b.ts - a.ts
+        : sort === &#39;Top&#39;
+          ? app.score(b.id, b.votes) - app.score(a.id, a.votes)
+          : Number(b.author === &#39;you&#39; &amp;&amp; Date.now() - b.ts &lt; 3600000) - Number(a.author === &#39;you&#39; &amp;&amp; Date.now() - a.ts &lt; 3600000) ||
+            app.score(b.id, b.votes) - app.score(a.id, a.votes);
+    Object.values(map).forEach((list) =&gt; list.sort(order));
+    return map;
+  }, [thread, sort, app.score]);
+  if (!post)
+    return (
+      &lt;Page header={&lt;Header back /&gt;}&gt;
+        &lt;Panel&gt;
+          &lt;Text c={C.muted}&gt;This post is no longer available.&lt;/Text&gt;
+        &lt;/Panel&gt;
+      &lt;/Page&gt;
+    );
+  const group = communityOf(post.community);
+  const maxDepth = app.wide ? 6 : 4;
+  const count = (cid: string): number =&gt; (children[cid] ?? []).reduce((sum, item) =&gt; sum + 1 + count(item.id), 0);
+  const toggle = (cid: string) =&gt; setCollapsed((old) =&gt; (old.includes(cid) ? old.filter((item) =&gt; item !== cid) : [...old, cid]));
+  const target = thread.find((item) =&gt; item.id === replyTo);
+  const roots = focus ? thread.filter((item) =&gt; item.id === focus) : children.root ?? [];
+  const submit = () =&gt; {
+    if (!draft.trim() || replyTo === undefined) return;
+    app.addComment(post.id, replyTo, draft.trim());
+    if (replyTo) setCollapsed((old) =&gt; old.filter((item) =&gt; item !== replyTo));
+    setDraft(&#39;&#39;);
+    setReplyTo(undefined);
+    app.flash(replyTo ? &#39;Reply posted&#39; : &#39;Comment posted&#39;);
+  };
+  const renderComment = (item: Comment, depth: number): ReactNode =&gt; {
+    const closed = collapsed.includes(item.id);
+    const kids = children[item.id] ?? [];
+    const rail = RAILS[depth % RAILS.length];
+    return (
+      &lt;Block key={item.id} gap={0} pt={12} borderTopWidth={depth ? 0 : 1} borderTopColor={C.line} mt={depth ? 0 : 4}&gt;
+        &lt;Block
+          direction=&quot;row&quot;
+          align=&quot;center&quot;
+          gap={6}
+          onPress={() =&gt; toggle(item.id)}
+          accessibilityRole=&quot;button&quot;
+          accessibilityLabel={`${closed ? &#39;Expand&#39; : &#39;Collapse&#39;} comment by ${item.author}`}
+          accessibilityState={{ expanded: !closed }}
+        &gt;
+          &lt;UserAvatar name={item.author} size={22} /&gt;
+          &lt;Text c={item.author === &#39;you&#39; ? C.blue : C.ink} fw=&quot;semibold&quot; size={12}&gt;
+            {item.author}
+          &lt;/Text&gt;
+          {item.author === post.author &amp;&amp; (
+            &lt;Block gap={0} bg={C.blue} radius={4} px={4}&gt;
+              &lt;Text c={C.white} fw=&quot;bold&quot; size={10}&gt;
+                OP
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          )}
+          &lt;Text c={C.muted} size={12}&gt;
+            · {since(item.ts)}
+          &lt;/Text&gt;
+          {closed &amp;&amp; (
+            &lt;Block gap={0} ml=&quot;auto&quot; bg={C.chip} radius={10} px={8} py={1}&gt;
+              &lt;Text c={C.muted} fw=&quot;bold&quot; size={11}&gt;
+                +{count(item.id) + 1}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          )}
+        &lt;/Block&gt;
+        {!closed &amp;&amp; (
+          &lt;Block direction=&quot;row&quot; gap={0}&gt;
+            &lt;Block
+              gap={0}
+              w={22}
+              align=&quot;center&quot;
+              onPress={() =&gt; toggle(item.id)}
+              accessibilityRole=&quot;button&quot;
+              accessibilityLabel={`Collapse thread by ${item.author}`}
+            &gt;
+              &lt;Block gap={0} w={2} flex={1} bg={kids.length ? rail : &#39;transparent&#39;} mt={4} radius={1} /&gt;
+            &lt;/Block&gt;
+            &lt;Block gap={0} flex={1} miw={0} pl={6}&gt;
+              &lt;Text c={C.ink} size={14} lh={20} mt={2}&gt;
+                {item.text}
+              &lt;/Text&gt;
+              &lt;Block direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;flex-end&quot; gap={4}&gt;
+                &lt;Menu position=&quot;bottom-end&quot;&gt;
+                  &lt;IconButton icon={IconDots} variant=&quot;ghost&quot; size=&quot;sm&quot; iconColor={C.muted} accessibilityLabel=&quot;Comment options&quot; /&gt;
+                  &lt;MenuDropdown&gt;
+                    &lt;MenuItem onPress={() =&gt; app.push({ name: &#39;post&#39;, id: post.id, focus: item.id })}&gt;Open single thread&lt;/MenuItem&gt;
+                    &lt;MenuItem onPress={() =&gt; toggle(item.id)}&gt;Collapse thread&lt;/MenuItem&gt;
+                    &lt;MenuItem
+                      onPress={() =&gt; {
+                        Clipboard.setStringAsync(item.text).catch(() =&gt; {});
+                        app.flash(&#39;Comment copied&#39;);
+                      }}
+                    &gt;
+                      Copy text
+                    &lt;/MenuItem&gt;
+                  &lt;/MenuDropdown&gt;
+                &lt;/Menu&gt;
+                &lt;Block
+                  direction=&quot;row&quot;
+                  align=&quot;center&quot;
+                  gap={4}
+                  px={8}
+                  py={5}
+                  radius={14}
+                  onPress={() =&gt; {
+                    setReplyTo(item.id);
+                    setDraft(&#39;&#39;);
+                  }}
+                  accessibilityRole=&quot;button&quot;
+                  accessibilityLabel={`Reply to ${item.author}`}
+                &gt;
+                  &lt;IconMessageCircle size={16} color={C.muted} /&gt;
+                  &lt;Text c={C.muted} fw=&quot;semibold&quot; size={12}&gt;
+                    Reply
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+                &lt;VotePill id={item.id} base={item.votes} flat /&gt;
+              &lt;/Block&gt;
+              {!!kids.length &amp;&amp;
+                (depth + 1 &gt;= maxDepth ? (
+                  &lt;Block
+                    direction=&quot;row&quot;
+                    align=&quot;center&quot;
+                    gap={6}
+                    py={8}
+                    onPress={() =&gt; app.push({ name: &#39;post&#39;, id: post.id, focus: item.id })}
+                    accessibilityRole=&quot;link&quot;
+                  &gt;
+                    &lt;Text c={C.blue} fw=&quot;semibold&quot; size={13}&gt;
+                      Continue this thread ({count(item.id)} more)
+                    &lt;/Text&gt;
+                    &lt;IconArrowRight size={14} color={C.blue} /&gt;
+                  &lt;/Block&gt;
+                ) : (
+                  kids.map((kid) =&gt; renderComment(kid, depth + 1))
+                ))}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        )}
+      &lt;/Block&gt;
+    );
+  };
+  return (
+    &lt;Page
+      header={
+        &lt;Header
+          back
+          right={
+            &lt;Menu position=&quot;bottom-end&quot;&gt;
+              &lt;IconButton icon={IconDots} variant=&quot;ghost&quot; iconColor={C.ink} accessibilityLabel=&quot;Post options&quot; /&gt;
+              &lt;MenuDropdown&gt;
+                &lt;MenuItem onPress={() =&gt; app.toggleSave(post.id)}&gt;{app.saved.includes(post.id) ? &#39;Unsave&#39; : &#39;Save&#39;}&lt;/MenuItem&gt;
+                &lt;MenuItem onPress={() =&gt; app.share(post)}&gt;Share&lt;/MenuItem&gt;
+                &lt;MenuItem color=&quot;error&quot; onPress={() =&gt; app.hide(post.id)}&gt;
+                  Hide post
+                &lt;/MenuItem&gt;
+              &lt;/MenuDropdown&gt;
+            &lt;/Menu&gt;
+          }
+        &gt;
+          &lt;Block
+            direction=&quot;row&quot;
+            align=&quot;center&quot;
+            gap={8}
+            onPress={() =&gt; app.push({ name: &#39;community&#39;, id: group.id })}
+            accessibilityRole=&quot;link&quot;
+            accessibilityLabel={`Open t/${group.id}`}
+          &gt;
+            &lt;CommunityIcon community={group} size={28} /&gt;
+            &lt;Text c={C.ink} fw=&quot;bold&quot; size={15} numberOfLines={1}&gt;
+              t/{group.id}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        &lt;/Header&gt;
+      }
+      sidebar={&lt;CommunityAbout community={group} banner /&gt;}
+      footer={
+        &lt;Block bg={C.white} borderTopWidth={1} borderTopColor={C.line} px={12} py={10} gap={8}&gt;
+          &lt;Block gap={8} w=&quot;100%&quot; maw={app.wide ? 760 : undefined} alignSelf=&quot;center&quot;&gt;
+            {replyTo === undefined ? (
+              &lt;Block bg={C.chip} radius={20} px={16} py={11} onPress={() =&gt; setReplyTo(null)} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Add a comment&quot;&gt;
+                &lt;Text c={C.muted} size={14}&gt;
+                  Join the conversation
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+            ) : (
+              &lt;&gt;
+                &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8}&gt;
+                  &lt;Text c={C.muted} size={12} flex={1} numberOfLines={1}&gt;
+                    {target ? `Replying to u/${target.author}: “${target.text}”` : `Commenting on t/${group.id}`}
+                  &lt;/Text&gt;
+                  &lt;IconButton icon={IconX} variant=&quot;ghost&quot; size=&quot;sm&quot; iconColor={C.muted} accessibilityLabel=&quot;Cancel reply&quot; onPress={() =&gt; setReplyTo(undefined)} /&gt;
+                &lt;/Block&gt;
+                &lt;TextArea
+                  autoFocus
+                  variant=&quot;outline&quot;
+                  value={draft}
+                  onChangeText={setDraft}
+                  placeholder={target ? &#39;Your reply&#39; : &#39;Add a comment&#39;}
+                  rows={3}
+                  radius={10}
+                  mb={0}
+                /&gt;
+                &lt;Block direction=&quot;row&quot; justify=&quot;flex-end&quot; gap={8}&gt;
+                  &lt;Button title=&quot;Cancel&quot; variant=&quot;subtle&quot; color={C.muted} onPress={() =&gt; setReplyTo(undefined)} /&gt;
+                  &lt;Button title={target ? &#39;Reply&#39; : &#39;Comment&#39;} color={C.blue} disabled={!draft.trim()} onPress={submit} /&gt;
+                &lt;/Block&gt;
+              &lt;/&gt;
+            )}
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      }
+    &gt;
+      &lt;Block bg={C.white} radius={app.wide ? 12 : 0} borderWidth={app.wide ? 1 : 0} borderColor={C.line} px={16} py={14} gap={10} mb={app.wide ? 12 : 6}&gt;
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8}&gt;
+          &lt;Block
+            direction=&quot;row&quot;
+            align=&quot;center&quot;
+            gap={8}
+            onPress={() =&gt; app.push({ name: &#39;community&#39;, id: group.id })}
+            accessibilityRole=&quot;link&quot;
+            accessibilityLabel={`Open t/${group.id}`}
+          &gt;
+            &lt;CommunityIcon community={group} size={32} /&gt;
+            &lt;Block gap={0}&gt;
+              &lt;Text c={C.ink} fw=&quot;bold&quot; size={13}&gt;
+                t/{group.id} &lt;Text c={C.muted} size={12}&gt;· {since(post.ts)}&lt;/Text&gt;
+              &lt;/Text&gt;
+              &lt;Text c={C.muted} size={12}&gt;
+                u/{post.author}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+          &lt;Block flex={1} /&gt;
+          {!app.joined.includes(group.id) &amp;&amp; &lt;JoinButton id={group.id} /&gt;}
+        &lt;/Block&gt;
+        &lt;Text c={C.ink} fw=&quot;bold&quot; size={21} lh={28}&gt;
+          {post.title}
+        &lt;/Text&gt;
+        {!!post.flair &amp;&amp; &lt;Flair label={post.flair} color={group.color} /&gt;}
+        {!!post.image &amp;&amp; (
+          &lt;Block gap={6}&gt;
+            &lt;Block gap={0} h={app.wide ? 380 : 260} radius={12} bg={post.image.bg} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+              &lt;Text size={app.wide ? 140 : 110}&gt;{post.image.emoji}&lt;/Text&gt;
+            &lt;/Block&gt;
+            {!!post.image.caption &amp;&amp; (
+              &lt;Text c={C.muted} size={12} fs=&quot;italic&quot;&gt;
+                {post.image.caption}
+              &lt;/Text&gt;
+            )}
+          &lt;/Block&gt;
+        )}
+        {!!post.body &amp;&amp; (
+          &lt;Text c={C.ink} size={15} lh={23}&gt;
+            {post.body}
+          &lt;/Text&gt;
+        )}
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} pt={4}&gt;
+          &lt;VotePill id={post.id} base={post.votes} /&gt;
+          &lt;Pill icon={&lt;IconMessageCircle size={17} color={C.ink} /&gt;} label={compact(thread.length)} onPress={() =&gt; setReplyTo(null)} /&gt;
+          &lt;Block flex={1} /&gt;
+          &lt;Pill
+            icon={app.saved.includes(post.id) ? &lt;IconBookmarkFilled size={17} color={C.orange} /&gt; : &lt;IconBookmark size={17} color={C.ink} /&gt;}
+            onPress={() =&gt; app.toggleSave(post.id)}
+            active={app.saved.includes(post.id)}
+          /&gt;
+          &lt;Pill icon={&lt;IconShare3 size={17} color={C.ink} /&gt;} label=&quot;Share&quot; onPress={() =&gt; app.share(post)} /&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      &lt;Block bg={C.white} radius={app.wide ? 12 : 0} borderWidth={app.wide ? 1 : 0} borderColor={C.line} px={12} pt={6} pb={14} gap={0}&gt;
+        {focus ? (
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} py={8} px={4}&gt;
+            &lt;Text c={C.muted} size={12} flex={1}&gt;
+              Single comment thread
+            &lt;/Text&gt;
+            &lt;Button title=&quot;See full discussion&quot; variant=&quot;subtle&quot; color={C.blue} size=&quot;sm&quot; onPress={() =&gt; app.replace({ name: &#39;post&#39;, id: post.id })} /&gt;
+          &lt;/Block&gt;
+        ) : (
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; px={4}&gt;
+            &lt;SortMenu value={sort} options={[&#39;Best&#39;, &#39;Top&#39;, &#39;New&#39;]} onChange={setSort} label=&quot;Sort by&quot; /&gt;
+            &lt;Block flex={1} /&gt;
+            {!!collapsed.length &amp;&amp; &lt;Button title=&quot;Expand all&quot; variant=&quot;subtle&quot; color={C.blue} size=&quot;xs&quot; onPress={() =&gt; setCollapsed([])} /&gt;}
+          &lt;/Block&gt;
+        )}
+        {roots.map((item) =&gt; renderComment(item, 0))}
+        {!roots.length &amp;&amp; (
+          &lt;Block align=&quot;center&quot; gap={6} py={28}&gt;
+            &lt;IconMessageCircle size={32} color={C.muted} /&gt;
+            &lt;Text c={C.ink} fw=&quot;bold&quot; size={15}&gt;
+              No comments yet
+            &lt;/Text&gt;
+            &lt;Text c={C.muted} size={13}&gt;
+              Be the first to share what you think.
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        )}
+      &lt;/Block&gt;
+    &lt;/Page&gt;
+  );
+}
+
+function CreateScreen({ preset }: { preset?: string }) {
+  const app = useApp();
+  const [community, setCommunity] = useState&lt;string | undefined&gt;(preset ?? app.joined[0]);
+  const [title, setTitle] = useState(&#39;&#39;);
+  const [body, setBody] = useState(&#39;&#39;);
+  const [kind, setKind] = useState(&#39;text&#39;);
+  const [tile, setTile] = useState(0);
+  const group = community ? communityOf(community) : undefined;
+  const valid = !!group &amp;&amp; !!title.trim() &amp;&amp; (kind === &#39;image&#39; || !!body.trim());
+  const submit = () =&gt; {
+    if (!valid || !group) return;
+    const id = app.addPost({
+      community: group.id,
+      title: title.trim(),
+      body: body.trim(),
+      image: kind === &#39;image&#39; ? IMAGE_TILES[tile] : undefined,
+    });
+    app.replace({ name: &#39;post&#39;, id });
+    app.flash(`Posted to t/${group.id}`);
+  };
+  return (
+    &lt;Page
+      header={
+        &lt;Header right={&lt;Button title=&quot;Post&quot; color={C.blue} disabled={!valid} onPress={submit} /&gt;}&gt;
+          &lt;IconButton icon={IconX} variant=&quot;ghost&quot; iconColor={C.ink} accessibilityLabel=&quot;Discard post&quot; onPress={app.pop} /&gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={17}&gt;
+            Create post
+          &lt;/Text&gt;
+        &lt;/Header&gt;
+      }
+      sidebar={group &amp;&amp; &lt;CommunityAbout community={group} banner /&gt;}
+    &gt;
+      &lt;Panel&gt;
+        &lt;Menu position=&quot;bottom-start&quot;&gt;
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} alignSelf=&quot;flex-start&quot; bg={C.chip} radius={20} pl={6} pr={12} py={6} onPress={() =&gt; {}} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Choose a community&quot;&gt;
+            {group ? &lt;CommunityIcon community={group} size={26} /&gt; : &lt;IconUsersGroup size={22} color={C.muted} /&gt;}
+            &lt;Text c={C.ink} fw=&quot;bold&quot; size={13}&gt;
+              {group ? `t/${group.id}` : &#39;Choose a community&#39;}
+            &lt;/Text&gt;
+            &lt;IconChevronDown size={15} color={C.ink} /&gt;
+          &lt;/Block&gt;
+          &lt;MenuDropdown&gt;
+            {COMMUNITIES.map((item) =&gt; (
+              &lt;MenuItem key={item.id} startSection={&lt;CommunityIcon community={item} size={22} /&gt;} onPress={() =&gt; setCommunity(item.id)}&gt;
+                {`t/${item.id}`}
+              &lt;/MenuItem&gt;
+            ))}
+          &lt;/MenuDropdown&gt;
+        &lt;/Menu&gt;
+        &lt;Input variant=&quot;unstyled&quot; value={title} onChangeText={setTitle} placeholder=&quot;Title&quot; mb={0} inputColor={C.ink} inputFontSize={22} maxLength={300} /&gt;
+        &lt;SegmentedControl
+          color={C.ink}
+          value={kind}
+          onChange={setKind}
+          data={[
+            { value: &#39;text&#39;, label: &#39;Text&#39; },
+            { value: &#39;image&#39;, label: &#39;Image&#39; },
+          ]}
+        /&gt;
+        {kind === &#39;image&#39; &amp;&amp; (
+          &lt;Block gap={10}&gt;
+            &lt;Block gap={0} h={200} radius={12} bg={IMAGE_TILES[tile].bg} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+              &lt;Text size={90}&gt;{IMAGE_TILES[tile].emoji}&lt;/Text&gt;
+            &lt;/Block&gt;
+            &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} contentProps={{ gap: 8 }}&gt;
+              {IMAGE_TILES.map((item, index) =&gt; (
+                &lt;Block
+                  key={item.emoji}
+                  gap={0}
+                  w={52}
+                  h={52}
+                  radius={10}
+                  bg={item.bg}
+                  align=&quot;center&quot;
+                  justify=&quot;center&quot;
+                  borderWidth={2}
+                  borderColor={index === tile ? C.blue : &#39;transparent&#39;}
+                  onPress={() =&gt; setTile(index)}
+                  accessibilityRole=&quot;button&quot;
+                  accessibilityLabel={`Image ${index + 1}`}
+                  accessibilityState={{ selected: index === tile }}
+                &gt;
+                  &lt;Text size={26}&gt;{item.emoji}&lt;/Text&gt;
+                &lt;/Block&gt;
+              ))}
+            &lt;/ScrollArea&gt;
+          &lt;/Block&gt;
+        )}
+        &lt;TextArea
+          variant=&quot;unstyled&quot;
+          value={body}
+          onChangeText={setBody}
+          placeholder={kind === &#39;image&#39; ? &#39;Add a caption (optional)&#39; : &#39;Body text&#39;}
+          rows={6}
+          mb={0}
+        /&gt;
+      &lt;/Panel&gt;
+      {group &amp;&amp; !app.wide &amp;&amp; (
+        &lt;Panel title={`Posting to t/${group.id}`}&gt;
+          {group.rules.map((rule, index) =&gt; (
+            &lt;Text key={rule} c={C.muted} size={12}&gt;
+              {index + 1}. {rule}
+            &lt;/Text&gt;
+          ))}
+        &lt;/Panel&gt;
+      )}
+    &lt;/Page&gt;
+  );
+}
+
+function SearchScreen() {
+  const app = useApp();
+  const [query, setQuery] = useState(&#39;&#39;);
+  const q = query.trim().toLowerCase();
+  const groups = q ? COMMUNITIES.filter((item) =&gt; `${item.id} ${item.name}`.toLowerCase().includes(q)) : [];
+  const results = q ? sortPosts(app.posts.filter((post) =&gt; `${post.title} ${post.body}`.toLowerCase().includes(q)), &#39;Top&#39;, app.score) : [];
+  return (
+    &lt;Page
+      header={
+        &lt;Header back&gt;
+          &lt;Block flex={1} direction=&quot;row&quot; align=&quot;center&quot; gap={6} bg={C.chip} radius={20} px={12}&gt;
+            &lt;IconSearch size={17} color={C.muted} /&gt;
+            &lt;Input autoFocus variant=&quot;unstyled&quot; value={query} onChangeText={setQuery} placeholder=&quot;Search Threadit&quot; mb={0} flex={1} inputColor={C.ink} /&gt;
+          &lt;/Block&gt;
+        &lt;/Header&gt;
+      }
+    &gt;
+      {!q &amp;&amp; (
+        &lt;Panel title=&quot;Trending communities&quot;&gt;
+          {[...COMMUNITIES]
+            .sort((a, b) =&gt; b.online - a.online)
+            .slice(0, 5)
+            .map((community) =&gt; (
+              &lt;CommunityRow key={community.id} community={community} /&gt;
+            ))}
+        &lt;/Panel&gt;
+      )}
+      {!!groups.length &amp;&amp; (
+        &lt;Panel title=&quot;Communities&quot;&gt;
+          {groups.map((community) =&gt; (
+            &lt;CommunityRow key={community.id} community={community} /&gt;
+          ))}
+        &lt;/Panel&gt;
+      )}
+      {!!q &amp;&amp; (
+        &lt;Block px={app.wide ? 0 : 16} py={8}&gt;
+          &lt;Text c={C.muted} fw=&quot;bold&quot; size={11} tt=&quot;uppercase&quot; lts={0.6}&gt;
+            {results.length} posts
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      )}
+      {results.map((post) =&gt; (
+        &lt;PostCard key={post.id} post={post} /&gt;
+      ))}
+    &lt;/Page&gt;
+  );
+}
+
+function SideNav() {
+  const app = useApp();
+  const unread = NOTICES.filter((item) =&gt; !app.read.includes(item.id)).length;
+  const items = [
+    { key: &#39;home&#39;, label: &#39;Home&#39;, icon: IconHome, active: !app.route &amp;&amp; app.tab === &#39;home&#39; &amp;&amp; app.feed === &#39;home&#39;, press: () =&gt; app.go(&#39;home&#39;, &#39;home&#39;) },
+    { key: &#39;popular&#39;, label: &#39;Popular&#39;, icon: IconTrendingUp, active: !app.route &amp;&amp; app.tab === &#39;home&#39; &amp;&amp; app.feed === &#39;popular&#39;, press: () =&gt; app.go(&#39;home&#39;, &#39;popular&#39;) },
+    { key: &#39;communities&#39;, label: &#39;Communities&#39;, icon: IconUsersGroup, active: !app.route &amp;&amp; app.tab === &#39;communities&#39;, press: () =&gt; app.go(&#39;communities&#39;) },
+    { key: &#39;inbox&#39;, label: unread ? `Inbox (${unread})` : &#39;Inbox&#39;, icon: IconBell, active: !app.route &amp;&amp; app.tab === &#39;inbox&#39;, press: () =&gt; app.go(&#39;inbox&#39;) },
+    { key: &#39;profile&#39;, label: &#39;Profile&#39;, icon: IconUserCircle, active: !app.route &amp;&amp; app.tab === &#39;profile&#39;, press: () =&gt; app.go(&#39;profile&#39;) },
+  ];
+  return (
+    &lt;Block w={248} bg={C.white} borderRightWidth={1} borderRightColor={C.line} gap={0}&gt;
+      &lt;Block h={56} justify=&quot;center&quot; px={16} borderBottomWidth={1} borderBottomColor={C.line}&gt;
+        &lt;Logo /&gt;
+      &lt;/Block&gt;
+      &lt;ScrollArea flex={1} contentProps={{ p: 12, gap: 2 }}&gt;
+        {items.map((item) =&gt; (
+          &lt;Block
+            key={item.key}
+            direction=&quot;row&quot;
+            align=&quot;center&quot;
+            gap={12}
+            px={12}
+            py={10}
+            radius={10}
+            bg={item.active ? C.chip : undefined}
+            onPress={item.press}
+            accessibilityRole=&quot;link&quot;
+            accessibilityState={{ selected: item.active }}
+          &gt;
+            &lt;item.icon size={21} color={C.ink} /&gt;
+            &lt;Text c={C.ink} fw={item.active ? &#39;bold&#39; : &#39;normal&#39;} size={14}&gt;
+              {item.label}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        ))}
+        &lt;Block gap={0} h={1} bg={C.line} my={10} /&gt;
+        &lt;Text c={C.muted} fw=&quot;bold&quot; size={11} tt=&quot;uppercase&quot; lts={0.6} px={12} py={6}&gt;
+          Communities
+        &lt;/Text&gt;
+        {COMMUNITIES.filter((item) =&gt; app.joined.includes(item.id)).map((community) =&gt; {
+          const active = app.route?.name === &#39;community&#39; &amp;&amp; app.route.id === community.id;
+          return (
+            &lt;Block
+              key={community.id}
+              direction=&quot;row&quot;
+              align=&quot;center&quot;
+              gap={10}
+              px={12}
+              py={7}
+              radius={10}
+              bg={active ? C.chip : undefined}
+              onPress={() =&gt; (app.route?.name === &#39;community&#39; ? app.replace : app.push)({ name: &#39;community&#39;, id: community.id })}
+              accessibilityRole=&quot;link&quot;
+            &gt;
+              &lt;CommunityIcon community={community} size={26} /&gt;
+              &lt;Text c={C.ink} size={13} fw={active ? &#39;bold&#39; : &#39;normal&#39;}&gt;
+                t/{community.id}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          );
+        })}
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={10} px={12} py={7} onPress={() =&gt; app.go(&#39;communities&#39;)} accessibilityRole=&quot;link&quot;&gt;
+          &lt;IconCirclePlus size={24} color={C.muted} /&gt;
+          &lt;Text c={C.muted} size={13}&gt;
+            Browse communities
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      &lt;/ScrollArea&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function Shell() {
+  const app = useApp();
+  const { route } = app;
+  const unread = NOTICES.filter((item) =&gt; !app.read.includes(item.id)).length;
+  const screen = route ? (
+    route.name === &#39;post&#39; ? (
+      &lt;PostScreen key={`${route.id}-${route.focus ?? &#39;&#39;}`} id={route.id} focus={route.focus} /&gt;
+    ) : route.name === &#39;community&#39; ? (
+      &lt;CommunityScreen key={route.id} id={route.id} /&gt;
+    ) : route.name === &#39;create&#39; ? (
+      &lt;CreateScreen preset={route.community} /&gt;
+    ) : (
+      &lt;SearchScreen /&gt;
+    )
+  ) : app.tab === &#39;communities&#39; ? (
+    &lt;CommunitiesScreen /&gt;
+  ) : app.tab === &#39;inbox&#39; ? (
+    &lt;InboxScreen /&gt;
+  ) : app.tab === &#39;profile&#39; ? (
+    &lt;ProfileScreen /&gt;
+  ) : (
+    &lt;HomeScreen /&gt;
+  );
+  const icon = (Glyph: typeof IconHome) =&gt; ({ active, color }: { active: boolean; color: string }) =&gt; (
+    &lt;Glyph size={24} color={color} strokeWidth={active ? 2.3 : 1.7} /&gt;
+  );
+  return (
+    &lt;SafeArea gap={0} flex={1} bg={C.bg}&gt;
+      &lt;StatusBar barStyle=&quot;dark-content&quot; /&gt;
+      &lt;KeyboardAvoidingArea behavior={Platform.OS === &#39;ios&#39; ? &#39;padding&#39; : undefined} flex={1} gap={0}&gt;
+        &lt;Block flex={1} direction=&quot;row&quot; gap={0}&gt;
+          {app.wide &amp;&amp; &lt;SideNav /&gt;}
+          &lt;Block flex={1} gap={0}&gt;
+            {screen}
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      &lt;/KeyboardAvoidingArea&gt;
+      {!app.wide &amp;&amp; !route &amp;&amp; (
+        &lt;BottomAppBar
+          accessibilityLabel=&quot;Main&quot;
+          activeKey={app.tab}
+          onItemPress={(key) =&gt; (key === &#39;create&#39; ? app.push({ name: &#39;create&#39; }) : app.go(key as Tab))}
+          bg={C.white}
+          borderColor={C.line}
+          activeColor={C.ink}
+          inactiveColor={C.muted}
+          indicator={false}
+          badgeColor={C.orange}
+          items={[
+            { key: &#39;home&#39;, label: &#39;Home&#39;, icon: icon(IconHome) },
+            { key: &#39;communities&#39;, label: &#39;Communities&#39;, icon: icon(IconUsersGroup) },
+            { key: &#39;create&#39;, label: &#39;Create&#39;, icon: icon(IconPlus) },
+            { key: &#39;inbox&#39;, label: &#39;Inbox&#39;, icon: icon(IconBell), badgeCount: unread },
+            { key: &#39;profile&#39;, label: &#39;You&#39;, icon: icon(IconUserCircle) },
+          ]}
+        /&gt;
+      )}
+      {!!app.toast &amp;&amp; (
+        &lt;Block position=&quot;absolute&quot; left={0} right={0} bottom={!app.wide &amp;&amp; !route ? 92 : route?.name === &#39;post&#39; ? 96 : 24} align=&quot;center&quot; pointerEvents=&quot;none&quot; zIndex={20}&gt;
+          &lt;Block bg={C.ink} radius={20} px={16} py={10} shadow=&quot;md&quot;&gt;
+            &lt;Text c={C.white} fw=&quot;semibold&quot; size={13}&gt;
+              {app.toast}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      )}
+    &lt;/SafeArea&gt;
+  );
+}
+
+function Root() {
+  const app = useThreadit();
+  return (
+    &lt;AppContext.Provider value={app}&gt;
+      &lt;Shell /&gt;
+    &lt;/AppContext.Provider&gt;
+  );
+}
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;PlocksProvider theme={{ colorScheme: &#39;light&#39; }}&gt;
+        &lt;Root /&gt;
+      &lt;/PlocksProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</code></pre></section><section id="file-1"><h2>data.ts</h2><pre><code>export type Community = {
+  id: string;
+  name: string;
+  emoji: string;
+  color: string;
+  banner: string;
+  members: number;
+  online: number;
+  about: string;
+  created: string;
+  rules: string[];
+};
+export type Post = {
+  id: string;
+  community: string;
+  author: string;
+  title: string;
+  body: string;
+  ts: number;
+  votes: number;
+  flair?: string;
+  image?: { emoji: string; bg: string; caption?: string };
+};
+export type Comment = {
+  id: string;
+  postId: string;
+  parentId: string | null;
+  author: string;
+  text: string;
+  ts: number;
+  votes: number;
+};
+export type Notice = { id: string; kind: &#39;reply&#39; | &#39;upvote&#39; | &#39;community&#39;; text: string; postId: string; ts: number };
+
+const NOW = Date.now();
+export const ago = (minutes: number) =&gt; NOW - minutes * 60000;
+
+export const COMMUNITIES: Community[] = [
+  {
+    id: &#39;cozyspaces&#39;,
+    name: &#39;Cozy Spaces&#39;,
+    emoji: &#39;🛋️&#39;,
+    color: &#39;#E0803A&#39;,
+    banner: &#39;#F6D9BF&#39;,
+    members: 42800,
+    online: 312,
+    about: &#39;Small corners, big comfort. Share the nooks, reading chairs and sunny windows that make a home feel like yours.&#39;,
+    created: &#39;Mar 3, 2019&#39;,
+    rules: [&#39;Share your own space&#39;, &#39;Be kind about budgets&#39;, &#39;No sales or affiliate links&#39;, &#39;Credit artists and makers&#39;],
+  },
+  {
+    id: &#39;askhere&#39;,
+    name: &#39;Ask Here&#39;,
+    emoji: &#39;💬&#39;,
+    color: &#39;#3B7BD9&#39;,
+    banner: &#39;#CFE0F8&#39;,
+    members: 87400,
+    online: 1240,
+    about: &#39;Curious questions and kind answers. Ask anything that sparks a good conversation.&#39;,
+    created: &#39;Jan 18, 2018&#39;,
+    rules: [&#39;Questions go in the title&#39;, &#39;Answer in good faith&#39;, &#39;No personal info&#39;, &#39;No medical or legal advice&#39;],
+  },
+  {
+    id: &#39;shutterwalk&#39;,
+    name: &#39;Shutter Walk&#39;,
+    emoji: &#39;📷&#39;,
+    color: &#39;#7A5AF8&#39;,
+    banner: &#39;#DED5FD&#39;,
+    members: 61300,
+    online: 488,
+    about: &#39;Photos from everyday walks. Any camera counts, especially the one in your pocket.&#39;,
+    created: &#39;Jun 9, 2020&#39;,
+    rules: [&#39;Original photos only&#39;, &#39;Add the location if you can&#39;, &#39;Constructive critique only&#39;],
+  },
+  {
+    id: &#39;homecooking&#39;,
+    name: &#39;Home Cooking&#39;,
+    emoji: &#39;🍳&#39;,
+    color: &#39;#D9473B&#39;,
+    banner: &#39;#F8D3CF&#39;,
+    members: 53900,
+    online: 402,
+    about: &#39;Everyday food worth sharing. Weeknight dinners, family recipes and kitchen wins.&#39;,
+    created: &#39;Oct 2, 2017&#39;,
+    rules: [&#39;Include the recipe or method&#39;, &#39;No food shaming&#39;, &#39;Tag dietary info when you can&#39;],
+  },
+  {
+    id: &#39;pixelcraft&#39;,
+    name: &#39;Pixel Craft&#39;,
+    emoji: &#39;✦&#39;,
+    color: &#39;#1F9E89&#39;,
+    banner: &#39;#C7EDE5&#39;,
+    members: 35100,
+    online: 205,
+    about: &#39;Make, share and discuss interface, icon and type design. Works in progress welcome.&#39;,
+    created: &#39;Feb 14, 2021&#39;,
+    rules: [&#39;Show your process&#39;, &#39;Feedback should be specific&#39;, &#39;No spec work requests&#39;],
+  },
+  {
+    id: &#39;plantparents&#39;,
+    name: &#39;Plant Parents&#39;,
+    emoji: &#39;🪴&#39;,
+    color: &#39;#3E9B4F&#39;,
+    banner: &#39;#D3EFD7&#39;,
+    members: 48700,
+    online: 356,
+    about: &#39;Houseplant help, propagation wins and the occasional crispy leaf. All growers welcome.&#39;,
+    created: &#39;Apr 22, 2019&#39;,
+    rules: [&#39;Add light and watering details when asking for help&#39;, &#39;Identify pests kindly&#39;, &#39;No plant selling&#39;],
+  },
+  {
+    id: &#39;tabletopnight&#39;,
+    name: &#39;Tabletop Night&#39;,
+    emoji: &#39;🎲&#39;,
+    color: &#39;#C2410C&#39;,
+    banner: &#39;#FBDCC8&#39;,
+    members: 29600,
+    online: 174,
+    about: &#39;Board games, card games and the friends you play them with. Recommendations, house rules and table photos.&#39;,
+    created: &#39;Aug 30, 2020&#39;,
+    rules: [&#39;Spoiler-tag legacy campaigns&#39;, &#39;Be welcoming to new players&#39;, &#39;No piracy&#39;],
+  },
+  {
+    id: &#39;curiouscosmos&#39;,
+    name: &#39;Curious Cosmos&#39;,
+    emoji: &#39;🔭&#39;,
+    color: &#39;#334FB4&#39;,
+    banner: &#39;#D2DAF6&#39;,
+    members: 71200,
+    online: 690,
+    about: &#39;Stargazing, space news and the big questions. Backyard telescopes to deep field images.&#39;,
+    created: &#39;Nov 11, 2016&#39;,
+    rules: [&#39;Cite sources for news&#39;, &#39;No conspiracy theories&#39;, &#39;Astrophotography: list your gear&#39;],
+  },
+];
+
+export const POSTS: Post[] = [
+  {
+    id: &#39;p1&#39;,
+    community: &#39;cozyspaces&#39;,
+    author: &#39;softcorner&#39;,
+    title: &#39;I finally made my tiny reading nook feel like home&#39;,
+    body: &#39;A thrifted chair, a warm lamp, and a stack of books. Sometimes the small changes do the most. The blanket was my grandmother’s and the side table was a curb find.&#39;,
+    ts: ago(120),
+    votes: 842,
+    flair: &#39;Before &amp; after&#39;,
+    image: { emoji: &#39;📚&#39;, bg: &#39;#F4E3D3&#39;, caption: &#39;Corner by the window&#39; },
+  },
+  {
+    id: &#39;p2&#39;,
+    community: &#39;askhere&#39;,
+    author: &#39;curiousbird&#39;,
+    title: &#39;What is one small habit that made your days better?&#39;,
+    body: &#39;Looking for little ideas that are easy to actually stick with. Mine is putting my phone in another room for the first hour of the day.&#39;,
+    ts: ago(190),
+    votes: 2526,
+  },
+  {
+    id: &#39;p3&#39;,
+    community: &#39;shutterwalk&#39;,
+    author: &#39;bluehour&#39;,
+    title: &#39;Caught the last light on my walk home&#39;,
+    body: &#39;No special camera, just good timing and a little luck.&#39;,
+    ts: ago(300),
+    votes: 1204,
+    flair: &#39;Phone shot&#39;,
+    image: { emoji: &#39;🌅&#39;, bg: &#39;#FAD7B5&#39;, caption: &#39;Harbor path, 7:42 pm&#39; },
+  },
+  {
+    id: &#39;p4&#39;,
+    community: &#39;homecooking&#39;,
+    author: &#39;panandspoon&#39;,
+    title: &#39;A one pot dinner I keep coming back to&#39;,
+    body: &#39;Tomatoes, beans, greens, and a lot of lemon. It is flexible, affordable, and even better the next day.\n\n1. Soften an onion and three cloves of garlic in olive oil.\n2. Add a can of tomatoes and a can of white beans.\n3. Simmer ten minutes, stir in two big handfuls of greens.\n4. Finish with lemon zest, juice and plenty of black pepper.&#39;,
+    ts: ago(420),
+    votes: 379,
+    flair: &#39;Recipe&#39;,
+    image: { emoji: &#39;🍲&#39;, bg: &#39;#F8DCCF&#39; },
+  },
+  {
+    id: &#39;p5&#39;,
+    community: &#39;pixelcraft&#39;,
+    author: &#39;marlowmakes&#39;,
+    title: &#39;Sharing a few icons from my latest project&#39;,
+    body: &#39;I wanted them to feel friendly at very small sizes. Rounded joins, a 1.75 stroke and a 24 px grid. Feedback welcome!&#39;,
+    ts: ago(600),
+    votes: 689,
+    flair: &#39;Feedback&#39;,
+    image: { emoji: &#39;🎨&#39;, bg: &#39;#D5F0EA&#39;, caption: &#39;48 icons, 24 px grid&#39; },
+  },
+  {
+    id: &#39;p6&#39;,
+    community: &#39;askhere&#39;,
+    author: &#39;justwondering&#39;,
+    title: &#39;What movie do you wish you could watch for the first time again?&#39;,
+    body: &#39;I need something good for a rainy weekend.&#39;,
+    ts: ago(1300),
+    votes: 912,
+  },
+  {
+    id: &#39;p7&#39;,
+    community: &#39;plantparents&#39;,
+    author: &#39;fernandez_grows&#39;,
+    title: &#39;My monstera finally put out a fenestrated leaf!&#39;,
+    body: &#39;Three years of waiting. Moved it closer to the east window in spring and it took off.&#39;,
+    ts: ago(75),
+    votes: 1532,
+    flair: &#39;Success&#39;,
+    image: { emoji: &#39;🌿&#39;, bg: &#39;#D6EFD9&#39;, caption: &#39;Leaf number 11&#39; },
+  },
+  {
+    id: &#39;p8&#39;,
+    community: &#39;plantparents&#39;,
+    author: &#39;crispyleaf&#39;,
+    title: &#39;Why are the tips of my snake plant turning brown?&#39;,
+    body: &#39;Bright indirect light, watering every two weeks, terracotta pot. Tips started browning about a month ago. Is it the water?&#39;,
+    ts: ago(260),
+    votes: 88,
+    flair: &#39;Help&#39;,
+  },
+  {
+    id: &#39;p9&#39;,
+    community: &#39;tabletopnight&#39;,
+    author: &#39;meeplewhisperer&#39;,
+    title: &#39;Game night tradition: the loser picks next week’s snack&#39;,
+    body: &#39;It has made our group way more competitive and also way better fed. What house rules does your group have?&#39;,
+    ts: ago(540),
+    votes: 466,
+    flair: &#39;Discussion&#39;,
+  },
+  {
+    id: &#39;p10&#39;,
+    community: &#39;tabletopnight&#39;,
+    author: &#39;dicegoblin&#39;,
+    title: &#39;Painted my first set of miniatures&#39;,
+    body: &#39;Took about 20 hours across a month. Not perfect but I love them.&#39;,
+    ts: ago(900),
+    votes: 1108,
+    flair: &#39;Show &amp; tell&#39;,
+    image: { emoji: &#39;🐉&#39;, bg: &#39;#FBE0CE&#39;, caption: &#39;Dragon and party of four&#39; },
+  },
+  {
+    id: &#39;p11&#39;,
+    community: &#39;curiouscosmos&#39;,
+    author: &#39;nightowl_optics&#39;,
+    title: &#39;Saw Saturn’s rings through a telescope for the first time tonight&#39;,
+    body: &#39;A tiny 70 mm refractor from a garage sale. I actually gasped out loud. If you have ever thought about getting into this hobby, do it.&#39;,
+    ts: ago(45),
+    votes: 3204,
+    flair: &#39;Observation&#39;,
+    image: { emoji: &#39;🪐&#39;, bg: &#39;#D9DFF7&#39;, caption: &#39;70 mm refractor, 100x&#39; },
+  },
+  {
+    id: &#39;p12&#39;,
+    community: &#39;curiouscosmos&#39;,
+    author: &#39;lightyearlaura&#39;,
+    title: &#39;If light takes time to reach us, how do we know what stars look like now?&#39;,
+    body: &#39;Genuine question from a curious beginner. Are we always seeing the past?&#39;,
+    ts: ago(720),
+    votes: 742,
+    flair: &#39;Question&#39;,
+  },
+  {
+    id: &#39;p13&#39;,
+    community: &#39;cozyspaces&#39;,
+    author: &#39;rainyday_rue&#39;,
+    title: &#39;Rainy afternoon setup: tea, candle, crossword&#39;,
+    body: &#39;Nothing fancy. Just wanted to share the vibe.&#39;,
+    ts: ago(1600),
+    votes: 512,
+    image: { emoji: &#39;🕯️&#39;, bg: &#39;#EFE2D2&#39; },
+  },
+  {
+    id: &#39;p14&#39;,
+    community: &#39;homecooking&#39;,
+    author: &#39;breadwinner&#39;,
+    title: &#39;First loaf that didn’t come out like a brick&#39;,
+    body: &#39;The trick was a longer cold proof in the fridge overnight. Crumb shot in the comments!&#39;,
+    ts: ago(2000),
+    votes: 1876,
+    flair: &#39;Baking&#39;,
+    image: { emoji: &#39;🍞&#39;, bg: &#39;#F5E1C6&#39;, caption: &#39;Overnight cold proof&#39; },
+  },
+  {
+    id: &#39;p15&#39;,
+    community: &#39;pixelcraft&#39;,
+    author: &#39;kerningkat&#39;,
+    title: &#39;Hot take: most apps use too many font weights&#39;,
+    body: &#39;Two weights and a careful size scale get you almost everything. Change my mind.&#39;,
+    ts: ago(1440),
+    votes: 254,
+    flair: &#39;Discussion&#39;,
+  },
+  {
+    id: &#39;p16&#39;,
+    community: &#39;shutterwalk&#39;,
+    author: &#39;fogandfern&#39;,
+    title: &#39;Morning fog rolling through the park&#39;,
+    body: &#39;Woke up early for once and it paid off.&#39;,
+    ts: ago(2600),
+    votes: 903,
+    image: { emoji: &#39;🌫️&#39;, bg: &#39;#E2E6EA&#39;, caption: &#39;Elm Park, 6:10 am&#39; },
+  },
+];
+
+type Seed = [author: string, text: string, votes: number, minutes: number, replies?: Seed[]];
+const TREES: Record&lt;string, Seed[]&gt; = {
+  p1: [
+    [&#39;booknookbea&#39;, &#39;That lamp is doing so much work. Where is it from?&#39;, 214, 100, [
+      [&#39;softcorner&#39;, &#39;Thrift store! It was $8 and needed a new shade.&#39;, 180, 95, [
+        [&#39;booknookbea&#39;, &#39;The best finds always need a new shade.&#39;, 64, 90],
+        [&#39;lampcollector&#39;, &#39;Swapping the bulb to 2700K makes any lamp look like this, highly recommend.&#39;, 41, 70, [
+          [&#39;softcorner&#39;, &#39;Yes! It’s a 2700K bulb, the old one was way too blue.&#39;, 22, 60],
+        ]],
+      ]],
+    ]],
+    [&#39;quietquill&#39;, &#39;Saving this for when I finally have a corner of my own.&#39;, 98, 85],
+    [&#39;grandmasquilt&#39;, &#39;The blanket gives it so much warmth. Hand knit?&#39;, 57, 40, [
+      [&#39;softcorner&#39;, &#39;My grandmother made it decades ago 🧶&#39;, 49, 35],
+    ]],
+  ],
+  p2: [
+    [&#39;morningmara&#39;, &#39;Making my bed right after I get up. Takes 60 seconds and the room instantly feels calmer.&#39;, 1320, 180, [
+      [&#39;skepticsam&#39;, &#39;I resisted this for years and you are right, annoyingly.&#39;, 402, 170, [
+        [&#39;morningmara&#39;, &#39;It’s the smallest possible win, which is exactly why it works.&#39;, 211, 160, [
+          [&#39;habitnerd&#39;, &#39;There’s research on this, sort of. Small completed tasks build momentum for bigger ones.&#39;, 140, 150, [
+            [&#39;skepticsam&#39;, &#39;Source? Genuinely curious, not being snarky.&#39;, 38, 140, [
+              [&#39;habitnerd&#39;, &#39;Search for “behavioral momentum”. It’s more about streaks than beds specifically.&#39;, 52, 130, [
+                [&#39;curiousbird&#39;, &#39;This thread is exactly what I hoped for, thank you all.&#39;, 66, 120],
+              ]],
+            ]],
+          ]],
+        ]],
+      ]],
+      [&#39;nightshiftnia&#39;, &#39;Works for night shift too, I make it when I wake up at 3 pm 😄&#39;, 188, 165],
+    ]],
+    [&#39;walkingwill&#39;, &#39;A ten minute walk after lunch. No podcast, no phone.&#39;, 860, 175, [
+      [&#39;deskboundd&#39;, &#39;The “no podcast” part is the hard bit for me.&#39;, 230, 150, [
+        [&#39;walkingwill&#39;, &#39;Start with one day a week. Your brain gets used to the quiet.&#39;, 120, 140],
+      ]],
+    ]],
+    [&#39;hydrohank&#39;, &#39;Glass of water before coffee. That’s it, that’s the habit.&#39;, 540, 160],
+    [&#39;journaljo&#39;, &#39;Writing three lines in a notebook before bed. Not a journal, just three lines.&#39;, 310, 110, [
+      [&#39;quietquill&#39;, &#39;Three lines is so much less intimidating than a full page. Stealing this.&#39;, 95, 90],
+    ]],
+  ],
+  p3: [
+    [&#39;goldenhourgus&#39;, &#39;Timing is everything and you nailed it.&#39;, 156, 280, [
+      [&#39;bluehour&#39;, &#39;Thanks! I almost didn’t stop to take it.&#39;, 72, 270],
+    ]],
+    [&#39;pixelpeeper&#39;, &#39;Phone cameras have gotten so good. Which phone?&#39;, 61, 250, [
+      [&#39;bluehour&#39;, &#39;A three year old one honestly, I just tapped to expose for the sky.&#39;, 58, 240, [
+        [&#39;pixelpeeper&#39;, &#39;That tip alone improves 90% of sunset photos.&#39;, 44, 230],
+      ]],
+    ]],
+  ],
+  p4: [
+    [&#39;beanqueen&#39;, &#39;Made this tonight with chickpeas instead. Ten out of ten.&#39;, 88, 380, [
+      [&#39;panandspoon&#39;, &#39;Love that swap. A pinch of smoked paprika works great with chickpeas too.&#39;, 41, 360],
+    ]],
+    [&#39;lemonlover&#39;, &#39;A lot of lemon is the correct amount of lemon.&#39;, 120, 400],
+  ],
+  p5: [
+    [&#39;kerningkat&#39;, &#39;The rounded joins really help at 16px. Have you tested them on dark backgrounds?&#39;, 77, 560, [
+      [&#39;marlowmakes&#39;, &#39;Not yet! Good call, the stroke might look heavier there.&#39;, 40, 540, [
+        [&#39;optical_oli&#39;, &#39;It will. Try a 1.5 stroke variant for dark mode, lots of sets do that.&#39;, 33, 500],
+      ]],
+    ]],
+    [&#39;gridgremlin&#39;, &#39;Consistent corner radius across the whole set, chef’s kiss.&#39;, 52, 520],
+  ],
+  p6: [
+    [&#39;reelrosa&#39;, &#39;Spirited Away. Every time.&#39;, 402, 1250, [
+      [&#39;totorofan&#39;, &#39;Seconded. The bathhouse sequence still gets me.&#39;, 160, 1200],
+    ]],
+    [&#39;plottwistpat&#39;, &#39;Anything with a twist you can’t unsee.&#39;, 230, 1220],
+  ],
+  p7: [
+    [&#39;aroidaddict&#39;, &#39;The first split leaf is the best feeling. Congrats!&#39;, 320, 70, [
+      [&#39;fernandez_grows&#39;, &#39;I may have screamed a little.&#39;, 210, 65, [
+        [&#39;aroidaddict&#39;, &#39;Completely valid response.&#39;, 120, 60],
+      ]],
+    ]],
+    [&#39;crispyleaf&#39;, &#39;What kind of light does it get?&#39;, 45, 50, [
+      [&#39;fernandez_grows&#39;, &#39;East window, about three feet back. Morning sun only.&#39;, 40, 45],
+    ]],
+  ],
+  p8: [
+    [&#39;soilscientist&#39;, &#39;Usually fluoride or salt buildup from tap water. Try filtered or rainwater for a while.&#39;, 64, 240, [
+      [&#39;crispyleaf&#39;, &#39;I do use tap water. Will switch, thanks!&#39;, 20, 230],
+      [&#39;overwaterer&#39;, &#39;Also check the roots. Mine had rot even on a two week schedule.&#39;, 31, 200],
+    ]],
+  ],
+  p9: [
+    [&#39;boardgamebex&#39;, &#39;Whoever wins has to explain the rules of the next game. Keeps winners humble.&#39;, 188, 500, [
+      [&#39;meeplewhisperer&#39;, &#39;That is diabolical and I love it.&#39;, 90, 480],
+    ]],
+  ],
+  p11: [
+    [&#39;stargazer_sol&#39;, &#39;That gasp is a rite of passage. Welcome to the hobby!&#39;, 812, 40, [
+      [&#39;nightowl_optics&#39;, &#39;I genuinely didn’t think a cheap scope could do that.&#39;, 420, 38, [
+        [&#39;stargazer_sol&#39;, &#39;Small refractors are amazing on planets. Jupiter’s moons next!&#39;, 300, 35, [
+          [&#39;moonmapper&#39;, &#39;And the Moon terminator. Craters along the shadow line look 3D.&#39;, 210, 30, [
+            [&#39;nightowl_optics&#39;, &#39;Adding all of this to my list. You all are the best.&#39;, 150, 25, [
+              [&#39;stargazer_sol&#39;, &#39;Clear skies! Post your Jupiter sketch when you get it.&#39;, 90, 20, [
+                [&#39;nightowl_optics&#39;, &#39;Deal 🔭&#39;, 70, 15],
+              ]],
+            ]],
+          ]],
+        ]],
+      ]],
+    ]],
+    [&#39;lightyearlaura&#39;, &#39;Okay this convinces me. What should I look for at a garage sale?&#39;, 260, 30, [
+      [&#39;moonmapper&#39;, &#39;A sturdy mount matters more than magnification. Avoid anything that advertises “500x”.&#39;, 230, 26],
+    ]],
+  ],
+  p12: [
+    [&#39;astro_ari&#39;, &#39;Yes, we always see the past. For most stars it’s a few hundred years, which is basically nothing for a star.&#39;, 410, 700, [
+      [&#39;lightyearlaura&#39;, &#39;So the star probably looks the same now?&#39;, 120, 680, [
+        [&#39;astro_ari&#39;, &#39;Almost certainly. Stars change over millions of years, not hundreds.&#39;, 140, 660],
+      ]],
+    ]],
+  ],
+  p14: [
+    [&#39;crumbshot&#39;, &#39;Crumb shot or it didn’t happen 😄&#39;, 300, 1900, [
+      [&#39;breadwinner&#39;, &#39;Fair! Open, glossy and only slightly gummy in the middle.&#39;, 210, 1880],
+    ]],
+  ],
+  p15: [
+    [&#39;typefacetom&#39;, &#39;Two weights, sure. But you need a good italic.&#39;, 66, 1400],
+  ],
+};
+
+export const COMMENTS: Comment[] = Object.entries(TREES).flatMap(([postId, seeds]) =&gt; {
+  const out: Comment[] = [];
+  const walk = (list: Seed[], parentId: string | null) =&gt;
+    list.forEach(([author, text, votes, minutes, replies], index) =&gt; {
+      const id = `${parentId ?? postId}-${index}`;
+      out.push({ id, postId, parentId, author, text, votes, ts: ago(minutes) });
+      if (replies) walk(replies, id);
+    });
+  walk(seeds, null);
+  return out;
+});
+
+export const NOTICES: Notice[] = [
+  { id: &#39;n1&#39;, kind: &#39;reply&#39;, text: &#39;u/stargazer_sol replied to a post you follow in t/curiouscosmos&#39;, postId: &#39;p11&#39;, ts: ago(20) },
+  { id: &#39;n2&#39;, kind: &#39;upvote&#39;, text: &#39;Your comment in t/askhere reached 100 upvotes&#39;, postId: &#39;p2&#39;, ts: ago(150) },
+  { id: &#39;n3&#39;, kind: &#39;community&#39;, text: &#39;Trending in t/plantparents: My monstera finally put out a fenestrated leaf!&#39;, postId: &#39;p7&#39;, ts: ago(70) },
+  { id: &#39;n4&#39;, kind: &#39;reply&#39;, text: &#39;u/softcorner replied: “My grandmother made it decades ago”&#39;, postId: &#39;p1&#39;, ts: ago(35) },
+  { id: &#39;n5&#39;, kind: &#39;community&#39;, text: &#39;Popular in t/homecooking: First loaf that didn’t come out like a brick&#39;, postId: &#39;p14&#39;, ts: ago(1800) },
+];
+</code></pre></section><section id="file-2"><h2>index.ts</h2><pre><code>import { registerRootComponent } from &#39;expo&#39;;
+import App from &#39;./App&#39;;
+
+registerRootComponent(App);
+</code></pre></section></main></body></html>

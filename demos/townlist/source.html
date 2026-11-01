@@ -1,0 +1,3408 @@
+<!doctype html>
+<html lang="en"><head><!--plocks-demo-seo--><title>Townlist demo source | plocks</title><meta name="description" content="Browse the source code for the Townlist demo built with plocks."/><link rel="canonical" href="https://plocks.dev/demos/townlist/source.html"/><!--/plocks-demo-seo--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>body{margin:0;background:#111319;color:#eef0f3;font:15px system-ui,sans-serif}header{padding:24px;position:sticky;top:0;background:#1b1e26;border-bottom:1px solid #353a46}h1{font-size:20px;margin:0 0 12px}nav{display:flex;gap:12px;flex-wrap:wrap}a{color:#9dbeff}main{max-width:1100px;margin:auto;padding:24px}section{margin-bottom:32px;scroll-margin-top:130px}h2{font-size:18px}pre{overflow:auto;background:#1b1e26;border:1px solid #353a46;border-radius:10px;padding:18px;line-height:1.5}code{font:13px ui-monospace,SFMono-Regular,monospace}</style>
+</head><body><header><h1>townlist source</h1><nav><a href="/demos/townlist/">Open live demo</a><a href="#file-0">App.tsx</a><a href="#file-1">components.tsx</a><a href="#file-2">data.ts</a><a href="#file-3">index.ts</a><a href="#file-4">screens/Categories.tsx</a><a href="#file-5">screens/Cities.tsx</a><a href="#file-6">screens/Home.tsx</a><a href="#file-7">screens/ListingView.tsx</a><a href="#file-8">screens/Messages.tsx</a><a href="#file-9">screens/Post.tsx</a><a href="#file-10">screens/Results.tsx</a><a href="#file-11">screens/Saved.tsx</a><a href="#file-12">store.tsx</a><a href="#file-13">theme.ts</a></nav></header><main><section id="file-0"><h2>App.tsx</h2><pre><code>import { StatusBar } from &#39;react-native&#39;;
+import { SafeAreaProvider } from &#39;react-native-safe-area-context&#39;;
+import { Badge, Block, DEFAULT_THEME, Icon, PlocksProvider, SafeArea, Text } from &#39;@plocks/ui&#39;;
+import { C } from &#39;./theme&#39;;
+import { SECTIONS } from &#39;./data&#39;;
+import { StoreProvider, useStore, type Route, type Tab } from &#39;./store&#39;;
+import { useWide } from &#39;./components&#39;;
+import { Home } from &#39;./screens/Home&#39;;
+import { Categories } from &#39;./screens/Categories&#39;;
+import { Cities } from &#39;./screens/Cities&#39;;
+import { Results } from &#39;./screens/Results&#39;;
+import { ListingView } from &#39;./screens/ListingView&#39;;
+import { Messages } from &#39;./screens/Messages&#39;;
+import { Saved } from &#39;./screens/Saved&#39;;
+import { Post } from &#39;./screens/Post&#39;;
+
+/** Purple primary ramp so built-in controls (FileInput, focus rings, Select) match the brand. */
+const THEME = {
+  colorScheme: &#39;light&#39; as const,
+  primaryColor: C.purple,
+  colors: {
+    ...DEFAULT_THEME.colors,
+    primary: [&#39;#F6F1FB&#39;, &#39;#EEE8F5&#39;, &#39;#DCCDEB&#39;, &#39;#C2A8DC&#39;, &#39;#8E68B6&#39;, C.purple, &#39;#4F2479&#39;, &#39;#43206A&#39;, &#39;#381A59&#39;, &#39;#2C1446&#39;],
+  },
+};
+
+const TABS: { key: Tab; label: string; icon: string }[] = [
+  { key: &#39;browse&#39;, label: &#39;browse&#39;, icon: &#39;search&#39; },
+  { key: &#39;saved&#39;, label: &#39;saved&#39;, icon: &#39;star&#39; },
+  { key: &#39;post&#39;, label: &#39;post&#39;, icon: &#39;plus&#39; },
+  { key: &#39;messages&#39;, label: &#39;messages&#39;, icon: &#39;message&#39; },
+];
+
+function RouteView({ route }: { route: Route }) {
+  switch (route.name) {
+    case &#39;home&#39;:
+      return &lt;Home /&gt;;
+    case &#39;categories&#39;:
+      return &lt;Categories section={route.section} /&gt;;
+    case &#39;cities&#39;:
+      return &lt;Cities /&gt;;
+    case &#39;results&#39;:
+      return &lt;Results initial={route.filter} /&gt;;
+    case &#39;listing&#39;:
+      return &lt;ListingView id={route.id} /&gt;;
+    case &#39;threads&#39;:
+      return &lt;Messages /&gt;;
+    case &#39;thread&#39;:
+      return &lt;Messages openId={route.id} /&gt;;
+    case &#39;saved&#39;:
+      return &lt;Saved /&gt;;
+    case &#39;post&#39;:
+      return &lt;Post /&gt;;
+  }
+}
+
+function routeKey(route: Route) {
+  switch (route.name) {
+    case &#39;listing&#39;:
+    case &#39;thread&#39;:
+      return `${route.name}:${route.id}`;
+    case &#39;categories&#39;:
+      return `categories:${route.section ?? &#39;&#39;}`;
+    case &#39;results&#39;:
+      return `results:${JSON.stringify(route.filter)}`;
+    default:
+      return route.name;
+  }
+}
+
+function TabButton({ item, vertical }: { item: (typeof TABS)[number]; vertical?: boolean }) {
+  const store = useStore();
+  const active = store.tab === item.key;
+  const count = item.key === &#39;messages&#39; ? store.unread : 0;
+  return (
+    &lt;Block
+      onPress={() =&gt; store.goTab(item.key)}
+      accessibilityRole=&quot;tab&quot;
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={count ? `${item.label}, ${count} unread` : item.label}
+      flex={vertical ? undefined : 1}
+      direction={vertical ? &#39;row&#39; : &#39;column&#39;}
+      align=&quot;center&quot;
+      gap={vertical ? 10 : 2}
+      py={vertical ? 9 : 7}
+      px={vertical ? 12 : 0}
+      radius={vertical ? 6 : 0}
+      bg={vertical &amp;&amp; active ? C.tint : undefined}
+      pressedStyle={{ opacity: 0.6 }}
+    &gt;
+      &lt;Block gap={0} position=&quot;relative&quot;&gt;
+        &lt;Icon name={item.icon} variant={active ? &#39;filled&#39; : &#39;outlined&#39;} color={active ? C.purple : C.muted} size={vertical ? 19 : 22} /&gt;
+        {count &gt; 0 &amp;&amp; !vertical &amp;&amp; (
+          &lt;Block gap={0} position=&quot;absolute&quot; top={-5} right={-10}&gt;
+            &lt;Badge size=&quot;xs&quot; variant=&quot;filled&quot; color={C.red}&gt;
+              {count}
+            &lt;/Badge&gt;
+          &lt;/Block&gt;
+        )}
+      &lt;/Block&gt;
+      &lt;Text c={active ? C.purple : C.muted} fw={active ? &#39;bold&#39; : &#39;semibold&#39;} size={vertical ? 14 : 11} flex={vertical ? 1 : undefined}&gt;
+        {item.label}
+      &lt;/Text&gt;
+      {count &gt; 0 &amp;&amp; vertical &amp;&amp; (
+        &lt;Badge size=&quot;xs&quot; variant=&quot;filled&quot; color={C.red}&gt;
+          {count}
+        &lt;/Badge&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+function Sidebar() {
+  const store = useStore();
+  return (
+    &lt;Block w={220} gap={4} p={16} borderRightWidth={1} borderRightColor={C.line} bg={C.paler}&gt;
+      &lt;Text c={C.purple} fw=&quot;bold&quot; size={26} lts={-0.6} mb={2} onPress={() =&gt; store.goTab(&#39;browse&#39;, true)}&gt;
+        townlist
+      &lt;/Text&gt;
+      &lt;Text c={C.link} size={12} mb={14} onPress={() =&gt; store.openIn(&#39;browse&#39;, { name: &#39;cities&#39; })}&gt;
+        {store.city.name}
+        {store.radius ? ` +${store.radius}mi` : &#39;&#39;} · change
+      &lt;/Text&gt;
+      {TABS.map((item) =&gt; (
+        &lt;TabButton key={item.key} item={item} vertical /&gt;
+      ))}
+      &lt;Block gap={0} h={1} bg={C.line} my={14} /&gt;
+      &lt;Text c={C.muted} fw=&quot;bold&quot; size={11} lts={0.8} mb={4}&gt;
+        CATEGORIES
+      &lt;/Text&gt;
+      {SECTIONS.map((section) =&gt; (
+        &lt;Text
+          key={section.id}
+          c={C.link}
+          size={14}
+          lh={24}
+          onPress={() =&gt; store.openIn(&#39;browse&#39;, { name: &#39;categories&#39;, section: section.id })}
+        &gt;
+          {section.label}
+        &lt;/Text&gt;
+      ))}
+      &lt;Block gap={0} flex={1} /&gt;
+      &lt;Text c={C.faint} size={11} lh={16}&gt;
+        a fictional classifieds demo built with plocks. nothing leaves this device.
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function Shell() {
+  const store = useStore();
+  const wide = useWide();
+  return (
+    &lt;SafeArea gap={0} flex={1} bg={wide ? C.pale : C.white}&gt;
+      &lt;StatusBar barStyle=&quot;dark-content&quot; /&gt;
+      &lt;Block gap={0} flex={1} direction={wide ? &#39;row&#39; : &#39;column&#39;} w=&quot;100%&quot; maw={1320} alignSelf=&quot;center&quot; bg={C.white}&gt;
+        {wide &amp;&amp; &lt;Sidebar /&gt;}
+        &lt;Block gap={0} flex={1} miw={0}&gt;
+          &lt;RouteView key={`${store.tab}:${routeKey(store.route)}`} route={store.route} /&gt;
+        &lt;/Block&gt;
+        {!wide &amp;&amp; (
+          &lt;Block gap={0} direction=&quot;row&quot; borderTopWidth={1} borderTopColor={C.line} bg={C.white} accessibilityRole=&quot;tablist&quot;&gt;
+            {TABS.map((item) =&gt; (
+              &lt;TabButton key={item.key} item={item} /&gt;
+            ))}
+          &lt;/Block&gt;
+        )}
+      &lt;/Block&gt;
+    &lt;/SafeArea&gt;
+  );
+}
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;PlocksProvider theme={THEME}&gt;
+        &lt;StoreProvider&gt;
+          &lt;Shell /&gt;
+        &lt;/StoreProvider&gt;
+      &lt;/PlocksProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</code></pre></section><section id="file-1"><h2>components.tsx</h2><pre><code>/** Shared Townlist building blocks. */
+import type { ReactNode } from &#39;react&#39;;
+import { useWindowDimensions } from &#39;react-native&#39;;
+import { Badge, Block, Icon, IconButton, Image, ScrollArea, Text } from &#39;@plocks/ui&#39;;
+import { C, WIDE } from &#39;./theme&#39;;
+import { ageText, cityById, photoSource, priceText, sectionById, type Listing } from &#39;./data&#39;;
+import { useStore } from &#39;./store&#39;;
+
+export const useWide = () =&gt; useWindowDimensions().width &gt;= WIDE;
+
+export function TopBar({
+  title,
+  subtitle,
+  onBack,
+  right,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  onBack?: () =&gt; void;
+  right?: ReactNode;
+}) {
+  return (
+    &lt;Block
+      gap={6}
+      direction=&quot;row&quot;
+      align=&quot;center&quot;
+      mih={54}
+      px={onBack ? 6 : 16}
+      pr={10}
+      bg={C.white}
+      borderBottomWidth={1}
+      borderBottomColor={C.line}
+    &gt;
+      {onBack &amp;&amp; (
+        &lt;IconButton icon=&quot;chevron-left&quot; variant=&quot;ghost&quot; iconColor={C.purple} accessibilityLabel=&quot;Back&quot; onPress={onBack} /&gt;
+      )}
+      &lt;Block flex={1} miw={0} gap={0}&gt;
+        {typeof title === &#39;string&#39; ? (
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={17} numberOfLines={1}&gt;
+            {title}
+          &lt;/Text&gt;
+        ) : (
+          title
+        )}
+        {!!subtitle &amp;&amp; (
+          &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+            {subtitle}
+          &lt;/Text&gt;
+        )}
+      &lt;/Block&gt;
+      {right}
+    &lt;/Block&gt;
+  );
+}
+
+/** A scrolling page with a top bar and a centered content column. */
+export function Screen({
+  title,
+  subtitle,
+  right,
+  children,
+  maw = 880,
+  back,
+  footer,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  right?: ReactNode;
+  children: ReactNode;
+  maw?: number;
+  back?: boolean;
+  footer?: ReactNode;
+}) {
+  const store = useStore();
+  const wide = useWide();
+  return (
+    &lt;Block gap={0} flex={1} bg={C.white}&gt;
+      &lt;TopBar title={title} subtitle={subtitle} right={right} onBack={back &amp;&amp; store.canGoBack ? store.back : undefined} /&gt;
+      &lt;ScrollArea flex={1} keyboardShouldPersistTaps=&quot;handled&quot; contentProps={{ align: &#39;center&#39;, px: wide ? 24 : 14, pt: 14, pb: 40 }}&gt;
+        &lt;Block gap={0} w=&quot;100%&quot; maw={maw}&gt;
+          {children}
+        &lt;/Block&gt;
+      &lt;/ScrollArea&gt;
+      {footer}
+    &lt;/Block&gt;
+  );
+}
+
+export function SectionLabel({ children, right, mt = 18 }: { children: ReactNode; right?: ReactNode; mt?: number }) {
+  return (
+    &lt;Block gap={0} direction=&quot;row&quot; align=&quot;flex-end&quot; justify=&quot;space-between&quot; mt={mt} mb={6}&gt;
+      &lt;Text c={C.muted} fw=&quot;bold&quot; size={11} lts={0.8} tt=&quot;uppercase&quot;&gt;
+        {children}
+      &lt;/Text&gt;
+      {right}
+    &lt;/Block&gt;
+  );
+}
+
+export function Thumb({ listing, w, h, radius = 4 }: { listing: Listing; w: number | string; h: number; radius?: number }) {
+  const first = listing.photos[0];
+  if (first) return &lt;Image src={photoSource(first)} w={w as number} h={h} radius={radius} resizeMode=&quot;cover&quot; alt=&quot;&quot; /&gt;;
+  return (
+    &lt;Block gap={4} w={w as number} h={h} radius={radius} bg={C.pale} align=&quot;center&quot; justify=&quot;center&quot; borderWidth={1} borderColor={C.line}&gt;
+      &lt;Icon name={sectionById(listing.section).icon} color={C.faint} size={Math.min(28, h / 3)} /&gt;
+      {h &gt; 70 &amp;&amp; (
+        &lt;Text c={C.faint} size={10}&gt;
+          no image
+        &lt;/Text&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+export function PriceTag({ listing, size = 13 }: { listing: Listing; size?: number }) {
+  const text = priceText(listing);
+  if (!text) return null;
+  return (
+    &lt;Block gap={0} px={6} py={1} radius={3} bg={listing.price === 0 ? C.greenPale : C.pale} alignSelf=&quot;flex-start&quot;&gt;
+      &lt;Text c={listing.price === 0 ? C.green : C.ink} fw=&quot;bold&quot; size={size}&gt;
+        {text}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+export function FavoriteButton({ id, size = 20 }: { id: string; size?: number }) {
+  const store = useStore();
+  const on = store.favorites.includes(id);
+  return (
+    &lt;IconButton
+      icon=&quot;star&quot;
+      iconVariant={on ? &#39;filled&#39; : &#39;outlined&#39;}
+      iconColor={on ? &#39;#D49A00&#39; : C.faint}
+      iconSize={size}
+      variant=&quot;ghost&quot;
+      size=&quot;sm&quot;
+      accessibilityLabel={on ? &#39;Remove from favorites&#39; : &#39;Add to favorites&#39;}
+      onPress={() =&gt; store.toggleFavorite(id)}
+    /&gt;
+  );
+}
+
+/** Dense list row, like the classic &quot;thumb&quot; results view. */
+export function ListingRow({ listing, onPress }: { listing: Listing; onPress: () =&gt; void }) {
+  const store = useStore();
+  const wide = useWide();
+  const city = cityById(listing.cityId);
+  const away = listing.cityId !== store.cityId;
+  const size = wide ? 92 : 78;
+  return (
+    &lt;Block
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={`View ${listing.title}`}
+      direction=&quot;row&quot;
+      gap={12}
+      py={10}
+      borderBottomWidth={1}
+      borderBottomColor={C.line}
+      pressedStyle={{ opacity: 0.7 }}
+    &gt;
+      &lt;Thumb listing={listing} w={size} h={size} /&gt;
+      &lt;Block flex={1} miw={0} gap={4}&gt;
+        &lt;Text c={C.link} fw=&quot;semibold&quot; size={15} lh={20} numberOfLines={2}&gt;
+          {listing.title}
+        &lt;/Text&gt;
+        &lt;Block gap={6} direction=&quot;row&quot; align=&quot;center&quot; wrap&gt;
+          &lt;PriceTag listing={listing} /&gt;
+          {listing.price === null &amp;&amp; !!listing.attrs[0] &amp;&amp; (
+            &lt;Text c={C.body} size={12} numberOfLines={1}&gt;
+              {listing.attrs[0].value}
+            &lt;/Text&gt;
+          )}
+        &lt;/Block&gt;
+        &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+          {listing.hood}
+          {away ? ` · ${city.name}` : &#39;&#39;} · {ageText(listing.postedAt)}
+          {listing.mine ? &#39; · your post&#39; : &#39;&#39;}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      &lt;Block gap={0} alignSelf=&quot;flex-start&quot;&gt;
+        &lt;FavoriteButton id={listing.id} /&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+
+/** Gallery tile for grid views. */
+export function ListingTile({ listing, w, onPress }: { listing: Listing; w: number; onPress: () =&gt; void }) {
+  return (
+    &lt;Block
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={`View ${listing.title}`}
+      w={w}
+      gap={0}
+      radius={6}
+      overflow=&quot;hidden&quot;
+      borderWidth={1}
+      borderColor={C.line}
+      bg={C.white}
+      pressedStyle={{ opacity: 0.7 }}
+    &gt;
+      &lt;Thumb listing={listing} w=&quot;100%&quot; h={Math.round(w * 0.72)} radius={0} /&gt;
+      &lt;Block gap={3} p={8}&gt;
+        &lt;Block gap={0} direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot; mih={22}&gt;
+          &lt;PriceTag listing={listing} size={12} /&gt;
+          &lt;Text c={C.faint} size={11}&gt;
+            {ageText(listing.postedAt)}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+        &lt;Text c={C.link} fw=&quot;semibold&quot; size={13} lh={17} numberOfLines={2}&gt;
+          {listing.title}
+        &lt;/Text&gt;
+        &lt;Text c={C.muted} size={11} numberOfLines={1}&gt;
+          {listing.hood}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+
+/** A drawn, approximate-location map tile (no map service needed). */
+export function MapBlock({ hood, cityId, h = 170 }: { hood: string; cityId: string; h?: number }) {
+  const city = cityById(cityId);
+  const seed = [...hood].reduce((sum, ch) =&gt; sum + ch.charCodeAt(0), 0);
+  const pinX = 30 + (seed % 40);
+  const pinY = 30 + ((seed * 7) % 35);
+  return (
+    &lt;Block gap={0} h={h} radius={6} overflow=&quot;hidden&quot; bg={C.map} borderWidth={1} borderColor={C.line} position=&quot;relative&quot;&gt;
+      &lt;Block gap={0} position=&quot;absolute&quot; left=&quot;-10%&quot; top=&quot;62%&quot; w=&quot;70%&quot; h=&quot;60%&quot; radius={200} bg={C.mapWater} /&gt;
+      &lt;Block gap={0} position=&quot;absolute&quot; left=&quot;68%&quot; top=&quot;8%&quot; w=&quot;22%&quot; h=&quot;34%&quot; radius={10} bg={C.mapPark} /&gt;
+      {[18, 46, 78].map((top) =&gt; (
+        &lt;Block key={`h${top}`} gap={0} position=&quot;absolute&quot; left={0} right={0} top={`${top}%`} h={top === 46 ? 7 : 4} bg={C.mapRoad} /&gt;
+      ))}
+      {[22, 52, 84].map((left) =&gt; (
+        &lt;Block key={`v${left}`} gap={0} position=&quot;absolute&quot; top={0} bottom={0} left={`${left}%`} w={left === 52 ? 7 : 4} bg={C.mapRoad} /&gt;
+      ))}
+      &lt;Block gap={0} position=&quot;absolute&quot; left={`${pinX}%`} top={`${pinY}%`} translateX={-43} translateY={-43} w={86} h={86} radius={43} bg=&quot;rgba(91,42,140,0.14)&quot; borderWidth={1} borderColor=&quot;rgba(91,42,140,0.35)&quot; align=&quot;center&quot; justify=&quot;center&quot;&gt;
+        &lt;Block gap={0} w={20} h={20} radius={10} bg={C.purple} borderWidth={3} borderColor={C.white} shadow=&quot;sm&quot; /&gt;
+      &lt;/Block&gt;
+      &lt;Block gap={0} position=&quot;absolute&quot; left={8} bottom={8} px={8} py={4} radius={4} bg=&quot;rgba(255,255,255,0.92)&quot;&gt;
+        &lt;Text c={C.ink} fw=&quot;semibold&quot; size={12}&gt;
+          {hood}, {city.name}
+        &lt;/Text&gt;
+        &lt;Text c={C.muted} size={10}&gt;
+          approximate location
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+
+export function EmptyNote({ icon, title, children }: { icon: string; title: string; children?: ReactNode }) {
+  return (
+    &lt;Block gap={8} align=&quot;center&quot; py={44} px={20}&gt;
+      &lt;Block gap={0} w={52} h={52} radius={26} bg={C.pale} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+        &lt;Icon name={icon} color={C.purple} size={24} /&gt;
+      &lt;/Block&gt;
+      &lt;Text c={C.ink} fw=&quot;semibold&quot; size={15} ta=&quot;center&quot;&gt;
+        {title}
+      &lt;/Text&gt;
+      {!!children &amp;&amp; (
+        &lt;Text c={C.muted} size={13} ta=&quot;center&quot; lh={19}&gt;
+          {children}
+        &lt;/Text&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+export function SectionBadge({ listing }: { listing: Listing }) {
+  return (
+    &lt;Badge size=&quot;xs&quot; variant=&quot;light&quot; color={C.purple}&gt;
+      {sectionById(listing.section).label}
+    &lt;/Badge&gt;
+  );
+}
+</code></pre></section><section id="file-2"><h2>data.ts</h2><pre><code>/** Fictional sample data for Townlist: areas, categories, listings, and message threads. */
+import type { ImageSourcePropType } from &#39;react-native&#39;;
+
+// ---------------------------------------------------------------- photos
+
+export const PHOTOS = {
+  bicycle: require(&#39;./assets/listings/bicycle.webp&#39;),
+  chairRoom: require(&#39;./assets/listings/chair-room.webp&#39;),
+  livingRoom: require(&#39;./assets/listings/living-room.webp&#39;),
+  apartment: require(&#39;./assets/listings/apartment.webp&#39;),
+  balcony: require(&#39;./assets/listings/balcony.webp&#39;),
+  desk: require(&#39;./assets/listings/desk.webp&#39;),
+  studio: require(&#39;./assets/listings/studio.webp&#39;),
+  cafe: require(&#39;./assets/listings/cafe.webp&#39;),
+} as const;
+export type PhotoKey = keyof typeof PHOTOS;
+export const PHOTO_KEYS = Object.keys(PHOTOS) as PhotoKey[];
+export const PHOTO_LABELS: Record&lt;PhotoKey, string&gt; = {
+  bicycle: &#39;Bicycle&#39;,
+  chairRoom: &#39;Reading nook&#39;,
+  livingRoom: &#39;Living room&#39;,
+  apartment: &#39;Apartment&#39;,
+  balcony: &#39;Balcony&#39;,
+  desk: &#39;Desk&#39;,
+  studio: &#39;Studio&#39;,
+  cafe: &#39;Café&#39;,
+};
+
+/** A listing photo: a bundled asset key or an image URI picked by the user. */
+export type Photo = { id: string; src: PhotoKey | string; caption?: string };
+export const photoSource = (photo: Photo): ImageSourcePropType | string =&gt;
+  photo.src in PHOTOS ? PHOTOS[photo.src as PhotoKey] : photo.src;
+
+// ---------------------------------------------------------------- areas
+
+export type Region = { id: string; label: string };
+export type City = { id: string; name: string; region: string; x: number; y: number; hoods: string[] };
+
+export const REGIONS: Region[] = [
+  { id: &#39;northwest&#39;, label: &#39;Northwest&#39; },
+  { id: &#39;west&#39;, label: &#39;West Coast&#39; },
+  { id: &#39;mountain&#39;, label: &#39;Mountain&#39; },
+  { id: &#39;midwest&#39;, label: &#39;Midwest&#39; },
+  { id: &#39;northeast&#39;, label: &#39;Northeast&#39; },
+  { id: &#39;south&#39;, label: &#39;South&#39; },
+];
+
+/** Positions are in miles on a flat map, used to compute &quot;nearby&quot; distances. */
+export const CITIES: City[] = [
+  { id: &#39;alder-bay&#39;, name: &#39;alder bay&#39;, region: &#39;northwest&#39;, x: 0, y: 0, hoods: [&#39;downtown&#39;, &#39;northside&#39;, &#39;midtown&#39;, &#39;west end&#39;, &#39;east village&#39;, &#39;riverside&#39;, &#39;harbor district&#39;, &#39;university hill&#39;] },
+  { id: &#39;millbrook&#39;, name: &#39;millbrook&#39;, region: &#39;northwest&#39;, x: 9, y: 8, hoods: [&#39;old town&#39;, &#39;mill district&#39;, &#39;brookside&#39;] },
+  { id: &#39;cedar-point&#39;, name: &#39;cedar point&#39;, region: &#39;northwest&#39;, x: -14, y: 16, hoods: [&#39;the point&#39;, &#39;lakeview&#39;, &#39;cedar heights&#39;] },
+  { id: &#39;fernwood&#39;, name: &#39;fernwood&#39;, region: &#39;northwest&#39;, x: 22, y: -19, hoods: [&#39;fern hollow&#39;, &#39;station square&#39;, &#39;south fernwood&#39;] },
+  { id: &#39;granite-falls&#39;, name: &#39;granite falls&#39;, region: &#39;northwest&#39;, x: 46, y: 31, hoods: [&#39;falls center&#39;, &#39;quarry hill&#39;] },
+  { id: &#39;port-juniper&#39;, name: &#39;port juniper&#39;, region: &#39;northwest&#39;, x: -58, y: 44, hoods: [&#39;the docks&#39;, &#39;juniper park&#39;, &#39;eastport&#39;] },
+  { id: &#39;kestrel-island&#39;, name: &#39;kestrel island&#39;, region: &#39;northwest&#39;, x: -92, y: -12, hoods: [&#39;ferry landing&#39;, &#39;north shore&#39;] },
+  { id: &#39;solana-vista&#39;, name: &#39;solana vista&#39;, region: &#39;west&#39;, x: 140, y: 690, hoods: [&#39;mission flats&#39;, &#39;vista heights&#39;, &#39;seawall&#39;] },
+  { id: &#39;mesa-linda&#39;, name: &#39;mesa linda&#39;, region: &#39;west&#39;, x: 210, y: 760, hoods: [&#39;arroyo&#39;, &#39;old mesa&#39;] },
+  { id: &#39;oak-hollow&#39;, name: &#39;oak hollow&#39;, region: &#39;west&#39;, x: 95, y: 540, hoods: [&#39;hollow center&#39;, &#39;vineyard row&#39;] },
+  { id: &#39;bayview-heights&#39;, name: &#39;bayview heights&#39;, region: &#39;west&#39;, x: 60, y: 610, hoods: [&#39;the heights&#39;, &#39;pier side&#39;] },
+  { id: &#39;ridgeway&#39;, name: &#39;ridgeway&#39;, region: &#39;mountain&#39;, x: 640, y: 420, hoods: [&#39;upper ridge&#39;, &#39;canyon road&#39;] },
+  { id: &#39;silver-fork&#39;, name: &#39;silver fork&#39;, region: &#39;mountain&#39;, x: 720, y: 360, hoods: [&#39;mine row&#39;, &#39;riverbend&#39;] },
+  { id: &#39;pinecrest&#39;, name: &#39;pinecrest&#39;, region: &#39;mountain&#39;, x: 590, y: 520, hoods: [&#39;pine center&#39;, &#39;trailhead&#39;] },
+  { id: &#39;lakeport&#39;, name: &#39;lakeport&#39;, region: &#39;midwest&#39;, x: 1520, y: 300, hoods: [&#39;lakefront&#39;, &#39;warehouse district&#39;, &#39;west lakeport&#39;] },
+  { id: &#39;prairie-junction&#39;, name: &#39;prairie junction&#39;, region: &#39;midwest&#39;, x: 1380, y: 420, hoods: [&#39;the junction&#39;, &#39;grain row&#39;] },
+  { id: &#39;cobalt-creek&#39;, name: &#39;cobalt creek&#39;, region: &#39;midwest&#39;, x: 1460, y: 510, hoods: [&#39;creekside&#39;, &#39;market square&#39;] },
+  { id: &#39;harborview&#39;, name: &#39;harborview&#39;, region: &#39;northeast&#39;, x: 2350, y: 210, hoods: [&#39;wharf&#39;, &#39;beacon hill&#39;, &#39;south harbor&#39;] },
+  { id: &#39;elm-hollow&#39;, name: &#39;elm hollow&#39;, region: &#39;northeast&#39;, x: 2290, y: 260, hoods: [&#39;the green&#39;, &#39;elm row&#39;] },
+  { id: &#39;stonebridge&#39;, name: &#39;stonebridge&#39;, region: &#39;northeast&#39;, x: 2240, y: 330, hoods: [&#39;bridge street&#39;, &#39;mill pond&#39;] },
+  { id: &#39;magnolia-springs&#39;, name: &#39;magnolia springs&#39;, region: &#39;south&#39;, x: 1850, y: 980, hoods: [&#39;the springs&#39;, &#39;old square&#39;] },
+  { id: &#39;bayou-cross&#39;, name: &#39;bayou cross&#39;, region: &#39;south&#39;, x: 1600, y: 1100, hoods: [&#39;crossroads&#39;, &#39;bayou side&#39;] },
+  { id: &#39;red-clay&#39;, name: &#39;red clay&#39;, region: &#39;south&#39;, x: 1980, y: 900, hoods: [&#39;clay hills&#39;, &#39;depot district&#39;] },
+];
+export const HOME_CITY = &#39;alder-bay&#39;;
+export const cityById = (id: string) =&gt; CITIES.find((city) =&gt; city.id === id) ?? CITIES[0];
+export const distance = (a: City, b: City) =&gt; Math.round(Math.hypot(a.x - b.x, a.y - b.y));
+
+// ---------------------------------------------------------------- categories
+
+export type SectionId = &#39;sale&#39; | &#39;housing&#39; | &#39;jobs&#39; | &#39;services&#39; | &#39;community&#39; | &#39;gigs&#39;;
+export type Sub = { id: string; label: string };
+export type Section = { id: SectionId; label: string; icon: string; blurb: string; subs: Sub[] };
+
+const subs = (labels: string[]): Sub[] =&gt; labels.map((label) =&gt; ({ id: label.replace(/[^a-z0-9]+/g, &#39;-&#39;), label }));
+
+export const SECTIONS: Section[] = [
+  {
+    id: &#39;sale&#39;,
+    label: &#39;for sale&#39;,
+    icon: &#39;shop&#39;,
+    blurb: &#39;furniture, bikes, electronics&#39;,
+    subs: subs([&#39;antiques&#39;, &#39;appliances&#39;, &#39;arts+crafts&#39;, &#39;baby+kid&#39;, &#39;bikes&#39;, &#39;books&#39;, &#39;cars+trucks&#39;, &#39;cell phones&#39;, &#39;clothes+acc&#39;, &#39;computers&#39;, &#39;electronics&#39;, &#39;farm+garden&#39;, &#39;free stuff&#39;, &#39;furniture&#39;, &#39;general&#39;, &#39;household&#39;, &#39;musical instruments&#39;, &#39;photo+video&#39;, &#39;sporting&#39;, &#39;tools&#39;, &#39;toys+games&#39;]),
+  },
+  {
+    id: &#39;housing&#39;,
+    label: &#39;housing&#39;,
+    icon: &#39;home&#39;,
+    blurb: &#39;apartments, rooms, sublets&#39;,
+    subs: subs([&#39;apts/housing&#39;, &#39;rooms/shared&#39;, &#39;sublets/temporary&#39;, &#39;housing wanted&#39;, &#39;housing swap&#39;, &#39;vacation rentals&#39;, &#39;parking/storage&#39;, &#39;office/commercial&#39;, &#39;real estate for sale&#39;]),
+  },
+  {
+    id: &#39;jobs&#39;,
+    label: &#39;jobs&#39;,
+    icon: &#39;package&#39;,
+    blurb: &#39;full time, part time, local&#39;,
+    subs: subs([&#39;admin/office&#39;, &#39;art/media/design&#39;, &#39;customer service&#39;, &#39;education&#39;, &#39;food/bev/hosp&#39;, &#39;general labor&#39;, &#39;healthcare&#39;, &#39;retail/wholesale&#39;, &#39;sales&#39;, &#39;skilled trade&#39;, &#39;software/qa&#39;, &#39;transport&#39;]),
+  },
+  {
+    id: &#39;services&#39;,
+    label: &#39;services&#39;,
+    icon: &#39;tuning&#39;,
+    blurb: &#39;repairs, lessons, moving&#39;,
+    subs: subs([&#39;automotive&#39;, &#39;beauty&#39;, &#39;computer&#39;, &#39;creative&#39;, &#39;cycle&#39;, &#39;event&#39;, &#39;household&#39;, &#39;labor/move&#39;, &#39;lessons&#39;, &#39;pet&#39;, &#39;skilled trade&#39;, &#39;write/ed/translate&#39;]),
+  },
+  {
+    id: &#39;community&#39;,
+    label: &#39;community&#39;,
+    icon: &#39;user&#39;,
+    blurb: &#39;events, groups, lost+found&#39;,
+    subs: subs([&#39;activities&#39;, &#39;artists&#39;, &#39;childcare&#39;, &#39;classes&#39;, &#39;events&#39;, &#39;general&#39;, &#39;groups&#39;, &#39;lost+found&#39;, &#39;musicians&#39;, &#39;pets&#39;, &#39;rideshare&#39;, &#39;volunteers&#39;]),
+  },
+  {
+    id: &#39;gigs&#39;,
+    label: &#39;gigs&#39;,
+    icon: &#39;bolt&#39;,
+    blurb: &#39;short jobs, odd jobs&#39;,
+    subs: subs([&#39;computer&#39;, &#39;creative&#39;, &#39;crew&#39;, &#39;domestic&#39;, &#39;event&#39;, &#39;labor&#39;, &#39;talent&#39;, &#39;writing&#39;]),
+  },
+];
+export const sectionById = (id: SectionId) =&gt; SECTIONS.find((section) =&gt; section.id === id) ?? SECTIONS[0];
+export const subLabel = (section: SectionId, sub: string) =&gt;
+  sectionById(section).subs.find((item) =&gt; item.id === sub)?.label ?? sub;
+export const sub = (label: string) =&gt; label.replace(/[^a-z0-9]+/g, &#39;-&#39;);
+
+// ---------------------------------------------------------------- post types
+
+export type PostType = { id: string; label: string; hint: string; section: SectionId };
+export const POST_TYPES: PostType[] = [
+  { id: &#39;owner&#39;, label: &#39;for sale by owner&#39;, hint: &quot;I&#39;m selling something I own&quot;, section: &#39;sale&#39; },
+  { id: &#39;dealer&#39;, label: &#39;for sale by dealer&#39;, hint: &quot;I&#39;m a business selling goods&quot;, section: &#39;sale&#39; },
+  { id: &#39;wanted&#39;, label: &#39;wanted by owner&#39;, hint: &quot;I&#39;m looking to buy something&quot;, section: &#39;sale&#39; },
+  { id: &#39;housing&#39;, label: &#39;housing offered&#39;, hint: &#39;I have a place to rent, sublet, or share&#39;, section: &#39;housing&#39; },
+  { id: &#39;housing-wanted&#39;, label: &#39;housing wanted&#39;, hint: &quot;I&#39;m looking for a place&quot;, section: &#39;housing&#39; },
+  { id: &#39;job&#39;, label: &#39;job offered&#39;, hint: &quot;I&#39;m hiring for a position&quot;, section: &#39;jobs&#39; },
+  { id: &#39;gig&#39;, label: &#39;gig offered&#39;, hint: &quot;I&#39;m hiring for a short-term or odd job&quot;, section: &#39;gigs&#39; },
+  { id: &#39;service&#39;, label: &#39;service offered&#39;, hint: &quot;I&#39;m offering a service&quot;, section: &#39;services&#39; },
+  { id: &#39;community&#39;, label: &#39;community&#39;, hint: &#39;groups, lost+found, rideshare, and more&#39;, section: &#39;community&#39; },
+  { id: &#39;event&#39;, label: &#39;event / class&#39;, hint: &quot;I&#39;m promoting an event or class&quot;, section: &#39;community&#39; },
+];
+export const postTypeById = (id: string) =&gt; POST_TYPES.find((type) =&gt; type.id === id) ?? POST_TYPES[0];
+
+// ---------------------------------------------------------------- listings
+
+export type Attr = { label: string; value: string };
+export type Listing = {
+  id: string;
+  title: string;
+  /** null when the post has no single price (jobs, events, wanted ads). */
+  price: number | null;
+  /** Shown after the price, such as &quot;/mo&quot; or &quot;/hr&quot;. */
+  per?: string;
+  section: SectionId;
+  sub: string;
+  postType: string;
+  cityId: string;
+  hood: string;
+  postedAt: number;
+  updatedAt?: number;
+  body: string;
+  photos: Photo[];
+  attrs: Attr[];
+  seller: string;
+  mine?: boolean;
+};
+
+const NOW = Date.now();
+const MIN = 60_000;
+const ago = (minutes: number) =&gt; NOW - minutes * MIN;
+const pics = (id: string, ...keys: PhotoKey[]): Photo[] =&gt; keys.map((key, index) =&gt; ({ id: `${id}-${index}`, src: key }));
+
+export const LISTINGS: Listing[] = [
+  {
+    id: &#39;7801&#39;, title: &#39;Commuter bike, 54cm, new tires&#39;, price: 220, section: &#39;sale&#39;, sub: sub(&#39;bikes&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;downtown&#39;, postedAt: ago(38), seller: &#39;Alex&#39;,
+    photos: pics(&#39;7801&#39;, &#39;bicycle&#39;),
+    attrs: [{ label: &#39;condition&#39;, value: &#39;excellent&#39; }, { label: &#39;bicycle type&#39;, value: &#39;hybrid/comfort&#39; }, { label: &#39;frame size&#39;, value: &#39;54 cm&#39; }, { label: &#39;make / manufacturer&#39;, value: &#39;Larkspur Cycles&#39; }, { label: &#39;model name / number&#39;, value: &#39;Metro 7&#39; }, { label: &#39;wheel size&#39;, value: &#39;700C&#39; }],
+    body: &#39;Reliable city bike I rode to work for two years. New tires and brake pads last month, shifts cleanly through all 7 gears. Comfortable upright seat, rear rack included.\n\nFits riders about 5\&#39;6&quot; to 5\&#39;11&quot;. Pickup near the downtown library. Cash or app payment.&#39;,
+  },
+  {
+    id: &#39;7802&#39;, title: &#39;Mid century lounge chair, fresh upholstery&#39;, price: 145, section: &#39;sale&#39;, sub: sub(&#39;furniture&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;northside&#39;, postedAt: ago(95), updatedAt: ago(20), seller: &#39;Morgan&#39;,
+    photos: pics(&#39;7802&#39;, &#39;chairRoom&#39;, &#39;livingRoom&#39;),
+    attrs: [{ label: &#39;condition&#39;, value: &#39;good&#39; }, { label: &#39;make / manufacturer&#39;, value: &#39;unknown&#39; }, { label: &#39;size / dimensions&#39;, value: &#39;30 x 32 x 31 in&#39; }, { label: &#39;color&#39;, value: &#39;walnut / mustard&#39; }],
+    body: &#39;Solid wood lounge chair, reupholstered last year in a mustard wool blend. A few small marks on the arms, otherwise lovely and very comfortable for reading.\n\nI\&#39;m on the second floor, you\&#39;ll need to carry it down. No holds without a deposit.&#39;,
+  },
+  {
+    id: &#39;7803&#39;, title: &#39;Sunny 1BR near the park, in-unit laundry&#39;, price: 1350, per: &#39;/mo&#39;, section: &#39;housing&#39;, sub: sub(&#39;apts/housing&#39;), postType: &#39;housing&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;midtown&#39;, postedAt: ago(140), seller: &#39;Dana&#39;,
+    photos: pics(&#39;7803&#39;, &#39;apartment&#39;, &#39;balcony&#39;, &#39;livingRoom&#39;),
+    attrs: [{ label: &#39;bedrooms&#39;, value: &#39;1BR / 1Ba&#39; }, { label: &#39;size&#39;, value: &#39;640 ft²&#39; }, { label: &#39;available&#39;, value: &#39;nov 15&#39; }, { label: &#39;laundry&#39;, value: &#39;w/d in unit&#39; }, { label: &#39;parking&#39;, value: &#39;street parking&#39; }, { label: &#39;pets&#39;, value: &#39;cats are OK - purrr&#39; }],
+    body: &#39;Bright corner one bedroom on the third floor with a small balcony facing the park. Hardwood floors, updated kitchen, washer and dryer in the unit.\n\nOne year lease, first month and deposit to move in. Water and trash included. Showings this weekend, message to pick a time.&#39;,
+  },
+  {
+    id: &#39;7804&#39;, title: &#39;35mm film camera with two lenses&#39;, price: 310, section: &#39;sale&#39;, sub: sub(&#39;photo+video&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;west end&#39;, postedAt: ago(60 * 20), seller: &#39;Jamie&#39;,
+    photos: pics(&#39;7804&#39;, &#39;studio&#39;),
+    attrs: [{ label: &#39;condition&#39;, value: &#39;like new&#39; }, { label: &#39;make / manufacturer&#39;, value: &#39;Orrin Optics&#39; }, { label: &#39;model name / number&#39;, value: &#39;OM-35 SLR&#39; }],
+    body: &#39;Well cared for 35mm SLR. Light meter works, shutter speeds sound right. Includes a 50mm f/1.8, a 28mm wide lens, strap, and a padded case.\n\nHappy to meet at a camera shop so you can test it.&#39;,
+  },
+  {
+    id: &#39;7805&#39;, title: &#39;Writing desk with two drawers&#39;, price: 85, section: &#39;sale&#39;, sub: sub(&#39;furniture&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;east village&#39;, postedAt: ago(60 * 26), seller: &#39;Riley&#39;,
+    photos: pics(&#39;7805&#39;, &#39;desk&#39;, &#39;studio&#39;),
+    attrs: [{ label: &#39;condition&#39;, value: &#39;good&#39; }, { label: &#39;size / dimensions&#39;, value: &#39;42 x 22 x 30 in&#39; }, { label: &#39;material&#39;, value: &#39;solid pine&#39; }],
+    body: &#39;Compact desk that fits a small bedroom office. Drawers slide smoothly. Light scratches on the top that you could sand out.&#39;,
+  },
+  {
+    id: &#39;7806&#39;, title: &#39;Part time café team member, mornings&#39;, price: null, section: &#39;jobs&#39;, sub: sub(&#39;food/bev/hosp&#39;), postType: &#39;job&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;downtown&#39;, postedAt: ago(60 * 30), seller: &#39;Little Corner Café&#39;,
+    photos: pics(&#39;7806&#39;, &#39;cafe&#39;),
+    attrs: [{ label: &#39;compensation&#39;, value: &#39;$18/hr plus tips&#39; }, { label: &#39;employment type&#39;, value: &#39;part-time&#39; }, { label: &#39;job title&#39;, value: &#39;barista / counter&#39; }],
+    body: &#39;Neighborhood café looking for a friendly teammate for weekday mornings, 6:30 to 11:30. Experience with espresso is a plus but we will train the right person.\n\nReply with a few lines about yourself and your availability.&#39;,
+  },
+  {
+    id: &#39;7807&#39;, title: &#39;Large monstera with ceramic pot&#39;, price: 45, section: &#39;sale&#39;, sub: sub(&#39;farm+garden&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;northside&#39;, postedAt: ago(60 * 44), seller: &#39;Taylor&#39;,
+    photos: pics(&#39;7807&#39;, &#39;balcony&#39;),
+    attrs: [{ label: &#39;condition&#39;, value: &#39;excellent&#39; }, { label: &#39;size / dimensions&#39;, value: &#39;about 4 ft tall&#39; }],
+    body: &#39;Healthy monstera with lots of new growth, moving and can\&#39;t take it. Comes in the cream ceramic pot. Bring a car with room.&#39;,
+  },
+  {
+    id: &#39;7808&#39;, title: &#39;Private room in friendly shared house&#39;, price: 790, per: &#39;/mo&#39;, section: &#39;housing&#39;, sub: sub(&#39;rooms/shared&#39;), postType: &#39;housing&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;riverside&#39;, postedAt: ago(60 * 50), seller: &#39;Casey&#39;,
+    photos: pics(&#39;7808&#39;, &#39;livingRoom&#39;, &#39;apartment&#39;),
+    attrs: [{ label: &#39;bedrooms&#39;, value: &#39;1 room / shared bath&#39; }, { label: &#39;available&#39;, value: &#39;dec 1&#39; }, { label: &#39;laundry&#39;, value: &#39;w/d in bldg&#39; }, { label: &#39;housemates&#39;, value: &#39;3&#39; }],
+    body: &#39;Furnished private room in a bright four bedroom house near the river trail. Utilities and internet included. We cook together sometimes and keep the shared spaces tidy.\n\nLooking for someone respectful who works or studies nearby.&#39;,
+  },
+  {
+    id: &#39;7809&#39;, title: &#39;Bike tune ups and flat repair, mobile&#39;, price: 35, section: &#39;services&#39;, sub: sub(&#39;cycle&#39;), postType: &#39;service&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;midtown&#39;, postedAt: ago(60 * 70), seller: &#39;Sam\&#39;s Spokes&#39;,
+    photos: pics(&#39;7809&#39;, &#39;bicycle&#39;),
+    attrs: [{ label: &#39;service type&#39;, value: &#39;cycle&#39; }, { label: &#39;rate&#39;, value: &#39;tune up from $35&#39; }],
+    body: &#39;I come to you. Basic tune up (brakes, gears, chain, tire pressure) from $35. Flat repair $15 plus tube. Evenings and weekends.&#39;,
+  },
+  {
+    id: &#39;7810&#39;, title: &#39;Weekend neighborhood book swap&#39;, price: null, section: &#39;community&#39;, sub: sub(&#39;events&#39;), postType: &#39;event&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;riverside&#39;, postedAt: ago(60 * 75), seller: &#39;Riverside Reading Circle&#39;,
+    photos: pics(&#39;7810&#39;, &#39;chairRoom&#39;),
+    attrs: [{ label: &#39;event date&#39;, value: &#39;saturday, 10am to noon&#39; }, { label: &#39;cost&#39;, value: &#39;free&#39; }],
+    body: &#39;Bring a book, take a book, meet your neighbors. Coffee and cookies at the community table next to the boathouse. Kids\&#39; books especially welcome.&#39;,
+  },
+  {
+    id: &#39;7811&#39;, title: &#39;Portable bluetooth speaker&#39;, price: 38, section: &#39;sale&#39;, sub: sub(&#39;electronics&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;downtown&#39;, postedAt: ago(60 * 98), seller: &#39;Chris&#39;,
+    photos: [],
+    attrs: [{ label: &#39;condition&#39;, value: &#39;good&#39; }, { label: &#39;make / manufacturer&#39;, value: &#39;Tidewave&#39; }, { label: &#39;model name / number&#39;, value: &#39;Pulse Mini&#39; }],
+    body: &#39;Compact speaker, about 10 hours of battery. Includes charging cable. Small scuff on the bottom.&#39;,
+  },
+  {
+    id: &#39;7812&#39;, title: &#39;Patient math tutoring, grades 6-12&#39;, price: 30, per: &#39;/hr&#39;, section: &#39;services&#39;, sub: sub(&#39;lessons&#39;), postType: &#39;service&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;university hill&#39;, postedAt: ago(60 * 100), seller: &#39;Pat&#39;,
+    photos: [],
+    attrs: [{ label: &#39;service type&#39;, value: &#39;lessons &amp; tutoring&#39; }, { label: &#39;rate&#39;, value: &#39;$30/hr&#39; }],
+    body: &#39;Former teacher offering patient, encouraging tutoring for middle and high school math through precalculus. In person at the library or online.&#39;,
+  },
+  {
+    id: &#39;7813&#39;, title: &#39;Free: moving boxes and packing paper&#39;, price: 0, section: &#39;sale&#39;, sub: sub(&#39;free stuff&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;harbor district&#39;, postedAt: ago(12), seller: &#39;Jordan&#39;,
+    photos: [],
+    attrs: [{ label: &#39;condition&#39;, value: &#39;good&#39; }],
+    body: &#39;About 30 boxes in mixed sizes plus a big bag of packing paper. On the porch, take what you need. I\&#39;ll delete the post when they\&#39;re gone.&#39;,
+  },
+  {
+    id: &#39;7814&#39;, title: &#39;Studio sublet, january to march&#39;, price: 1050, per: &#39;/mo&#39;, section: &#39;housing&#39;, sub: sub(&#39;sublets/temporary&#39;), postType: &#39;housing&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;west end&#39;, postedAt: ago(60 * 5), seller: &#39;Noa&#39;,
+    photos: pics(&#39;7814&#39;, &#39;studio&#39;, &#39;desk&#39;),
+    attrs: [{ label: &#39;bedrooms&#39;, value: &#39;studio / 1Ba&#39; }, { label: &#39;size&#39;, value: &#39;420 ft²&#39; }, { label: &#39;available&#39;, value: &#39;jan 2&#39; }, { label: &#39;furnished&#39;, value: &#39;yes&#39; }],
+    body: &#39;Fully furnished studio while I\&#39;m away for work. Fast internet, a real desk, and a quiet street. Utilities included. Short interview over video.&#39;,
+  },
+  {
+    id: &#39;7815&#39;, title: &#39;Graphic designer for a menu refresh&#39;, price: null, section: &#39;gigs&#39;, sub: sub(&#39;creative&#39;), postType: &#39;gig&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;east village&#39;, postedAt: ago(60 * 7), seller: &#39;Harbor Noodle Co.&#39;,
+    photos: [],
+    attrs: [{ label: &#39;compensation&#39;, value: &#39;$400 flat&#39; }, { label: &#39;gig type&#39;, value: &#39;paid&#39; }],
+    body: &#39;Small restaurant needs a cleaner, more readable menu (two pages, print and web). Please include a link to past work. Two week timeline.&#39;,
+  },
+  {
+    id: &#39;7816&#39;, title: &#39;Help moving a couch up two flights&#39;, price: null, section: &#39;gigs&#39;, sub: sub(&#39;labor&#39;), postType: &#39;gig&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;midtown&#39;, postedAt: ago(60 * 3), seller: &#39;Elliot&#39;,
+    photos: [],
+    attrs: [{ label: &#39;compensation&#39;, value: &#39;$60 for about an hour&#39; }, { label: &#39;gig type&#39;, value: &#39;paid&#39; }],
+    body: &#39;Need two strong people Sunday morning to bring a couch up to a third floor walkup. Should take under an hour.&#39;,
+  },
+  {
+    id: &#39;7817&#39;, title: &#39;Found: grey cat with a blue collar&#39;, price: null, section: &#39;community&#39;, sub: sub(&#39;lost+found&#39;), postType: &#39;community&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;northside&#39;, postedAt: ago(60 * 9), seller: &#39;Neighbor on Fir St&#39;,
+    photos: [],
+    attrs: [],
+    body: &#39;Friendly grey cat with a blue collar (no tag) hanging around Fir and 9th since Tuesday. Describe a distinguishing mark and I\&#39;ll send a photo.&#39;,
+  },
+  {
+    id: &#39;7818&#39;, title: &#39;Front desk coordinator, dental office&#39;, price: null, section: &#39;jobs&#39;, sub: sub(&#39;admin/office&#39;), postType: &#39;job&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;harbor district&#39;, postedAt: ago(60 * 52), seller: &#39;Harborside Dental&#39;,
+    photos: [],
+    attrs: [{ label: &#39;compensation&#39;, value: &#39;$22 to $25/hr&#39; }, { label: &#39;employment type&#39;, value: &#39;full-time&#39; }, { label: &#39;benefits&#39;, value: &#39;health, dental, PTO&#39; }],
+    body: &#39;Busy family practice hiring a friendly, organized front desk coordinator. Scheduling, check-in, and phones. Monday to Thursday.&#39;,
+  },
+  {
+    id: &#39;7819&#39;, title: &#39;Upright piano, you move&#39;, price: 0, section: &#39;sale&#39;, sub: sub(&#39;musical instruments&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;university hill&#39;, postedAt: ago(60 * 120), seller: &#39;Robin&#39;,
+    photos: [],
+    attrs: [{ label: &#39;condition&#39;, value: &#39;fair&#39; }, { label: &#39;make / manufacturer&#39;, value: &#39;Hallett &amp; Sons&#39; }],
+    body: &#39;Free upright piano, needs tuning. Ground floor, two steps to the driveway. You must bring movers.&#39;,
+  },
+  {
+    id: &#39;7820&#39;, title: &#39;Mesh office chair, adjustable arms&#39;, price: 60, section: &#39;sale&#39;, sub: sub(&#39;furniture&#39;), postType: &#39;dealer&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;downtown&#39;, postedAt: ago(60 * 140), seller: &#39;Second Shift Office Supply&#39;,
+    photos: pics(&#39;7820&#39;, &#39;desk&#39;),
+    attrs: [{ label: &#39;condition&#39;, value: &#39;excellent&#39; }, { label: &#39;make / manufacturer&#39;, value: &#39;Fulcrum&#39; }, { label: &#39;model name / number&#39;, value: &#39;Task 200&#39; }, { label: &#39;quantity&#39;, value: &#39;12 available&#39; }],
+    body: &#39;Refurbished office chairs from a downtown office move. Adjustable height, arms, and tilt. Showroom open weekdays 10 to 5.&#39;,
+  },
+  // nearby areas
+  {
+    id: &#39;7821&#39;, title: &#39;Two bedroom townhouse with garage&#39;, price: 1780, per: &#39;/mo&#39;, section: &#39;housing&#39;, sub: sub(&#39;apts/housing&#39;), postType: &#39;housing&#39;,
+    cityId: &#39;millbrook&#39;, hood: &#39;old town&#39;, postedAt: ago(60 * 4), seller: &#39;Brookside Property Co.&#39;,
+    photos: pics(&#39;7821&#39;, &#39;livingRoom&#39;, &#39;balcony&#39;),
+    attrs: [{ label: &#39;bedrooms&#39;, value: &#39;2BR / 1.5Ba&#39; }, { label: &#39;size&#39;, value: &#39;1,050 ft²&#39; }, { label: &#39;available&#39;, value: &#39;now&#39; }, { label: &#39;parking&#39;, value: &#39;attached garage&#39; }, { label: &#39;pets&#39;, value: &#39;dogs are OK - wooof&#39; }],
+    body: &#39;End unit townhouse with an attached garage and small yard. Dishwasher, gas range, washer/dryer hookups. Walk to the old town shops.&#39;,
+  },
+  {
+    id: &#39;7822&#39;, title: &#39;Kids balance bike&#39;, price: 25, section: &#39;sale&#39;, sub: sub(&#39;baby+kid&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;millbrook&#39;, hood: &#39;brookside&#39;, postedAt: ago(60 * 15), seller: &#39;Lee&#39;,
+    photos: pics(&#39;7822&#39;, &#39;bicycle&#39;),
+    attrs: [{ label: &#39;condition&#39;, value: &#39;good&#39; }, { label: &#39;size / dimensions&#39;, value: &#39;12 in wheels&#39; }],
+    body: &#39;Outgrown balance bike. Adjustable seat. Some stickers on the frame.&#39;,
+  },
+  {
+    id: &#39;7823&#39;, title: &#39;Cozy cabin weekend rental by the lake&#39;, price: 140, per: &#39;/night&#39;, section: &#39;housing&#39;, sub: sub(&#39;vacation rentals&#39;), postType: &#39;housing&#39;,
+    cityId: &#39;cedar-point&#39;, hood: &#39;lakeview&#39;, postedAt: ago(60 * 33), seller: &#39;Marisol&#39;,
+    photos: pics(&#39;7823&#39;, &#39;balcony&#39;, &#39;chairRoom&#39;),
+    attrs: [{ label: &#39;bedrooms&#39;, value: &#39;2BR / 1Ba&#39; }, { label: &#39;sleeps&#39;, value: &#39;4&#39; }],
+    body: &#39;Quiet cabin with a deck facing the water. Two night minimum. Kayaks available. No parties.&#39;,
+  },
+  {
+    id: &#39;7824&#39;, title: &#39;Line cook, evenings&#39;, price: null, section: &#39;jobs&#39;, sub: sub(&#39;food/bev/hosp&#39;), postType: &#39;job&#39;,
+    cityId: &#39;cedar-point&#39;, hood: &#39;the point&#39;, postedAt: ago(60 * 61), seller: &#39;Point Tavern&#39;,
+    photos: pics(&#39;7824&#39;, &#39;cafe&#39;),
+    attrs: [{ label: &#39;compensation&#39;, value: &#39;$21/hr + shared tips&#39; }, { label: &#39;employment type&#39;, value: &#39;full-time&#39; }],
+    body: &#39;Scratch kitchen hiring an evening line cook. One year of experience preferred. Family meal every shift.&#39;,
+  },
+  {
+    id: &#39;7825&#39;, title: &#39;Handyman: shelves, doors, small repairs&#39;, price: 55, per: &#39;/hr&#39;, section: &#39;services&#39;, sub: sub(&#39;skilled trade&#39;), postType: &#39;service&#39;,
+    cityId: &#39;fernwood&#39;, hood: &#39;station square&#39;, postedAt: ago(60 * 80), seller: &#39;Fernwood Fixit&#39;,
+    photos: [],
+    attrs: [{ label: &#39;service type&#39;, value: &#39;skilled trade&#39; }, { label: &#39;rate&#39;, value: &#39;$55/hr, 1 hr minimum&#39; }, { label: &#39;license&#39;, value: &#39;insured&#39; }],
+    body: &#39;Hanging shelves and TVs, sticky doors, drywall patches, furniture assembly. Reliable and tidy. Free estimates.&#39;,
+  },
+  {
+    id: &#39;7826&#39;, title: &#39;Community garden plots open for spring&#39;, price: null, section: &#39;community&#39;, sub: sub(&#39;groups&#39;), postType: &#39;community&#39;,
+    cityId: &#39;millbrook&#39;, hood: &#39;mill district&#39;, postedAt: ago(60 * 90), seller: &#39;Mill District Gardeners&#39;,
+    photos: pics(&#39;7826&#39;, &#39;balcony&#39;),
+    attrs: [{ label: &#39;cost&#39;, value: &#39;$20/season&#39; }],
+    body: &#39;We have six 10x10 plots open at the mill district garden. Water and tools included. Join our info session next Thursday.&#39;,
+  },
+  {
+    id: &#39;7827&#39;, title: &#39;Vintage record player, works great&#39;, price: 120, section: &#39;sale&#39;, sub: sub(&#39;electronics&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;granite-falls&#39;, hood: &#39;falls center&#39;, postedAt: ago(60 * 110), seller: &#39;Quinn&#39;,
+    photos: [],
+    attrs: [{ label: &#39;condition&#39;, value: &#39;good&#39; }, { label: &#39;make / manufacturer&#39;, value: &#39;Soundcraft Home&#39; }],
+    body: &#39;Belt drive turntable with built-in speakers. New belt and needle. Plays 33 and 45.&#39;,
+  },
+  // farther away
+  {
+    id: &#39;7828&#39;, title: &#39;Surfboard, 8 ft funboard&#39;, price: 260, section: &#39;sale&#39;, sub: sub(&#39;sporting&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;solana-vista&#39;, hood: &#39;seawall&#39;, postedAt: ago(60 * 6), seller: &#39;Kai&#39;,
+    photos: [],
+    attrs: [{ label: &#39;condition&#39;, value: &#39;good&#39; }, { label: &#39;size / dimensions&#39;, value: &quot;8&#39;0\&quot;&quot; }],
+    body: &#39;Great beginner board, a couple of repaired dings. Fins and leash included.&#39;,
+  },
+  {
+    id: &#39;7829&#39;, title: &#39;Loft apartment in the warehouse district&#39;, price: 1600, per: &#39;/mo&#39;, section: &#39;housing&#39;, sub: sub(&#39;apts/housing&#39;), postType: &#39;housing&#39;,
+    cityId: &#39;lakeport&#39;, hood: &#39;warehouse district&#39;, postedAt: ago(60 * 18), seller: &#39;Lakeport Lofts&#39;,
+    photos: pics(&#39;7829&#39;, &#39;studio&#39;, &#39;apartment&#39;),
+    attrs: [{ label: &#39;bedrooms&#39;, value: &#39;1BR / 1Ba&#39; }, { label: &#39;size&#39;, value: &#39;900 ft²&#39; }, { label: &#39;available&#39;, value: &#39;dec 1&#39; }],
+    body: &#39;Open loft with 14 ft ceilings and big windows. Brick walls, concrete floors, rooftop deck.&#39;,
+  },
+  // your own posts
+  {
+    id: &#39;7830&#39;, title: &#39;Oak bookshelf, five shelves&#39;, price: 70, section: &#39;sale&#39;, sub: sub(&#39;furniture&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;east village&#39;, postedAt: ago(60 * 28), seller: &#39;You&#39;, mine: true,
+    photos: pics(&#39;7830&#39;, &#39;livingRoom&#39;),
+    attrs: [{ label: &#39;condition&#39;, value: &#39;good&#39; }, { label: &#39;size / dimensions&#39;, value: &#39;36 x 12 x 72 in&#39; }],
+    body: &#39;Sturdy oak bookshelf. Comes apart into two pieces for moving. Smoke free home.&#39;,
+  },
+  {
+    id: &#39;7831&#39;, title: &#39;Sit-on-top kayak with paddle&#39;, price: 300, section: &#39;sale&#39;, sub: sub(&#39;sporting&#39;), postType: &#39;owner&#39;,
+    cityId: &#39;alder-bay&#39;, hood: &#39;east village&#39;, postedAt: ago(60 * 46), seller: &#39;You&#39;, mine: true,
+    photos: [],
+    attrs: [{ label: &#39;condition&#39;, value: &#39;excellent&#39; }, { label: &#39;size / dimensions&#39;, value: &#39;10 ft&#39; }],
+    body: &#39;Stable recreational kayak, used a handful of times on the bay. Paddle and dry bag included.&#39;,
+  },
+];
+
+// ---------------------------------------------------------------- messages
+
+export type Message = { id: string; from: &#39;me&#39; | &#39;them&#39;; text: string; at: number };
+export type Thread = {
+  id: string;
+  listingId: string;
+  /** The other person in the conversation. */
+  name: string;
+  role: &#39;buying&#39; | &#39;selling&#39;;
+  unread: number;
+  messages: Message[];
+};
+
+const msgs = (id: string, items: [Message[&#39;from&#39;], string, number][]): Message[] =&gt;
+  items.map(([from, text, minutesAgo], index) =&gt; ({ id: `${id}-${index}`, from, text, at: ago(minutesAgo) }));
+
+export const THREADS: Thread[] = [
+  {
+    id: &#39;t1&#39;, listingId: &#39;7802&#39;, name: &#39;Morgan&#39;, role: &#39;buying&#39;, unread: 1,
+    messages: msgs(&#39;t1&#39;, [
+      [&#39;me&#39;, &#39;Hi! Is the lounge chair still available?&#39;, 80],
+      [&#39;them&#39;, &#39;Yes it is. Are you able to pick up this week?&#39;, 62],
+      [&#39;me&#39;, &#39;I could come Saturday morning. Would you take $125?&#39;, 55],
+      [&#39;them&#39;, &#39;I can do $135 if you can get it down the stairs yourself. Saturday at 10 works.&#39;, 18],
+    ]),
+  },
+  {
+    id: &#39;t2&#39;, listingId: &#39;7830&#39;, name: &#39;Priya&#39;, role: &#39;selling&#39;, unread: 2,
+    messages: msgs(&#39;t2&#39;, [
+      [&#39;them&#39;, &#39;Hello, how deep are the shelves? Trying to fit oversized art books.&#39;, 300],
+      [&#39;me&#39;, &#39;Hi Priya, they are 11.5 inches deep inside.&#39;, 260],
+      [&#39;them&#39;, &#39;Perfect. Could I see it tomorrow after 5?&#39;, 40],
+      [&#39;them&#39;, &#39;Also, does it come apart? I have a hatchback.&#39;, 39],
+    ]),
+  },
+  {
+    id: &#39;t3&#39;, listingId: &#39;7803&#39;, name: &#39;Dana&#39;, role: &#39;buying&#39;, unread: 0,
+    messages: msgs(&#39;t3&#39;, [
+      [&#39;me&#39;, &#39;Hi Dana, I\&#39;m interested in the 1BR. Are you showing it this weekend?&#39;, 60 * 26],
+      [&#39;them&#39;, &#39;Hi! Showings are Saturday 1 to 3 and Sunday 11 to 1. Which works?&#39;, 60 * 24],
+      [&#39;me&#39;, &#39;Sunday at 11:30 please. Is a cat OK?&#39;, 60 * 23],
+      [&#39;them&#39;, &#39;Cats are fine with a $200 pet deposit. See you Sunday, unit 3C, buzz the front door.&#39;, 60 * 22],
+      [&#39;me&#39;, &#39;Great, see you then.&#39;, 60 * 22 - 5],
+    ]),
+  },
+  {
+    id: &#39;t4&#39;, listingId: &#39;7831&#39;, name: &#39;Wes&#39;, role: &#39;selling&#39;, unread: 0,
+    messages: msgs(&#39;t4&#39;, [
+      [&#39;them&#39;, &#39;would u take 150 for the kayak&#39;, 60 * 40],
+      [&#39;me&#39;, &#39;Thanks for the offer, but I\&#39;m firm at $300. It includes the paddle and dry bag.&#39;, 60 * 39],
+      [&#39;them&#39;, &#39;ok 200 cash today?&#39;, 60 * 39 - 10],
+      [&#39;me&#39;, &#39;I\&#39;ll pass for now, but I\&#39;ll let you know if it doesn\&#39;t sell.&#39;, 60 * 38],
+    ]),
+  },
+  {
+    id: &#39;t5&#39;, listingId: &#39;7806&#39;, name: &#39;Little Corner Café&#39;, role: &#39;buying&#39;, unread: 0,
+    messages: msgs(&#39;t5&#39;, [
+      [&#39;me&#39;, &#39;Hi, I have two years of barista experience and I\&#39;m free weekday mornings. Happy to send a resume.&#39;, 60 * 28],
+      [&#39;them&#39;, &#39;Thanks for reaching out! Could you come by Thursday at 2 for a quick chat and a trial shot?&#39;, 60 * 27],
+      [&#39;me&#39;, &#39;Thursday at 2 works. See you then!&#39;, 60 * 27 - 15],
+    ]),
+  },
+  {
+    id: &#39;t6&#39;, listingId: &#39;7809&#39;, name: &quot;Sam&#39;s Spokes&quot;, role: &#39;buying&#39;, unread: 0,
+    messages: msgs(&#39;t6&#39;, [
+      [&#39;me&#39;, &#39;Do you have time for a tune up on Wednesday evening? Downtown.&#39;, 60 * 70],
+      [&#39;them&#39;, &#39;Wednesday after 6 works. Send me the cross streets and I\&#39;ll text when I\&#39;m close.&#39;, 60 * 69],
+    ]),
+  },
+];
+
+// ---------------------------------------------------------------- formatting
+
+export const money = (value: number) =&gt; (value === 0 ? &#39;free&#39; : &#39;$&#39; + value.toLocaleString(&#39;en-US&#39;));
+export const priceText = (listing: Pick&lt;Listing, &#39;price&#39; | &#39;per&#39;&gt;) =&gt;
+  listing.price === null ? &#39;&#39; : money(listing.price) + (listing.price &gt; 0 &amp;&amp; listing.per ? listing.per : &#39;&#39;);
+
+export function ageText(at: number, now = Date.now()) {
+  const minutes = Math.max(0, Math.round((now - at) / MIN));
+  if (minutes &lt; 1) return &#39;just now&#39;;
+  if (minutes &lt; 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours &lt; 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? &#39;1 day ago&#39; : `${days} days ago`;
+}
+
+const MONTHS = [&#39;jan&#39;, &#39;feb&#39;, &#39;mar&#39;, &#39;apr&#39;, &#39;may&#39;, &#39;jun&#39;, &#39;jul&#39;, &#39;aug&#39;, &#39;sep&#39;, &#39;oct&#39;, &#39;nov&#39;, &#39;dec&#39;];
+export function dateText(at: number) {
+  const date = new Date(at);
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, &#39;0&#39;);
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}, ${hours % 12 || 12}:${minutes}${hours &lt; 12 ? &#39;am&#39; : &#39;pm&#39;}`;
+}
+
+export function clockText(at: number, now = Date.now()) {
+  const date = new Date(at);
+  const sameDay = new Date(now).toDateString() === date.toDateString();
+  if (sameDay) {
+    const hours = date.getHours();
+    return `${hours % 12 || 12}:${String(date.getMinutes()).padStart(2, &#39;0&#39;)} ${hours &lt; 12 ? &#39;am&#39; : &#39;pm&#39;}`;
+  }
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}`;
+}
+</code></pre></section><section id="file-3"><h2>index.ts</h2><pre><code>import { registerRootComponent } from &#39;expo&#39;;
+import App from &#39;./App&#39;;
+
+registerRootComponent(App);
+</code></pre></section><section id="file-4"><h2>screens/Categories.tsx</h2><pre><code>import type { ReactNode } from &#39;react&#39;;
+import { Block, Icon, Text } from &#39;@plocks/ui&#39;;
+import { C } from &#39;../theme&#39;;
+import { SECTIONS, sectionById, type SectionId } from &#39;../data&#39;;
+import { useStore } from &#39;../store&#39;;
+import { Screen, SectionLabel } from &#39;../components&#39;;
+import { CityButton, useCounts } from &#39;./Home&#39;;
+
+function Row({
+  label,
+  hint,
+  count,
+  icon,
+  strong,
+  onPress,
+}: {
+  label: string;
+  hint?: string;
+  count: number;
+  icon?: ReactNode;
+  strong?: boolean;
+  onPress: () =&gt; void;
+}) {
+  return (
+    &lt;Block
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={`${label}, ${count} posts`}
+      direction=&quot;row&quot;
+      align=&quot;center&quot;
+      gap={12}
+      py={hint ? 11 : 12}
+      px={4}
+      borderBottomWidth={1}
+      borderBottomColor={C.line}
+      pressedStyle={{ opacity: 0.6 }}
+    &gt;
+      {icon}
+      &lt;Block flex={1} miw={0} gap={1}&gt;
+        &lt;Text c={count || strong ? C.link : C.visited} fw={strong ? &#39;bold&#39; : &#39;semibold&#39;} size={15}&gt;
+          {label}
+        &lt;/Text&gt;
+        {!!hint &amp;&amp; (
+          &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+            {hint}
+          &lt;/Text&gt;
+        )}
+      &lt;/Block&gt;
+      &lt;Text c={count ? C.muted : C.faint} size={12}&gt;
+        {count}
+      &lt;/Text&gt;
+      &lt;Icon name=&quot;chevron-right&quot; color={C.faint} size={16} /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+export function Categories({ section }: { section?: SectionId }) {
+  const store = useStore();
+  const counts = useCounts();
+
+  if (section) {
+    const current = sectionById(section);
+    return (
+      &lt;Screen back title={current.label} subtitle={`${store.city.name} · ${counts[section] ?? 0} posts`} right={&lt;CityButton /&gt;} maw={680}&gt;
+        &lt;Row
+          strong
+          label={`all ${current.label}`}
+          count={counts[section] ?? 0}
+          onPress={() =&gt; store.push({ name: &#39;results&#39;, filter: { query: &#39;&#39;, section } })}
+        /&gt;
+        &lt;SectionLabel&gt;subcategories&lt;/SectionLabel&gt;
+        &lt;Block gap={0} borderTopWidth={1} borderTopColor={C.line}&gt;
+          {current.subs.map((item) =&gt; (
+            &lt;Row
+              key={item.id}
+              label={item.label}
+              count={counts[`${section}/${item.id}`] ?? 0}
+              onPress={() =&gt; store.push({ name: &#39;results&#39;, filter: { query: &#39;&#39;, section, sub: item.id } })}
+            /&gt;
+          ))}
+        &lt;/Block&gt;
+      &lt;/Screen&gt;
+    );
+  }
+
+  return (
+    &lt;Screen back title=&quot;categories&quot; subtitle={store.city.name} right={&lt;CityButton /&gt;} maw={680}&gt;
+      &lt;Block gap={0} borderTopWidth={1} borderTopColor={C.line}&gt;
+        {SECTIONS.map((item) =&gt; (
+          &lt;Row
+            key={item.id}
+            label={item.label}
+            hint={item.blurb}
+            count={counts[item.id] ?? 0}
+            icon={
+              &lt;Block gap={0} w={36} h={36} radius={18} bg={C.tint} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+                &lt;Icon name={item.icon} color={C.purple} size={18} /&gt;
+              &lt;/Block&gt;
+            }
+            onPress={() =&gt; store.push({ name: &#39;categories&#39;, section: item.id })}
+          /&gt;
+        ))}
+      &lt;/Block&gt;
+    &lt;/Screen&gt;
+  );
+}
+</code></pre></section><section id="file-5"><h2>screens/Cities.tsx</h2><pre><code>import { useMemo, useState } from &#39;react&#39;;
+import { Block, Icon, Input, Slider, Text } from &#39;@plocks/ui&#39;;
+import { C } from &#39;../theme&#39;;
+import { CITIES, REGIONS, distance, type City } from &#39;../data&#39;;
+import { useStore } from &#39;../store&#39;;
+import { Screen, SectionLabel } from &#39;../components&#39;;
+
+const RADII = [0, 5, 10, 25, 50, 100];
+
+export function Cities() {
+  const store = useStore();
+  const [query, setQuery] = useState(&#39;&#39;);
+  const q = query.trim().toLowerCase();
+  const matches = (city: City) =&gt; !q || city.name.includes(q) || city.hoods.some((hood) =&gt; hood.includes(q));
+  const nearby = useMemo(
+    () =&gt;
+      CITIES.filter((city) =&gt; city.id !== store.cityId)
+        .map((city) =&gt; ({ city, miles: distance(store.city, city) }))
+        .filter((item) =&gt; item.miles &lt;= 120)
+        .sort((a, b) =&gt; a.miles - b.miles),
+    [store.city, store.cityId],
+  );
+  const counts = useMemo(() =&gt; {
+    const result: Record&lt;string, number&gt; = {};
+    for (const item of store.listings) result[item.cityId] = (result[item.cityId] ?? 0) + 1;
+    return result;
+  }, [store.listings]);
+  const radiusIndex = Math.max(0, RADII.indexOf(store.radius));
+  const inRadius = nearby.filter((item) =&gt; item.miles &lt;= store.radius);
+
+  const choose = (city: City) =&gt; {
+    store.setCityId(city.id);
+    store.back();
+  };
+  const cityRow = (city: City, miles?: number) =&gt; {
+    const current = city.id === store.cityId;
+    return (
+      &lt;Block
+        key={city.id}
+        onPress={() =&gt; choose(city)}
+        accessibilityRole=&quot;button&quot;
+        accessibilityLabel={`Choose ${city.name}`}
+        direction=&quot;row&quot;
+        align=&quot;center&quot;
+        gap={10}
+        py={10}
+        px={4}
+        borderBottomWidth={1}
+        borderBottomColor={C.line}
+        pressedStyle={{ opacity: 0.6 }}
+      &gt;
+        &lt;Block flex={1} miw={0} gap={1}&gt;
+          &lt;Text c={current ? C.ink : C.link} fw={current ? &#39;bold&#39; : &#39;semibold&#39;} size={15}&gt;
+            {city.name}
+          &lt;/Text&gt;
+          &lt;Text c={C.muted} size={11} numberOfLines={1}&gt;
+            {city.hoods.slice(0, 3).join(&#39;, &#39;)}
+            {city.hoods.length &gt; 3 ? &#39;…&#39; : &#39;&#39;}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+        {miles !== undefined &amp;&amp; (
+          &lt;Text c={C.muted} size={12}&gt;
+            {miles} mi
+          &lt;/Text&gt;
+        )}
+        &lt;Text c={C.faint} size={11} miw={44} ta=&quot;right&quot;&gt;
+          {counts[city.id] ?? 0} posts
+        &lt;/Text&gt;
+        {current &amp;&amp; &lt;Icon name=&quot;check&quot; color={C.purple} size={17} /&gt;}
+      &lt;/Block&gt;
+    );
+  };
+
+  return (
+    &lt;Screen back title=&quot;choose area&quot; subtitle={`currently ${store.city.name}`} maw={680}&gt;
+      &lt;Input
+        variant=&quot;outline&quot;
+        value={query}
+        onChangeText={setQuery}
+        placeholder=&quot;search cities and neighborhoods&quot;
+        startSection={&lt;Icon name=&quot;search&quot; color={C.muted} size={17} /&gt;}
+        clearable
+        mb={0}
+        radius={6}
+        inputColor={C.ink}
+        accessibilityLabel=&quot;Search cities&quot;
+      /&gt;
+
+      {!q &amp;&amp; (
+        &lt;&gt;
+          &lt;SectionLabel&gt;search radius&lt;/SectionLabel&gt;
+          &lt;Block gap={10} p={14} radius={6} bg={C.paler} borderWidth={1} borderColor={C.line}&gt;
+            &lt;Block gap={0} direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot;&gt;
+              &lt;Text c={C.ink} fw=&quot;semibold&quot; size={14}&gt;
+                {store.radius === 0 ? `${store.city.name} only` : `within ${store.radius} miles of ${store.city.name}`}
+              &lt;/Text&gt;
+              &lt;Text c={C.muted} size={12}&gt;
+                {inRadius.length ? `+${inRadius.length} area${inRadius.length === 1 ? &#39;&#39; : &#39;s&#39;}` : &#39;&#39;}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+            &lt;Slider
+              accessibilityLabel=&quot;Search radius&quot;
+              value={radiusIndex}
+              min={0}
+              max={RADII.length - 1}
+              step={1}
+              restrictToTicks
+              ticks={RADII.map((miles, index) =&gt; ({ value: index, label: miles === 0 ? &#39;city&#39; : `${miles}` }))}
+              showTicks
+              valueLabel={(index) =&gt; (RADII[index] === 0 ? &#39;city only&#39; : `${RADII[index]} mi`)}
+              color={C.purple}
+              onChange={(index) =&gt; store.setRadius(RADII[Math.round(index)] ?? 0)}
+              mb={14}
+            /&gt;
+            {inRadius.length &gt; 0 &amp;&amp; (
+              &lt;Text c={C.muted} size={12}&gt;
+                includes {inRadius.map((item) =&gt; item.city.name).join(&#39;, &#39;)}
+              &lt;/Text&gt;
+            )}
+          &lt;/Block&gt;
+
+          &lt;SectionLabel&gt;nearby areas&lt;/SectionLabel&gt;
+          &lt;Block gap={0} borderTopWidth={1} borderTopColor={C.line}&gt;
+            {nearby.map((item) =&gt; cityRow(item.city, item.miles))}
+          &lt;/Block&gt;
+        &lt;/&gt;
+      )}
+
+      {REGIONS.map((region) =&gt; {
+        const list = CITIES.filter((city) =&gt; city.region === region.id &amp;&amp; matches(city));
+        if (!list.length) return null;
+        return (
+          &lt;Block key={region.id} gap={0}&gt;
+            &lt;SectionLabel&gt;{region.label}&lt;/SectionLabel&gt;
+            &lt;Block gap={0} borderTopWidth={1} borderTopColor={C.line}&gt;
+              {list.map((city) =&gt; cityRow(city, region.id === store.city.region ? distance(store.city, city) : undefined))}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        );
+      })}
+      {q &amp;&amp; !CITIES.some(matches) &amp;&amp; (
+        &lt;Text c={C.muted} ta=&quot;center&quot; py={30}&gt;
+          No areas match “{query}”.
+        &lt;/Text&gt;
+      )}
+    &lt;/Screen&gt;
+  );
+}
+</code></pre></section><section id="file-6"><h2>screens/Home.tsx</h2><pre><code>import { useMemo, useState } from &#39;react&#39;;
+import { Block, Button, Icon, Input, Text } from &#39;@plocks/ui&#39;;
+import { C } from &#39;../theme&#39;;
+import { SECTIONS, type Section } from &#39;../data&#39;;
+import { useStore } from &#39;../store&#39;;
+import { ListingRow, ListingTile, Screen, SectionLabel, useWide } from &#39;../components&#39;;
+
+/** Count of listings per &quot;section/sub&quot; key in the current area. */
+export function useCounts() {
+  const store = useStore();
+  return useMemo(() =&gt; {
+    const counts: Record&lt;string, number&gt; = {};
+    for (const item of store.search({ query: &#39;&#39; })) {
+      counts[item.section] = (counts[item.section] ?? 0) + 1;
+      counts[`${item.section}/${item.sub}`] = (counts[`${item.section}/${item.sub}`] ?? 0) + 1;
+    }
+    return counts;
+  }, [store]);
+}
+
+export function CityButton() {
+  const store = useStore();
+  return (
+    &lt;Block
+      onPress={() =&gt; store.push({ name: &#39;cities&#39; })}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={`Change area, currently ${store.city.name}`}
+      direction=&quot;row&quot;
+      align=&quot;center&quot;
+      gap={4}
+      px={10}
+      py={6}
+      radius={16}
+      bg={C.tint}
+      pressedStyle={{ opacity: 0.7 }}
+    &gt;
+      &lt;Icon name=&quot;map-pin&quot; color={C.purple} size={15} /&gt;
+      &lt;Text c={C.purple} fw=&quot;semibold&quot; size={13} numberOfLines={1}&gt;
+        {store.city.name}
+        {store.radius &gt; 0 ? ` +${store.radius}mi` : &#39;&#39;}
+      &lt;/Text&gt;
+      &lt;Icon name=&quot;chevron-down&quot; color={C.purple} size={14} /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+export function SearchBar({ initial = &#39;&#39;, onSubmit }: { initial?: string; onSubmit: (query: string) =&gt; void }) {
+  const [query, setQuery] = useState(initial);
+  return (
+    &lt;Block gap={8} direction=&quot;row&quot; align=&quot;center&quot;&gt;
+      &lt;Input
+        variant=&quot;outline&quot;
+        value={query}
+        onChangeText={setQuery}
+        onEnter={() =&gt; onSubmit(query)}
+        placeholder=&quot;search townlist&quot;
+        returnKeyType=&quot;search&quot;
+        startSection={&lt;Icon name=&quot;search&quot; color={C.muted} size={17} /&gt;}
+        clearable
+        mb={0}
+        flex={1}
+        radius={6}
+        inputColor={C.ink}
+      /&gt;
+      &lt;Button title=&quot;go&quot; color={C.purple} onPress={() =&gt; onSubmit(query)} radius={6} /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function SectionColumn({ section, counts }: { section: Section; counts: Record&lt;string, number&gt; }) {
+  const store = useStore();
+  return (
+    &lt;Block gap={1}&gt;
+      &lt;Text
+        c={C.purple}
+        fw=&quot;bold&quot;
+        size={15}
+        mb={4}
+        onPress={() =&gt; store.push({ name: &#39;results&#39;, filter: { query: &#39;&#39;, section: section.id } })}
+      &gt;
+        {section.label}
+        &lt;Text c={C.faint} size={12} fw=&quot;normal&quot;&gt;
+          {&#39;  &#39;}
+          {counts[section.id] ?? 0}
+        &lt;/Text&gt;
+      &lt;/Text&gt;
+      {section.subs.map((item) =&gt; (
+        &lt;Text
+          key={item.id}
+          c={counts[`${section.id}/${item.id}`] ? C.link : C.visited}
+          size={13}
+          lh={20}
+          onPress={() =&gt; store.push({ name: &#39;results&#39;, filter: { query: &#39;&#39;, section: section.id, sub: item.id } })}
+        &gt;
+          {item.label}
+        &lt;/Text&gt;
+      ))}
+    &lt;/Block&gt;
+  );
+}
+
+export function Home() {
+  const store = useStore();
+  const wide = useWide();
+  const counts = useCounts();
+  const fresh = store.search({ query: &#39;&#39; }).slice(0, wide ? 6 : 8);
+  const open = (id: string) =&gt; store.push({ name: &#39;listing&#39;, id });
+
+  return (
+    &lt;Screen
+      title={
+        wide ? (
+          `${store.city.name} classifieds`
+        ) : (
+          &lt;Text c={C.purple} fw=&quot;bold&quot; size={22} lts={-0.5}&gt;
+            townlist
+          &lt;/Text&gt;
+        )
+      }
+      right={&lt;CityButton /&gt;}
+      maw={1060}
+    &gt;
+      &lt;SearchBar onSubmit={(query) =&gt; store.push({ name: &#39;results&#39;, filter: { query } })} /&gt;
+      &lt;Block gap={8} direction=&quot;row&quot; mt={10} wrap&gt;
+        &lt;Button
+          size=&quot;sm&quot;
+          variant=&quot;light&quot;
+          color={C.purple}
+          title=&quot;post to classifieds&quot;
+          startSection={&lt;Icon name=&quot;plus&quot; size={15} color={C.purple} /&gt;}
+          onPress={() =&gt; store.goTab(&#39;post&#39;, true)}
+        /&gt;
+        &lt;Button
+          size=&quot;sm&quot;
+          variant=&quot;subtle&quot;
+          color={C.purple}
+          title=&quot;all categories&quot;
+          startSection={&lt;Icon name=&quot;grid&quot; size={15} color={C.purple} /&gt;}
+          onPress={() =&gt; store.push({ name: &#39;categories&#39; })}
+        /&gt;
+      &lt;/Block&gt;
+
+      {wide ? (
+        &lt;Block gap={28} direction=&quot;row&quot; mt={20}&gt;
+          &lt;Block flex={1} gap={0}&gt;
+            &lt;SectionLabel mt={0}&gt;categories in {store.city.name}&lt;/SectionLabel&gt;
+            &lt;Block gap={0} direction=&quot;row&quot; wrap borderTopWidth={1} borderTopColor={C.line} pt={12}&gt;
+              {SECTIONS.map((section) =&gt; (
+                &lt;Block key={section.id} gap={0} w=&quot;33.33%&quot; pr={14} pb={20}&gt;
+                  &lt;SectionColumn section={section} counts={counts} /&gt;
+                &lt;/Block&gt;
+              ))}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+          &lt;Block w={340} gap={0}&gt;
+            &lt;SectionLabel mt={0} right={&lt;Text c={C.link} size={12} onPress={() =&gt; store.push({ name: &#39;results&#39;, filter: { query: &#39;&#39; } })}&gt;see all&lt;/Text&gt;}&gt;
+              new today
+            &lt;/SectionLabel&gt;
+            &lt;Block gap={12} direction=&quot;row&quot; wrap pt={12} borderTopWidth={1} borderTopColor={C.line}&gt;
+              {fresh.map((item) =&gt; (
+                &lt;ListingTile key={item.id} listing={item} w={164} onPress={() =&gt; open(item.id)} /&gt;
+              ))}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      ) : (
+        &lt;&gt;
+          &lt;SectionLabel right={&lt;Text c={C.link} size={12} onPress={() =&gt; store.push({ name: &#39;categories&#39; })}&gt;browse all&lt;/Text&gt;}&gt;
+            categories
+          &lt;/SectionLabel&gt;
+          &lt;Block gap={0} direction=&quot;row&quot; wrap borderWidth={1} borderColor={C.line} radius={6} overflow=&quot;hidden&quot;&gt;
+            {SECTIONS.map((section, index) =&gt; (
+              &lt;Block
+                key={section.id}
+                w=&quot;50%&quot;
+                gap={8}
+                direction=&quot;row&quot;
+                align=&quot;center&quot;
+                p={12}
+                bg={C.white}
+                borderRightWidth={index % 2 === 0 ? 1 : 0}
+                borderBottomWidth={index &lt; SECTIONS.length - 2 ? 1 : 0}
+                borderColor={C.line}
+                borderRightColor={C.line}
+                borderBottomColor={C.line}
+                onPress={() =&gt; store.push({ name: &#39;categories&#39;, section: section.id })}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel={`Browse ${section.label}`}
+                pressedStyle={{ opacity: 0.6 }}
+              &gt;
+                &lt;Block gap={0} w={34} h={34} radius={17} bg={C.tint} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+                  &lt;Icon name={section.icon} color={C.purple} size={17} /&gt;
+                &lt;/Block&gt;
+                &lt;Block flex={1} miw={0} gap={0}&gt;
+                  &lt;Text c={C.ink} fw=&quot;semibold&quot; size={14}&gt;
+                    {section.label}
+                  &lt;/Text&gt;
+                  &lt;Text c={C.muted} size={11} numberOfLines={1}&gt;
+                    {counts[section.id] ?? 0} posts
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              &lt;/Block&gt;
+            ))}
+          &lt;/Block&gt;
+          &lt;SectionLabel right={&lt;Text c={C.link} size={12} onPress={() =&gt; store.push({ name: &#39;results&#39;, filter: { query: &#39;&#39; } })}&gt;see all&lt;/Text&gt;}&gt;
+            newest in {store.city.name}
+          &lt;/SectionLabel&gt;
+          &lt;Block gap={0} borderTopWidth={1} borderTopColor={C.line}&gt;
+            {fresh.map((item) =&gt; (
+              &lt;ListingRow key={item.id} listing={item} onPress={() =&gt; open(item.id)} /&gt;
+            ))}
+          &lt;/Block&gt;
+        &lt;/&gt;
+      )}
+    &lt;/Screen&gt;
+  );
+}
+</code></pre></section><section id="file-7"><h2>screens/ListingView.tsx</h2><pre><code>import { useState, type ReactNode } from &#39;react&#39;;
+import * as Clipboard from &#39;expo-clipboard&#39;;
+import {
+  Block,
+  Button,
+  Chip,
+  Dialog,
+  Icon,
+  IconButton,
+  Image,
+  Lightbox,
+  Menu,
+  MenuDivider,
+  MenuDropdown,
+  MenuItem,
+  TextArea,
+  Text,
+  useToast,
+} from &#39;@plocks/ui&#39;;
+import type { LightboxItem } from &#39;@plocks/ui&#39;;
+import { C } from &#39;../theme&#39;;
+import {
+  ageText,
+  cityById,
+  dateText,
+  photoSource,
+  postTypeById,
+  priceText,
+  sectionById,
+  subLabel,
+  type Listing,
+} from &#39;../data&#39;;
+import { useStore } from &#39;../store&#39;;
+import { EmptyNote, MapBlock, Screen, useWide } from &#39;../components&#39;;
+
+const QUICK = [&#39;Hi, is this still available?&#39;, &#39;When could I come see it?&#39;, &#39;Would you consider a lower price?&#39;];
+const FLAGS = [&#39;prohibited&#39;, &#39;spam / overpost&#39;, &#39;miscategorized&#39;, &#39;scam or fraud&#39;];
+
+function Gallery({ listing, h }: { listing: Listing; h: number }) {
+  const [index, setIndex] = useState(0);
+  const [lightbox, setLightbox] = useState&lt;number | null&gt;(null);
+  const photos = listing.photos;
+  if (!photos.length) {
+    return (
+      &lt;Block gap={6} h={Math.round(h * 0.55)} radius={6} bg={C.pale} align=&quot;center&quot; justify=&quot;center&quot; borderWidth={1} borderColor={C.line}&gt;
+        &lt;Icon name=&quot;image-off&quot; color={C.faint} size={30} /&gt;
+        &lt;Text c={C.faint} size={12}&gt;
+          no images
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+    );
+  }
+  const items: LightboxItem[] = photos.map((photo, i) =&gt; ({
+    id: photo.id,
+    uri: photoSource(photo),
+    title: `${listing.title} (${i + 1} of ${photos.length})`,
+  }));
+  const current = Math.min(index, photos.length - 1);
+  return (
+    &lt;Block gap={8}&gt;
+      &lt;Block gap={0} position=&quot;relative&quot; radius={6} overflow=&quot;hidden&quot; bg={C.ink}&gt;
+        &lt;Block gap={0} onPress={() =&gt; setLightbox(current)} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Open full screen photos&quot;&gt;
+          &lt;Image src={photoSource(photos[current])} w=&quot;100%&quot; h={h} resizeMode=&quot;cover&quot; alt={`${listing.title}, photo ${current + 1}`} /&gt;
+        &lt;/Block&gt;
+        {photos.length &gt; 1 &amp;&amp; (
+          &lt;&gt;
+            &lt;Block gap={0} position=&quot;absolute&quot; left={8} top={h / 2 - 20}&gt;
+              &lt;IconButton icon=&quot;chevron-left&quot; variant=&quot;filled&quot; color=&quot;rgba(0,0,0,0.5)&quot; iconColor={C.white} accessibilityLabel=&quot;Previous photo&quot; onPress={() =&gt; setIndex((current - 1 + photos.length) % photos.length)} /&gt;
+            &lt;/Block&gt;
+            &lt;Block gap={0} position=&quot;absolute&quot; right={8} top={h / 2 - 20}&gt;
+              &lt;IconButton icon=&quot;chevron-right&quot; variant=&quot;filled&quot; color=&quot;rgba(0,0,0,0.5)&quot; iconColor={C.white} accessibilityLabel=&quot;Next photo&quot; onPress={() =&gt; setIndex((current + 1) % photos.length)} /&gt;
+            &lt;/Block&gt;
+          &lt;/&gt;
+        )}
+        &lt;Block gap={0} position=&quot;absolute&quot; right={8} bottom={8} px={8} py={3} radius={10} bg=&quot;rgba(0,0,0,0.6)&quot;&gt;
+          &lt;Text c={C.white} size={11} fw=&quot;semibold&quot;&gt;
+            {current + 1} / {photos.length}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      {photos.length &gt; 1 &amp;&amp; (
+        &lt;Block gap={6} direction=&quot;row&quot; wrap&gt;
+          {photos.map((photo, i) =&gt; (
+            &lt;Block
+              key={photo.id}
+              gap={0}
+              onPress={() =&gt; setIndex(i)}
+              accessibilityRole=&quot;button&quot;
+              accessibilityLabel={`Show photo ${i + 1}`}
+              radius={4}
+              overflow=&quot;hidden&quot;
+              borderWidth={2}
+              borderColor={i === current ? C.purple : &#39;transparent&#39;}
+            &gt;
+              &lt;Image src={photoSource(photo)} w={62} h={50} resizeMode=&quot;cover&quot; alt=&quot;&quot; opacity={i === current ? 1 : 0.75} /&gt;
+            &lt;/Block&gt;
+          ))}
+        &lt;/Block&gt;
+      )}
+      &lt;Lightbox
+        opened={lightbox !== null}
+        images={items}
+        initialIndex={lightbox ?? 0}
+        onClose={() =&gt; setLightbox(null)}
+        showDownloadButton={false}
+        accessibilityLabel={`${listing.title} photos`}
+      /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function Action({ icon, label, active, onPress }: { icon: ReactNode; label: string; active?: boolean; onPress?: () =&gt; void }) {
+  return (
+    &lt;Block
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={label}
+      gap={3}
+      align=&quot;center&quot;
+      px={8}
+      py={6}
+      miw={54}
+      radius={6}
+      bg={active ? C.tint : undefined}
+      pressedStyle={{ opacity: 0.6 }}
+    &gt;
+      {icon}
+      &lt;Text c={active ? C.purple : C.body} size={11} fw=&quot;semibold&quot;&gt;
+        {label}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function Attributes({ listing }: { listing: Listing }) {
+  const type = postTypeById(listing.postType);
+  return (
+    &lt;Block gap={0} radius={6} borderWidth={1} borderColor={C.line} bg={C.paler}&gt;
+      &lt;Block gap={2} p={12} borderBottomWidth={1} borderBottomColor={C.line}&gt;
+        &lt;Text c={C.muted} size={11}&gt;
+          {type.label}
+        &lt;/Text&gt;
+        &lt;Text c={C.ink} fw=&quot;bold&quot; size={14}&gt;
+          {subLabel(listing.section, listing.sub)}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      {listing.attrs.length &gt; 0 &amp;&amp; (
+        &lt;Block gap={6} p={12}&gt;
+          {listing.attrs.map((attr) =&gt; (
+            &lt;Text key={attr.label} c={C.muted} size={13} lh={18}&gt;
+              {attr.label}:{&#39; &#39;}
+              &lt;Text c={C.ink} fw=&quot;bold&quot; size={13}&gt;
+                {attr.value}
+              &lt;/Text&gt;
+            &lt;/Text&gt;
+          ))}
+        &lt;/Block&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+export function ListingBody({ listing, preview, onReply }: { listing: Listing; preview?: boolean; onReply?: () =&gt; void }) {
+  const store = useStore();
+  const toast = useToast();
+  const wide = useWide();
+  const favorite = store.favorites.includes(listing.id);
+  const hidden = store.hidden.includes(listing.id);
+  const flagged = store.flagged.includes(listing.id);
+  const city = cityById(listing.cityId);
+  const price = priceText(listing);
+  const section = sectionById(listing.section);
+  const share = async () =&gt; {
+    const url = `https://townlist.example/${city.id}/${listing.section}/${listing.id}`;
+    try {
+      await Clipboard.setStringAsync(url);
+      toast.show({ title: &#39;Link copied&#39;, message: url, autoHide: 2400 });
+    } catch {
+      toast.show({ title: &#39;Share link&#39;, message: url, autoHide: 2400 });
+    }
+  };
+
+  const actions = (
+    &lt;Block gap={4} direction=&quot;row&quot; align=&quot;center&quot; wrap&gt;
+      {!listing.mine &amp;&amp; !preview &amp;&amp; (
+        &lt;Button title=&quot;reply&quot; color={C.purple} startSection={&lt;Icon name=&quot;message&quot; color={C.white} size={16} /&gt;} onPress={onReply} radius={6} mr={6} /&gt;
+      )}
+      &lt;Action
+        label={favorite ? &#39;favorited&#39; : &#39;favorite&#39;}
+        active={favorite}
+        icon={&lt;Icon name=&quot;star&quot; variant={favorite ? &#39;filled&#39; : &#39;outlined&#39;} color={favorite ? &#39;#D49A00&#39; : C.body} size={18} /&gt;}
+        onPress={preview ? undefined : () =&gt; store.toggleFavorite(listing.id)}
+      /&gt;
+      &lt;Action
+        label={hidden ? &#39;unhide&#39; : &#39;hide&#39;}
+        active={hidden}
+        icon={hidden ? &lt;Icon name=&quot;eye&quot; color={C.purple} size={18} /&gt; : &lt;Icon name=&quot;eye-off&quot; color={C.body} size={18} /&gt;}
+        onPress={
+          preview
+            ? undefined
+            : () =&gt; {
+                store.toggleHidden(listing.id);
+                toast.show({ title: hidden ? &#39;Post unhidden&#39; : &#39;Post hidden&#39;, message: hidden ? undefined : &#39;It won’t show in your results.&#39;, autoHide: 2000 });
+              }
+        }
+      /&gt;
+      {preview ? (
+        &lt;Action label=&quot;flag&quot; icon={&lt;Icon name=&quot;flag&quot; color={C.body} size={18} /&gt;} /&gt;
+      ) : (
+        &lt;Menu position=&quot;bottom-end&quot;&gt;
+          &lt;Action label={flagged ? &#39;flagged&#39; : &#39;flag&#39;} active={flagged} icon={&lt;Icon name=&quot;flag&quot; variant={flagged ? &#39;filled&#39; : &#39;outlined&#39;} color={flagged ? C.red : C.body} size={18} /&gt;} /&gt;
+          &lt;MenuDropdown&gt;
+            {FLAGS.map((reason) =&gt; (
+              &lt;MenuItem
+                key={reason}
+                onPress={() =&gt; {
+                  store.flag(listing.id);
+                  toast.show({ title: &#39;Thanks for flagging&#39;, message: `Reported as ${reason}.`, autoHide: 2200 });
+                }}
+              &gt;
+                {reason}
+              &lt;/MenuItem&gt;
+            ))}
+            &lt;MenuDivider /&gt;
+            &lt;MenuItem disabled&gt;best of townlist (soon)&lt;/MenuItem&gt;
+          &lt;/MenuDropdown&gt;
+        &lt;/Menu&gt;
+      )}
+      &lt;Action label=&quot;share&quot; icon={&lt;Icon name=&quot;share&quot; color={C.body} size={18} /&gt;} onPress={preview ? undefined : share} /&gt;
+    &lt;/Block&gt;
+  );
+
+  const heading = (
+    &lt;Block gap={6}&gt;
+      &lt;Text c={C.ink} fw=&quot;bold&quot; size={wide ? 24 : 20} lh={wide ? 30 : 26}&gt;
+        {listing.title}
+        {price ? (
+          &lt;Text c={listing.price === 0 ? C.green : C.ink} fw=&quot;bold&quot; size={wide ? 24 : 20}&gt;
+            {&#39; &#39;}
+            – {price}
+          &lt;/Text&gt;
+        ) : null}
+        &lt;Text c={C.muted} fw=&quot;normal&quot; size={wide ? 18 : 16}&gt;
+          {&#39; &#39;}
+          ({listing.hood})
+        &lt;/Text&gt;
+      &lt;/Text&gt;
+      &lt;Block gap={6} direction=&quot;row&quot; align=&quot;center&quot; wrap&gt;
+        &lt;Icon name=&quot;clock&quot; color={C.muted} size={13} /&gt;
+        &lt;Text c={C.muted} size={12}&gt;
+          posted {ageText(listing.postedAt)}
+          {listing.updatedAt ? ` · updated ${ageText(listing.updatedAt)}` : &#39;&#39;}
+        &lt;/Text&gt;
+        &lt;Text c={C.faint} size={12}&gt;
+          ·
+        &lt;/Text&gt;
+        &lt;Icon name=&quot;map-pin&quot; color={C.muted} size={13} /&gt;
+        &lt;Text c={C.muted} size={12}&gt;
+          {listing.hood}, {city.name}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+
+  const body = (
+    &lt;Block gap={12}&gt;
+      {listing.body.split(&#39;\n\n&#39;).map((paragraph, index) =&gt; (
+        &lt;Text key={index} c={C.body} size={15} lh={23}&gt;
+          {paragraph}
+        &lt;/Text&gt;
+      ))}
+      &lt;Block gap={4} mt={4} p={10} radius={4} bg={C.pale}&gt;
+        &lt;Text c={C.muted} size={12}&gt;
+          • do NOT contact me with unsolicited services or offers
+        &lt;/Text&gt;
+        {listing.section === &#39;sale&#39; &amp;&amp; (
+          &lt;Text c={C.muted} size={12}&gt;
+            • meet in a public place and inspect before paying
+          &lt;/Text&gt;
+        )}
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+
+  const meta = (
+    &lt;Block gap={3} pt={10} borderTopWidth={1} borderTopColor={C.line}&gt;
+      &lt;Text c={C.faint} size={11}&gt;
+        post id: {listing.id}
+      &lt;/Text&gt;
+      &lt;Text c={C.faint} size={11}&gt;
+        posted: {dateText(listing.postedAt)}
+      &lt;/Text&gt;
+      {listing.updatedAt &amp;&amp; (
+        &lt;Text c={C.faint} size={11}&gt;
+          updated: {dateText(listing.updatedAt)}
+        &lt;/Text&gt;
+      )}
+      &lt;Text c={C.faint} size={11}&gt;
+        posted by: {listing.seller}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+
+  return (
+    &lt;Block gap={14}&gt;
+      {hidden &amp;&amp; !preview &amp;&amp; (
+        &lt;Block gap={8} direction=&quot;row&quot; align=&quot;center&quot; p={10} radius={6} bg={C.amberPale}&gt;
+          &lt;Icon name=&quot;eye-off&quot; color={C.amber} size={16} /&gt;
+          &lt;Text c={C.amber} size={13} flex={1}&gt;
+            You hid this post. It won’t appear in results.
+          &lt;/Text&gt;
+          &lt;Text c={C.purple} size={13} fw=&quot;semibold&quot; onPress={() =&gt; store.toggleHidden(listing.id)}&gt;
+            unhide
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      )}
+      &lt;Block gap={6} direction=&quot;row&quot; align=&quot;center&quot; wrap&gt;
+        &lt;Text c={C.link} size={12}&gt;
+          {city.name}
+        &lt;/Text&gt;
+        &lt;Text c={C.faint} size={12}&gt;›&lt;/Text&gt;
+        &lt;Text c={C.link} size={12}&gt;
+          {section.label}
+        &lt;/Text&gt;
+        &lt;Text c={C.faint} size={12}&gt;›&lt;/Text&gt;
+        &lt;Text c={C.link} size={12}&gt;
+          {subLabel(listing.section, listing.sub)}
+        &lt;/Text&gt;
+        &lt;Text c={C.faint} size={12}&gt;
+          - {postTypeById(listing.postType).label.replace(/^for sale /, &#39;&#39;)}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      {heading}
+      {actions}
+      {wide ? (
+        &lt;Block gap={24} direction=&quot;row&quot; align=&quot;flex-start&quot;&gt;
+          &lt;Block flex={1} miw={0} gap={18}&gt;
+            &lt;Gallery listing={listing} h={400} /&gt;
+            {body}
+          &lt;/Block&gt;
+          &lt;Block w={290} gap={14}&gt;
+            &lt;Attributes listing={listing} /&gt;
+            &lt;MapBlock hood={listing.hood} cityId={listing.cityId} h={190} /&gt;
+            {meta}
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      ) : (
+        &lt;&gt;
+          &lt;Gallery listing={listing} h={260} /&gt;
+          &lt;Attributes listing={listing} /&gt;
+          {body}
+          &lt;MapBlock hood={listing.hood} cityId={listing.cityId} /&gt;
+          {meta}
+        &lt;/&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+export function ListingView({ id }: { id: string }) {
+  const store = useStore();
+  const toast = useToast();
+  const listing = store.listingById(id);
+  const [replying, setReplying] = useState(false);
+  const [text, setText] = useState(&#39;&#39;);
+  const [showEmail, setShowEmail] = useState(false);
+
+  if (!listing) {
+    return (
+      &lt;Screen back title=&quot;post&quot;&gt;
+        &lt;EmptyNote icon=&quot;search&quot; title=&quot;This posting has been deleted by its author.&quot; /&gt;
+      &lt;/Screen&gt;
+    );
+  }
+  const send = () =&gt; {
+    if (!text.trim()) return;
+    const threadId = store.reply(listing, text.trim());
+    setText(&#39;&#39;);
+    setReplying(false);
+    toast.show({ title: &#39;Message sent&#39;, message: `${listing.seller} will reply in messages.`, autoHide: 2200 });
+    store.openIn(&#39;messages&#39;, { name: &#39;thread&#39;, id: threadId });
+  };
+
+  return (
+    &lt;Screen
+      back
+      title={subLabel(listing.section, listing.sub)}
+      subtitle={`${sectionById(listing.section).label} · ${cityById(listing.cityId).name}`}
+      right={
+        listing.mine ? (
+          &lt;Button
+            size=&quot;xs&quot;
+            variant=&quot;outline&quot;
+            color={C.red}
+            title=&quot;delete&quot;
+            onPress={() =&gt; {
+              store.removePost(listing.id);
+              store.back();
+              toast.show({ title: &#39;Post deleted&#39;, autoHide: 2000 });
+            }}
+          /&gt;
+        ) : undefined
+      }
+      maw={1000}
+    &gt;
+      &lt;ListingBody listing={listing} onReply={() =&gt; setReplying(true)} /&gt;
+      &lt;Dialog opened={replying} onClose={() =&gt; setReplying(false)} title={`reply to ${listing.seller}`} w={460}&gt;
+        &lt;Block gap={12}&gt;
+          &lt;Text c={C.muted} size={12}&gt;
+            re: {listing.title}
+          &lt;/Text&gt;
+          &lt;Block gap={6} direction=&quot;row&quot; wrap&gt;
+            {QUICK.map((item) =&gt; (
+              &lt;Chip key={item} size=&quot;xs&quot; variant=&quot;outline&quot; color={C.purple} onPress={() =&gt; setText(item)}&gt;
+                {item}
+              &lt;/Chip&gt;
+            ))}
+          &lt;/Block&gt;
+          &lt;TextArea
+            variant=&quot;outline&quot;
+            value={text}
+            onChangeText={setText}
+            placeholder=&quot;Write a message…&quot;
+            rows={4}
+            radius={6}
+            mb={0}
+            accessibilityLabel=&quot;Message&quot;
+          /&gt;
+          &lt;Button title=&quot;send message&quot; color={C.purple} disabled={!text.trim()} onPress={send} radius={6} /&gt;
+          &lt;Block gap={6} p={10} radius={6} bg={C.pale}&gt;
+            &lt;Text c={C.ink} fw=&quot;semibold&quot; size={13}&gt;
+              other ways to reply
+            &lt;/Text&gt;
+            {showEmail ? (
+              &lt;Text c={C.link} size={13} selectable&gt;
+                {listing.id}-{listing.seller.toLowerCase().replace(/[^a-z]/g, &#39;&#39;)}@relay.townlist.example
+              &lt;/Text&gt;
+            ) : (
+              &lt;Text c={C.link} size={13} onPress={() =&gt; setShowEmail(true)}&gt;
+                show anonymous relay email
+              &lt;/Text&gt;
+            )}
+            &lt;Text c={C.muted} size={11}&gt;
+              Demo only: nothing leaves this device.
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      &lt;/Dialog&gt;
+    &lt;/Screen&gt;
+  );
+}
+</code></pre></section><section id="file-8"><h2>screens/Messages.tsx</h2><pre><code>import { useEffect, useRef, useState } from &#39;react&#39;;
+import type { ScrollView } from &#39;react-native&#39;;
+import { Avatar, Badge, Block, Icon, IconButton, Input, ScrollArea, SegmentedControl, Text } from &#39;@plocks/ui&#39;;
+import { C } from &#39;../theme&#39;;
+import { clockText, dateText, priceText, type Thread } from &#39;../data&#39;;
+import { useStore } from &#39;../store&#39;;
+import { EmptyNote, Thumb, TopBar, useWide } from &#39;../components&#39;;
+
+const AVATAR_COLORS = [&#39;#5B2A8C&#39;, &#39;#1F6B45&#39;, &#39;#8A5A00&#39;, &#39;#2F5D8C&#39;, &#39;#A3283B&#39;, &#39;#4C5A67&#39;];
+const avatarColor = (name: string) =&gt; AVATAR_COLORS[[...name].reduce((sum, ch) =&gt; sum + ch.charCodeAt(0), 0) % AVATAR_COLORS.length];
+const initials = (name: string) =&gt;
+  name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) =&gt; word[0]?.toUpperCase() ?? &#39;&#39;)
+    .join(&#39;&#39;);
+
+function ThreadRow({ thread, active, onPress }: { thread: Thread; active?: boolean; onPress: () =&gt; void }) {
+  const store = useStore();
+  const listing = store.listingById(thread.listingId);
+  const last = thread.messages[thread.messages.length - 1];
+  return (
+    &lt;Block
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={`Conversation with ${thread.name}${thread.unread ? `, ${thread.unread} unread` : &#39;&#39;}`}
+      direction=&quot;row&quot;
+      gap={12}
+      py={11}
+      px={12}
+      bg={active ? C.tint : thread.unread ? C.paler : C.white}
+      borderBottomWidth={1}
+      borderBottomColor={C.line}
+      pressedStyle={{ opacity: 0.7 }}
+    &gt;
+      &lt;Block gap={0} position=&quot;relative&quot;&gt;
+        {listing ? &lt;Thumb listing={listing} w={52} h={52} /&gt; : &lt;Block gap={0} w={52} h={52} radius={4} bg={C.pale} /&gt;}
+        &lt;Block gap={0} position=&quot;absolute&quot; right={-6} bottom={-6}&gt;
+          &lt;Avatar size={24} bg={avatarColor(thread.name)} textColor={C.white} fallback={initials(thread.name)} accessibilityLabel={thread.name} /&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      &lt;Block flex={1} miw={0} gap={2}&gt;
+        &lt;Block gap={6} direction=&quot;row&quot; align=&quot;center&quot;&gt;
+          &lt;Text c={C.ink} fw={thread.unread ? &#39;bold&#39; : &#39;semibold&#39;} size={14} numberOfLines={1} flex={1}&gt;
+            {thread.name}
+          &lt;/Text&gt;
+          &lt;Text c={thread.unread ? C.purple : C.faint} size={11} fw={thread.unread ? &#39;bold&#39; : &#39;normal&#39;}&gt;
+            {last ? clockText(last.at) : &#39;&#39;}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+        &lt;Text c={C.link} size={12} numberOfLines={1}&gt;
+          {listing?.title ?? &#39;deleted post&#39;}
+        &lt;/Text&gt;
+        &lt;Block gap={6} direction=&quot;row&quot; align=&quot;center&quot;&gt;
+          &lt;Text c={thread.unread ? C.ink : C.muted} size={13} numberOfLines={1} flex={1}&gt;
+            {last?.from === &#39;me&#39; ? &#39;You: &#39; : &#39;&#39;}
+            {last?.text}
+          &lt;/Text&gt;
+          {thread.unread &gt; 0 &amp;&amp; (
+            &lt;Badge size=&quot;xs&quot; variant=&quot;filled&quot; color={C.purple}&gt;
+              {thread.unread}
+            &lt;/Badge&gt;
+          )}
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+
+export function ThreadView({ id, embedded }: { id: string; embedded?: boolean }) {
+  const store = useStore();
+  const thread = store.threads.find((item) =&gt; item.id === id);
+  const listing = thread ? store.listingById(thread.listingId) : undefined;
+  const [text, setText] = useState(&#39;&#39;);
+  const scroll = useRef&lt;ScrollView&gt;(null);
+  const count = thread?.messages.length ?? 0;
+  const unread = thread?.unread ?? 0;
+  const { markRead } = store;
+
+  useEffect(() =&gt; {
+    if (unread) markRead(id);
+  }, [id, unread, markRead]);
+  useEffect(() =&gt; {
+    const timer = setTimeout(() =&gt; scroll.current?.scrollToEnd({ animated: false }), 30);
+    return () =&gt; clearTimeout(timer);
+  }, [count, id]);
+
+  if (!thread) return &lt;EmptyNote icon=&quot;message&quot; title=&quot;Conversation not found&quot; /&gt;;
+  const send = () =&gt; {
+    if (!text.trim()) return;
+    store.send(thread.id, text.trim());
+    setText(&#39;&#39;);
+  };
+
+  return (
+    &lt;Block gap={0} flex={1} bg={C.white}&gt;
+      &lt;TopBar
+        onBack={!embedded &amp;&amp; store.canGoBack ? store.back : undefined}
+        title={thread.name}
+        subtitle={thread.role === &#39;selling&#39; ? &#39;interested in your post&#39; : &#39;seller&#39;}
+      /&gt;
+      {listing &amp;&amp; (
+        &lt;Block
+          onPress={() =&gt; store.push({ name: &#39;listing&#39;, id: listing.id })}
+          accessibilityRole=&quot;button&quot;
+          accessibilityLabel={`Open ${listing.title}`}
+          direction=&quot;row&quot;
+          align=&quot;center&quot;
+          gap={10}
+          px={14}
+          py={8}
+          bg={C.paler}
+          borderBottomWidth={1}
+          borderBottomColor={C.line}
+          pressedStyle={{ opacity: 0.7 }}
+        &gt;
+          &lt;Thumb listing={listing} w={40} h={40} /&gt;
+          &lt;Block flex={1} miw={0} gap={0}&gt;
+            &lt;Text c={C.link} fw=&quot;semibold&quot; size={13} numberOfLines={1}&gt;
+              {listing.title}
+            &lt;/Text&gt;
+            &lt;Text c={C.muted} size={12}&gt;
+              {priceText(listing) || listing.attrs[0]?.value} · {listing.hood}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;Badge size=&quot;xs&quot; variant=&quot;light&quot; color={thread.role === &#39;selling&#39; ? C.green : C.purple}&gt;
+            {thread.role}
+          &lt;/Badge&gt;
+          &lt;Icon name=&quot;chevron-right&quot; color={C.faint} size={16} /&gt;
+        &lt;/Block&gt;
+      )}
+      &lt;ScrollArea ref={scroll} flex={1} bg={C.white} contentProps={{ p: 14, gap: 6 }}&gt;
+        {thread.messages.map((message, index) =&gt; {
+          const mine = message.from === &#39;me&#39;;
+          const prev = thread.messages[index - 1];
+          const gap = !prev || message.at - prev.at &gt; 45 * 60_000;
+          return (
+            &lt;Block key={message.id} gap={4}&gt;
+              {gap &amp;&amp; (
+                &lt;Text c={C.faint} size={11} ta=&quot;center&quot; mt={index ? 10 : 0} mb={2}&gt;
+                  {dateText(message.at)}
+                &lt;/Text&gt;
+              )}
+              &lt;Block gap={0} direction=&quot;row&quot; justify={mine ? &#39;flex-end&#39; : &#39;flex-start&#39;}&gt;
+                &lt;Block
+                  gap={0}
+                  maw=&quot;78%&quot;
+                  px={12}
+                  py={8}
+                  radius={14}
+                  bg={mine ? C.bubbleMe : C.bubbleThem}
+                  borderTopRightRadius={mine ? 4 : 14}
+                  borderTopLeftRadius={mine ? 14 : 4}
+                &gt;
+                  &lt;Text c={mine ? C.white : C.ink} size={14} lh={20}&gt;
+                    {message.text}
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              &lt;/Block&gt;
+            &lt;/Block&gt;
+          );
+        })}
+      &lt;/ScrollArea&gt;
+      &lt;Block gap={8} direction=&quot;row&quot; align=&quot;center&quot; p={10} borderTopWidth={1} borderTopColor={C.line} bg={C.white}&gt;
+        &lt;Input
+          variant=&quot;outline&quot;
+          value={text}
+          onChangeText={setText}
+          onEnter={send}
+          placeholder={`Message ${thread.name}`}
+          mb={0}
+          flex={1}
+          radius={20}
+          inputColor={C.ink}
+          accessibilityLabel=&quot;Message&quot;
+        /&gt;
+        &lt;IconButton icon=&quot;send&quot; variant=&quot;filled&quot; color={C.purple} iconColor={C.white} accessibilityLabel=&quot;Send&quot; disabled={!text.trim()} onPress={send} /&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+
+export function Messages({ openId }: { openId?: string }) {
+  const store = useStore();
+  const wide = useWide();
+  const [filter, setFilter] = useState&lt;&#39;all&#39; | &#39;buying&#39; | &#39;selling&#39;&gt;(&#39;all&#39;);
+  const [selected, setSelected] = useState&lt;string | undefined&gt;(openId ?? (wide ? store.threads[0]?.id : undefined));
+  const threads = [...store.threads]
+    .filter((item) =&gt; filter === &#39;all&#39; || item.role === filter)
+    .sort((a, b) =&gt; (b.messages[b.messages.length - 1]?.at ?? 0) - (a.messages[a.messages.length - 1]?.at ?? 0));
+
+  if (!wide &amp;&amp; openId) return &lt;ThreadView id={openId} /&gt;;
+
+  const list = (
+    &lt;Block gap={0} flex={1} bg={C.white}&gt;
+      &lt;TopBar
+        title=&quot;messages&quot;
+        subtitle={store.unread ? `${store.unread} unread` : `${store.threads.length} conversations`}
+      /&gt;
+      &lt;Block gap={0} p={10} borderBottomWidth={1} borderBottomColor={C.line}&gt;
+        &lt;SegmentedControl
+          fullWidth
+          size=&quot;sm&quot;
+          color={C.purple}
+          value={filter}
+          onChange={(value) =&gt; setFilter(value as typeof filter)}
+          data={[
+            { value: &#39;all&#39;, label: &#39;all&#39; },
+            { value: &#39;buying&#39;, label: &#39;buying&#39; },
+            { value: &#39;selling&#39;, label: &#39;selling&#39; },
+          ]}
+          accessibilityLabel=&quot;Filter conversations&quot;
+        /&gt;
+      &lt;/Block&gt;
+      &lt;ScrollArea flex={1}&gt;
+        {threads.length === 0 ? (
+          &lt;EmptyNote icon=&quot;message&quot; title=&quot;No conversations&quot;&gt;
+            Reply to a post to start one.
+          &lt;/EmptyNote&gt;
+        ) : (
+          threads.map((thread) =&gt; (
+            &lt;ThreadRow
+              key={thread.id}
+              thread={thread}
+              active={wide &amp;&amp; selected === thread.id}
+              onPress={() =&gt; (wide ? setSelected(thread.id) : store.push({ name: &#39;thread&#39;, id: thread.id }))}
+            /&gt;
+          ))
+        )}
+        &lt;Block gap={4} direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;center&quot; p={16}&gt;
+          &lt;Icon name=&quot;lock&quot; color={C.faint} size={12} /&gt;
+          &lt;Text c={C.faint} size={11}&gt;
+            replies go through an anonymous relay
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      &lt;/ScrollArea&gt;
+    &lt;/Block&gt;
+  );
+  if (!wide) return list;
+  return (
+    &lt;Block gap={0} flex={1} direction=&quot;row&quot;&gt;
+      &lt;Block gap={0} w={360} borderRightWidth={1} borderRightColor={C.line}&gt;
+        {list}
+      &lt;/Block&gt;
+      &lt;Block gap={0} flex={1}&gt;
+        {selected ? &lt;ThreadView key={selected} id={selected} embedded /&gt; : &lt;EmptyNote icon=&quot;message&quot; title=&quot;Pick a conversation&quot; /&gt;}
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-9"><h2>screens/Post.tsx</h2><pre><code>import { useMemo, useState, type ReactNode } from &#39;react&#39;;
+import { useWindowDimensions } from &#39;react-native&#39;;
+import {
+  Badge,
+  Block,
+  Button,
+  Checkbox,
+  Chip,
+  FileInput,
+  Icon,
+  IconButton,
+  Image,
+  Input,
+  Select,
+  Stepper,
+  Text,
+  TextArea,
+  useToast,
+} from &#39;@plocks/ui&#39;;
+import type { FileInputFile } from &#39;@plocks/ui&#39;;
+import { C } from &#39;../theme&#39;;
+import {
+  CITIES,
+  PHOTO_KEYS,
+  PHOTO_LABELS,
+  PHOTOS,
+  POST_TYPES,
+  REGIONS,
+  cityById,
+  photoSource,
+  postTypeById,
+  sectionById,
+  subLabel,
+  type Attr,
+  type Listing,
+  type Photo,
+  type SectionId,
+} from &#39;../data&#39;;
+import { useStore } from &#39;../store&#39;;
+import { MapBlock, Screen, SectionLabel, useWide } from &#39;../components&#39;;
+import { ListingBody } from &#39;./ListingView&#39;;
+
+const STEPS = [&#39;type&#39;, &#39;category&#39;, &#39;area&#39;, &#39;details&#39;, &#39;images&#39;, &#39;review&#39;];
+const MAX_PHOTOS = 12;
+
+type Field = { key: string; label: string; options?: string[]; placeholder?: string; required?: boolean; numeric?: boolean };
+type Toggle = { key: string; label: string };
+type Spec = { price?: { label: string; per?: string; required: boolean }; fields: Field[]; toggles: Toggle[] };
+
+const CONDITIONS = [&#39;new&#39;, &#39;like new&#39;, &#39;excellent&#39;, &#39;good&#39;, &#39;fair&#39;, &#39;salvage&#39;];
+
+/** Category-specific form fields, like the real posting form. */
+function specFor(typeId: string, section: SectionId, sub: string): Spec {
+  switch (section) {
+    case &#39;sale&#39;: {
+      const wanted = typeId === &#39;wanted&#39;;
+      const free = sub === &#39;free-stuff&#39;;
+      const fields: Field[] = [
+        { key: &#39;condition&#39;, label: &#39;condition&#39;, options: CONDITIONS, required: !wanted },
+        { key: &#39;make&#39;, label: &#39;make / manufacturer&#39;, placeholder: &#39;e.g. Larkspur&#39; },
+        { key: &#39;model&#39;, label: &#39;model name / number&#39;, placeholder: &#39;e.g. Metro 7&#39; },
+        { key: &#39;size&#39;, label: &#39;size / dimensions&#39;, placeholder: &#39;e.g. 30 x 32 in&#39; },
+      ];
+      if (sub === &#39;bikes&#39;) {
+        fields.push(
+          { key: &#39;bicycle type&#39;, label: &#39;bicycle type&#39;, options: [&#39;road&#39;, &#39;mountain&#39;, &#39;hybrid/comfort&#39;, &#39;cargo&#39;, &#39;kids&#39;, &#39;electric&#39;, &#39;other&#39;] },
+          { key: &#39;frame size&#39;, label: &#39;frame size&#39;, placeholder: &#39;e.g. 54 cm&#39; },
+        );
+      }
+      if (sub === &#39;cars-trucks&#39;) {
+        fields.push(
+          { key: &#39;model year&#39;, label: &#39;model year&#39;, placeholder: &#39;e.g. 2016&#39;, numeric: true, required: true },
+          { key: &#39;odometer&#39;, label: &#39;odometer&#39;, placeholder: &#39;miles&#39;, numeric: true, required: true },
+        );
+      }
+      return {
+        price: free ? undefined : { label: wanted ? &#39;max price&#39; : &#39;price&#39;, required: !wanted },
+        fields,
+        toggles: [
+          { key: &#39;cash only&#39;, label: &#39;cash only&#39; },
+          { key: &#39;delivery available&#39;, label: &#39;delivery available&#39; },
+          ...(typeId === &#39;dealer&#39; ? [{ key: &#39;warranty&#39;, label: &#39;includes warranty&#39; }] : []),
+        ],
+      };
+    }
+    case &#39;housing&#39;: {
+      const wanted = typeId === &#39;housing-wanted&#39; || sub === &#39;housing-wanted&#39;;
+      const per = sub === &#39;vacation-rentals&#39; ? &#39;/night&#39; : sub === &#39;real-estate-for-sale&#39; ? undefined : &#39;/mo&#39;;
+      return {
+        price: { label: wanted ? &#39;max budget&#39; : sub === &#39;real-estate-for-sale&#39; ? &#39;asking price&#39; : &#39;rent&#39;, per, required: !wanted },
+        fields: [
+          { key: &#39;bedrooms&#39;, label: &#39;bedrooms&#39;, options: [&#39;studio&#39;, &#39;1BR&#39;, &#39;2BR&#39;, &#39;3BR&#39;, &#39;4BR+&#39;, &#39;room&#39;], required: true },
+          { key: &#39;bathrooms&#39;, label: &#39;bathrooms&#39;, options: [&#39;shared&#39;, &#39;1&#39;, &#39;1.5&#39;, &#39;2&#39;, &#39;2.5&#39;, &#39;3+&#39;] },
+          { key: &#39;size&#39;, label: &#39;size (ft²)&#39;, placeholder: &#39;e.g. 640&#39;, numeric: true },
+          { key: &#39;available&#39;, label: &#39;available on&#39;, placeholder: &#39;e.g. dec 1&#39; },
+          { key: &#39;laundry&#39;, label: &#39;laundry&#39;, options: [&#39;w/d in unit&#39;, &#39;w/d hookups&#39;, &#39;laundry in bldg&#39;, &#39;laundry on site&#39;, &#39;no laundry on site&#39;] },
+          { key: &#39;parking&#39;, label: &#39;parking&#39;, options: [&#39;attached garage&#39;, &#39;detached garage&#39;, &#39;carport&#39;, &#39;off-street parking&#39;, &#39;street parking&#39;, &#39;no parking&#39;] },
+        ],
+        toggles: [
+          { key: &#39;cats are OK&#39;, label: &#39;cats are OK - purrr&#39; },
+          { key: &#39;dogs are OK&#39;, label: &#39;dogs are OK - wooof&#39; },
+          { key: &#39;furnished&#39;, label: &#39;furnished&#39; },
+          { key: &#39;no smoking&#39;, label: &#39;no smoking&#39; },
+        ],
+      };
+    }
+    case &#39;jobs&#39;:
+      return {
+        fields: [
+          { key: &#39;compensation&#39;, label: &#39;compensation&#39;, placeholder: &#39;e.g. $18/hr plus tips&#39;, required: true },
+          { key: &#39;employment type&#39;, label: &#39;employment type&#39;, options: [&#39;full-time&#39;, &#39;part-time&#39;, &#39;contract&#39;, &#39;employee’s choice&#39;], required: true },
+          { key: &#39;job title&#39;, label: &#39;job title&#39;, placeholder: &#39;e.g. barista&#39; },
+          { key: &#39;company&#39;, label: &#39;company name&#39;, placeholder: &#39;optional&#39; },
+        ],
+        toggles: [
+          { key: &#39;remote&#39;, label: &#39;remote OK&#39; },
+          { key: &#39;internship&#39;, label: &#39;internship&#39; },
+          { key: &#39;non-profit&#39;, label: &#39;non-profit organization&#39; },
+        ],
+      };
+    case &#39;gigs&#39;:
+      return {
+        fields: [
+          { key: &#39;gig type&#39;, label: &#39;pay&#39;, options: [&#39;paid&#39;, &#39;unpaid&#39;], required: true },
+          { key: &#39;compensation&#39;, label: &#39;compensation&#39;, placeholder: &#39;e.g. $60 for an hour&#39; },
+        ],
+        toggles: [{ key: &#39;same day&#39;, label: &#39;needed today&#39; }],
+      };
+    case &#39;services&#39;:
+      return {
+        price: { label: &#39;starting rate&#39;, per: &#39;/hr&#39;, required: false },
+        fields: [
+          { key: &#39;rate&#39;, label: &#39;rate details&#39;, placeholder: &#39;e.g. tune up from $35&#39; },
+          { key: &#39;service area&#39;, label: &#39;service area&#39;, placeholder: &#39;e.g. all of alder bay&#39; },
+        ],
+        toggles: [
+          { key: &#39;licensed&#39;, label: &#39;licensed&#39; },
+          { key: &#39;insured&#39;, label: &#39;insured&#39; },
+        ],
+      };
+    default:
+      return {
+        fields:
+          typeId === &#39;event&#39;
+            ? [
+                { key: &#39;event date&#39;, label: &#39;event date and time&#39;, placeholder: &#39;e.g. saturday, 10am to noon&#39;, required: true },
+                { key: &#39;cost&#39;, label: &#39;cost&#39;, placeholder: &#39;e.g. free&#39; },
+              ]
+            : [],
+        toggles: typeId === &#39;event&#39; ? [{ key: &#39;kid friendly&#39;, label: &#39;kid friendly&#39; }] : [],
+      };
+  }
+}
+
+type Draft = {
+  type?: string;
+  sub?: string;
+  cityId: string;
+  hood?: string;
+  postal: string;
+  title: string;
+  price: string;
+  body: string;
+  fields: Record&lt;string, string&gt;;
+  toggles: Record&lt;string, boolean&gt;;
+  photos: Photo[];
+  showPhone: boolean;
+};
+
+function Choice({
+  label,
+  hint,
+  selected,
+  onPress,
+  right,
+}: {
+  label: string;
+  hint?: string;
+  selected: boolean;
+  onPress: () =&gt; void;
+  right?: ReactNode;
+}) {
+  return (
+    &lt;Block
+      onPress={onPress}
+      accessibilityRole=&quot;radio&quot;
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={label}
+      direction=&quot;row&quot;
+      align=&quot;center&quot;
+      gap={12}
+      py={10}
+      px={12}
+      bg={selected ? C.tint : C.white}
+      borderBottomWidth={1}
+      borderBottomColor={C.line}
+      pressedStyle={{ opacity: 0.7 }}
+    &gt;
+      &lt;Block gap={0} w={18} h={18} radius={9} borderWidth={selected ? 5 : 1.5} borderColor={selected ? C.purple : C.lineStrong} bg={C.white} /&gt;
+      &lt;Block flex={1} miw={0} gap={1}&gt;
+        &lt;Text c={selected ? C.purple : C.link} fw=&quot;semibold&quot; size={15}&gt;
+          {label}
+        &lt;/Text&gt;
+        {!!hint &amp;&amp; (
+          &lt;Text c={C.muted} size={12}&gt;
+            {hint}
+          &lt;/Text&gt;
+        )}
+      &lt;/Block&gt;
+      {right}
+    &lt;/Block&gt;
+  );
+}
+
+function Label({ children, required }: { children: ReactNode; required?: boolean }) {
+  return (
+    &lt;Text c={C.ink} fw=&quot;semibold&quot; size={13} lh={18} mb={4}&gt;
+      {children}
+      {required ? (
+        &lt;Text c={C.red} size={13} lh={18}&gt;
+          {&#39; &#39;}*
+        &lt;/Text&gt;
+      ) : null}
+    &lt;/Text&gt;
+  );
+}
+
+function newDraft(cityId: string): Draft {
+  return { cityId, postal: &#39;&#39;, title: &#39;&#39;, price: &#39;&#39;, body: &#39;&#39;, fields: {}, toggles: {}, photos: [], showPhone: false };
+}
+
+export function Post() {
+  const store = useStore();
+  const toast = useToast();
+  const wide = useWide();
+  const { width } = useWindowDimensions();
+  const tileW = wide ? 168 : Math.max(104, Math.floor((Math.min(width, 760) - 28 - 20) / 3));
+  const [step, setStep] = useState(0);
+  const [draft, setDraft] = useState&lt;Draft&gt;(() =&gt; newDraft(store.cityId));
+  const [published, setPublished] = useState&lt;string | null&gt;(null);
+  /** Picked files by photo id, so FileInput can be driven from the photo list. */
+  const [files, setFiles] = useState&lt;Record&lt;string, FileInputFile&gt;&gt;({});
+  const set = (patch: Partial&lt;Draft&gt;) =&gt; setDraft((old) =&gt; ({ ...old, ...patch }));
+
+  const type = draft.type ? postTypeById(draft.type) : undefined;
+  const section = type ? sectionById(type.section) : undefined;
+  const city = cityById(draft.cityId);
+  const spec = useMemo(() =&gt; (type &amp;&amp; draft.sub ? specFor(type.id, type.section, draft.sub) : undefined), [type, draft.sub]);
+
+  const missing: string[] = [];
+  if (step &gt;= 3 &amp;&amp; spec) {
+    if (!draft.title.trim()) missing.push(&#39;posting title&#39;);
+    if (spec.price?.required &amp;&amp; !draft.price.trim()) missing.push(spec.price.label);
+    if (draft.body.trim().length &lt; 10) missing.push(&#39;description&#39;);
+    for (const field of spec.fields) if (field.required &amp;&amp; !draft.fields[field.key]?.trim()) missing.push(field.label);
+  }
+  const canContinue = [!!type, !!draft.sub, !!draft.hood, missing.length === 0, true, true][step];
+
+  const listing: Listing | undefined =
+    type &amp;&amp; draft.sub &amp;&amp; spec
+      ? {
+          id: published ?? &#39;preview&#39;,
+          title: draft.title.trim() || &#39;your posting title&#39;,
+          price: draft.price.trim() ? Number(draft.price) : type.section === &#39;sale&#39; &amp;&amp; draft.sub === &#39;free-stuff&#39; ? 0 : null,
+          per: spec.price?.per,
+          section: type.section,
+          sub: draft.sub,
+          postType: type.id,
+          cityId: draft.cityId,
+          hood: draft.hood ?? city.hoods[0],
+          postedAt: Date.now(),
+          body: draft.body.trim() || &#39;Your description will appear here.&#39;,
+          photos: draft.photos,
+          attrs: [
+            ...spec.fields
+              .filter((field) =&gt; draft.fields[field.key]?.trim())
+              .map((field): Attr =&gt; ({ label: field.key, value: draft.fields[field.key].trim() })),
+            ...spec.toggles.filter((toggle) =&gt; draft.toggles[toggle.key]).map((toggle): Attr =&gt; ({ label: toggle.label, value: &#39;yes&#39; })),
+          ],
+          seller: &#39;You&#39;,
+          mine: true,
+        }
+      : undefined;
+
+  const addPhotos = (photos: Photo[]) =&gt; {
+    setDraft((old) =&gt; {
+      const room = MAX_PHOTOS - old.photos.length;
+      if (photos.length &gt; room) toast.show({ title: `Up to ${MAX_PHOTOS} images`, message: &#39;Remove one to add more.&#39;, autoHide: 2200 });
+      return { ...old, photos: [...old.photos, ...photos.slice(0, Math.max(0, room))] };
+    });
+  };
+  const fileValue = draft.photos.filter((photo) =&gt; files[photo.id]).map((photo) =&gt; files[photo.id]);
+  const sampleCount = draft.photos.length - fileValue.length;
+  const onFiles = (next: FileInputFile[]) =&gt; {
+    const known = new Set(draft.photos.map((photo) =&gt; photo.id));
+    const added = next.filter((file) =&gt; !known.has(file.id) &amp;&amp; !file.error &amp;&amp; (file.previewUrl || file.uri));
+    const bad = next.filter((file) =&gt; file.error &amp;&amp; !files[file.id]);
+    if (bad.length) toast.show({ title: &#39;Some files were skipped&#39;, message: bad[0].error, autoHide: 2600 });
+    setFiles((old) =&gt; ({ ...old, ...Object.fromEntries(next.map((file) =&gt; [file.id, file])) }));
+    const kept = new Set(next.map((file) =&gt; file.id));
+    const dropped = fileValue.filter((file) =&gt; !kept.has(file.id)).map((file) =&gt; file.id);
+    if (dropped.length) setDraft((old) =&gt; ({ ...old, photos: old.photos.filter((photo) =&gt; !dropped.includes(photo.id)) }));
+    if (added.length) addPhotos(added.map((file) =&gt; ({ id: file.id, src: (file.previewUrl || file.uri) as string, caption: file.name })));
+  };
+  const move = (index: number, delta: number) =&gt;
+    setDraft((old) =&gt; {
+      const photos = [...old.photos];
+      const target = index + delta;
+      if (target &lt; 0 || target &gt;= photos.length) return old;
+      [photos[index], photos[target]] = [photos[target], photos[index]];
+      return { ...old, photos };
+    });
+  const remove = (id: string) =&gt; setDraft((old) =&gt; ({ ...old, photos: old.photos.filter((photo) =&gt; photo.id !== id) }));
+
+  const publish = () =&gt; {
+    if (!listing) return;
+    const id = String(8000 + Math.floor(Math.random() * 1900));
+    store.publish({ ...listing, id, postedAt: Date.now() });
+    setPublished(id);
+  };
+  const reset = () =&gt; {
+    setFiles({});
+    setDraft(newDraft(store.cityId));
+    setStep(0);
+    setPublished(null);
+  };
+
+  if (published) {
+    return (
+      &lt;Screen title=&quot;posting published&quot; maw={620}&gt;
+        &lt;Block gap={12} align=&quot;center&quot; py={36}&gt;
+          &lt;Block gap={0} w={64} h={64} radius={32} bg={C.greenPale} align=&quot;center&quot; justify=&quot;center&quot;&gt;
+            &lt;Icon name=&quot;check&quot; color={C.green} size={32} /&gt;
+          &lt;/Block&gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={20} ta=&quot;center&quot;&gt;
+            Your posting is live
+          &lt;/Text&gt;
+          &lt;Text c={C.muted} size={14} ta=&quot;center&quot; lh={20}&gt;
+            “{listing?.title}” is now in {subLabel(listing!.section, listing!.sub)} for {city.name}. Post id {published}.
+          &lt;/Text&gt;
+          &lt;Block gap={8} direction=&quot;row&quot; mt={8} wrap justify=&quot;center&quot;&gt;
+            &lt;Button title=&quot;view posting&quot; color={C.purple} onPress={() =&gt; store.openIn(&#39;browse&#39;, { name: &#39;listing&#39;, id: published })} /&gt;
+            &lt;Button title=&quot;post another&quot; variant=&quot;outline&quot; color={C.purple} onPress={reset} /&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      &lt;/Screen&gt;
+    );
+  }
+
+  const footer = (
+    &lt;Block gap={10} direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;center&quot; px={14} py={10} borderTopWidth={1} borderTopColor={C.line} bg={C.white}&gt;
+      &lt;Block gap={10} direction=&quot;row&quot; align=&quot;center&quot; w=&quot;100%&quot; maw={760}&gt;
+        &lt;Button title=&quot;back&quot; variant=&quot;outline&quot; color={C.purple} disabled={step === 0} onPress={() =&gt; setStep(step - 1)} /&gt;
+        &lt;Text c={C.muted} size={12} flex={1} ta=&quot;center&quot; numberOfLines={1}&gt;
+          {step === 3 &amp;&amp; missing.length ? `needed: ${missing.join(&#39;, &#39;)}` : `step ${step + 1} of ${STEPS.length}`}
+        &lt;/Text&gt;
+        {step &lt; STEPS.length - 1 ? (
+          &lt;Button title={step === 4 &amp;&amp; !draft.photos.length ? &#39;skip images&#39; : &#39;continue&#39;} color={C.purple} disabled={!canContinue} onPress={() =&gt; setStep(step + 1)} /&gt;
+        ) : (
+          &lt;Button title=&quot;publish&quot; color={C.green} startSection={&lt;Icon name=&quot;check&quot; color={C.white} size={16} /&gt;} onPress={publish} /&gt;
+        )}
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+
+  const crumbs = [type?.label, draft.sub &amp;&amp; type ? subLabel(type.section, draft.sub) : undefined, draft.hood ? `${draft.hood}, ${city.name}` : undefined].filter(Boolean);
+
+  return (
+    &lt;Screen title=&quot;create a posting&quot; subtitle={crumbs.length ? crumbs.join(&#39; › &#39;) : `posting to ${city.name}`} maw={760} footer={footer}&gt;
+      &lt;Block gap={0} py={6} mb={10}&gt;
+        &lt;Stepper
+          active={step}
+          onStepClick={(index) =&gt; index &lt; step &amp;&amp; setStep(index)}
+          compact={!wide}
+          size={wide ? &#39;sm&#39; : &#39;xs&#39;}
+          color={C.purple}
+          aria-label=&quot;Posting steps&quot;
+        &gt;
+          {STEPS.map((label) =&gt; (
+            &lt;Stepper.Step key={label} label={label} /&gt;
+          ))}
+        &lt;/Stepper&gt;
+      &lt;/Block&gt;
+
+      {step === 0 &amp;&amp; (
+        &lt;&gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={18}&gt;
+            what type of posting is this?
+          &lt;/Text&gt;
+          &lt;Text c={C.muted} size={13} mb={10}&gt;
+            choose the option that fits best
+          &lt;/Text&gt;
+          &lt;Block gap={0} borderWidth={1} borderColor={C.line} radius={6} overflow=&quot;hidden&quot;&gt;
+            {POST_TYPES.map((item) =&gt; (
+              &lt;Choice
+                key={item.id}
+                label={item.label}
+                hint={item.hint}
+                selected={draft.type === item.id}
+                onPress={() =&gt; set({ type: item.id, sub: item.section === type?.section ? draft.sub : undefined, fields: {}, toggles: {} })}
+                right={&lt;Text c={C.faint} size={11}&gt;{sectionById(item.section).label}&lt;/Text&gt;}
+              /&gt;
+            ))}
+          &lt;/Block&gt;
+        &lt;/&gt;
+      )}
+
+      {step === 1 &amp;&amp; section &amp;&amp; (
+        &lt;&gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={18}&gt;
+            choose a category
+          &lt;/Text&gt;
+          &lt;Text c={C.muted} size={13} mb={10}&gt;
+            {type?.label} · {section.label}
+          &lt;/Text&gt;
+          &lt;Block gap={0} direction=&quot;row&quot; wrap borderWidth={1} borderColor={C.line} radius={6} overflow=&quot;hidden&quot;&gt;
+            {section.subs.map((item) =&gt; (
+              &lt;Block key={item.id} gap={0} w={wide ? &#39;50%&#39; : &#39;100%&#39;}&gt;
+                &lt;Choice
+                  label={item.label}
+                  selected={draft.sub === item.id}
+                  onPress={() =&gt; set({ sub: item.id, fields: {}, toggles: {}, price: item.id === &#39;free-stuff&#39; ? &#39;&#39; : draft.price })}
+                /&gt;
+              &lt;/Block&gt;
+            ))}
+          &lt;/Block&gt;
+        &lt;/&gt;
+      )}
+
+      {step === 2 &amp;&amp; (
+        &lt;&gt;
+          &lt;Text c={C.ink} fw=&quot;bold&quot; size={18}&gt;
+            where is this located?
+          &lt;/Text&gt;
+          &lt;Text c={C.muted} size={13} mb={12}&gt;
+            pick the area and neighborhood buyers will see
+          &lt;/Text&gt;
+          &lt;Label required&gt;area&lt;/Label&gt;
+          &lt;Select
+            searchable
+            options={REGIONS.flatMap((region) =&gt;
+              CITIES.filter((item) =&gt; item.region === region.id).map((item) =&gt; ({ label: item.name, value: item.id, description: region.label })),
+            )}
+            value={draft.cityId}
+            onChange={(value) =&gt; value &amp;&amp; set({ cityId: value, hood: undefined })}
+            placeholder=&quot;choose an area&quot;
+            searchPlaceholder=&quot;search areas&quot;
+            mb={14}
+            radius={6}
+            accessibilityLabel=&quot;Area&quot;
+          /&gt;
+          &lt;Label required&gt;neighborhood&lt;/Label&gt;
+          &lt;Block gap={6} direction=&quot;row&quot; wrap mb={14}&gt;
+            {city.hoods.map((hood) =&gt; (
+              &lt;Chip key={hood} size=&quot;sm&quot; variant={draft.hood === hood ? &#39;filled&#39; : &#39;outline&#39;} color={C.purple} onPress={() =&gt; set({ hood })}&gt;
+                {hood}
+              &lt;/Chip&gt;
+            ))}
+          &lt;/Block&gt;
+          &lt;Label&gt;postal code&lt;/Label&gt;
+          &lt;Input
+            variant=&quot;outline&quot;
+            value={draft.postal}
+            onChangeText={(postal) =&gt; set({ postal: postal.replace(/[^0-9]/g, &#39;&#39;).slice(0, 5) })}
+            placeholder=&quot;optional&quot;
+            keyboardType=&quot;number-pad&quot;
+            mb={14}
+            w={160}
+            radius={6}
+            accessibilityLabel=&quot;Postal code&quot;
+          /&gt;
+          {draft.hood &amp;&amp; &lt;MapBlock hood={draft.hood} cityId={draft.cityId} h={150} /&gt;}
+        &lt;/&gt;
+      )}
+
+      {step === 3 &amp;&amp; spec &amp;&amp; type &amp;&amp; (
+        &lt;Block gap={14}&gt;
+          &lt;Block gap={0}&gt;
+            &lt;Text c={C.ink} fw=&quot;bold&quot; size={18}&gt;
+              posting details
+            &lt;/Text&gt;
+            &lt;Text c={C.muted} size={13}&gt;
+              {type.label} › {subLabel(type.section, draft.sub!)}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;Block gap={10} direction={wide ? &#39;row&#39; : &#39;column&#39;}&gt;
+            &lt;Block gap={0} flex={wide ? 1 : undefined}&gt;
+              &lt;Label required&gt;posting title&lt;/Label&gt;
+              &lt;Input variant=&quot;outline&quot; value={draft.title} onChangeText={(title) =&gt; set({ title })} placeholder=&quot;e.g. commuter bike, 54cm&quot; maxLength={70} mb={0} radius={6} accessibilityLabel=&quot;Posting title&quot; /&gt;
+            &lt;/Block&gt;
+            {spec.price &amp;&amp; (
+              &lt;Block gap={0} w={wide ? 170 : undefined}&gt;
+                &lt;Label required={spec.price.required}&gt;
+                  {spec.price.label}
+                  {spec.price.per ? ` (${spec.price.per.slice(1)})` : &#39;&#39;}
+                &lt;/Label&gt;
+                &lt;Input
+                  variant=&quot;outline&quot;
+                  value={draft.price}
+                  onChangeText={(price) =&gt; set({ price: price.replace(/[^0-9]/g, &#39;&#39;) })}
+                  placeholder=&quot;0&quot;
+                  keyboardType=&quot;number-pad&quot;
+                  startSection={&lt;Text c={C.muted}&gt;$&lt;/Text&gt;}
+                  mb={0}
+                  radius={6}
+                  accessibilityLabel={spec.price.label}
+                /&gt;
+              &lt;/Block&gt;
+            )}
+          &lt;/Block&gt;
+          &lt;Block gap={0}&gt;
+            &lt;Label required&gt;description&lt;/Label&gt;
+            &lt;TextArea variant=&quot;outline&quot; value={draft.body} onChangeText={(body) =&gt; set({ body })} placeholder=&quot;Describe what you&#39;re posting. Leave a blank line between paragraphs.&quot; rows={6} mb={0} radius={6} accessibilityLabel=&quot;Description&quot; /&gt;
+            &lt;Text c={C.faint} size={11} mt={4}&gt;
+              {draft.body.length} characters
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          {spec.fields.length &gt; 0 &amp;&amp; (
+            &lt;&gt;
+              &lt;SectionLabel mt={4}&gt;{section?.label} details&lt;/SectionLabel&gt;
+              &lt;Block gap={0} direction=&quot;row&quot; wrap justify=&quot;space-between&quot;&gt;
+                {spec.fields.map((field) =&gt; (
+                  &lt;Block key={field.key} gap={0} w={wide ? &#39;49%&#39; : &#39;100%&#39;} pb={12}&gt;
+                    &lt;Label required={field.required}&gt;{field.label}&lt;/Label&gt;
+                    {field.options ? (
+                      &lt;Select
+                        options={field.options.map((option) =&gt; ({ label: option, value: option }))}
+                        value={draft.fields[field.key] ?? null}
+                        onChange={(value) =&gt; set({ fields: { ...draft.fields, [field.key]: value ?? &#39;&#39; } })}
+                        placeholder=&quot;-&quot;
+                        clearable={!field.required}
+                        radius={6}
+                        accessibilityLabel={field.label}
+                      /&gt;
+                    ) : (
+                      &lt;Input
+                        variant=&quot;outline&quot;
+                        value={draft.fields[field.key] ?? &#39;&#39;}
+                        onChangeText={(value) =&gt; set({ fields: { ...draft.fields, [field.key]: field.numeric ? value.replace(/[^0-9,]/g, &#39;&#39;) : value } })}
+                        placeholder={field.placeholder}
+                        keyboardType={field.numeric ? &#39;number-pad&#39; : &#39;default&#39;}
+                        mb={0}
+                        radius={6}
+                        accessibilityLabel={field.label}
+                      /&gt;
+                    )}
+                  &lt;/Block&gt;
+                ))}
+              &lt;/Block&gt;
+            &lt;/&gt;
+          )}
+          {spec.toggles.length &gt; 0 &amp;&amp; (
+            &lt;Block gap={0} direction=&quot;row&quot; wrap justify=&quot;space-between&quot;&gt;
+              {spec.toggles.map((toggle) =&gt; (
+                &lt;Block key={toggle.key} gap={0} w={wide ? &#39;49%&#39; : &#39;100%&#39;} pb={10}&gt;
+                  &lt;Checkbox
+                    label={toggle.label}
+                    color={C.purple}
+                    checked={!!draft.toggles[toggle.key]}
+                    onChange={(checked) =&gt; set({ toggles: { ...draft.toggles, [toggle.key]: checked } })}
+                  /&gt;
+                &lt;/Block&gt;
+              ))}
+            &lt;/Block&gt;
+          )}
+          &lt;SectionLabel mt={4}&gt;contact&lt;/SectionLabel&gt;
+          &lt;Block gap={8} p={12} radius={6} bg={C.paler} borderWidth={1} borderColor={C.line}&gt;
+            &lt;Text c={C.body} size={13}&gt;
+              Replies come to your townlist messages through an anonymous relay email.
+            &lt;/Text&gt;
+            &lt;Checkbox label=&quot;also show my phone number&quot; color={C.purple} checked={draft.showPhone} onChange={(showPhone) =&gt; set({ showPhone })} /&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      )}
+
+      {step === 4 &amp;&amp; (
+        &lt;Block gap={12}&gt;
+          &lt;Block gap={0}&gt;
+            &lt;Text c={C.ink} fw=&quot;bold&quot; size={18}&gt;
+              add images
+            &lt;/Text&gt;
+            &lt;Text c={C.muted} size={13}&gt;
+              up to {MAX_PHOTOS} images · the first one is the cover photo
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;FileInput
+            variant=&quot;dropzone&quot;
+            accept={[&#39;image/*&#39;]}
+            multiple
+            maxFiles={MAX_PHOTOS - sampleCount}
+            value={fileValue}
+            maxSize={15 * 1024 * 1024}
+            showFileList={false}
+            imagePreview={{ enabled: true, maxWidth: 1200, maxHeight: 1200, quality: 0.82 }}
+            placeholder=&quot;drop images here&quot;
+            onChange={onFiles}
+            disabled={draft.photos.length &gt;= MAX_PHOTOS}
+            accessibilityLabel=&quot;Add images&quot;
+          /&gt;
+          &lt;Block gap={6}&gt;
+            &lt;Text c={C.muted} size={12}&gt;
+              no photos handy? add sample images:
+            &lt;/Text&gt;
+            &lt;Block gap={6} direction=&quot;row&quot; wrap&gt;
+              {PHOTO_KEYS.map((key) =&gt; (
+                &lt;Block
+                  key={key}
+                  gap={0}
+                  onPress={() =&gt; addPhotos([{ id: `${key}-${Date.now()}`, src: key, caption: PHOTO_LABELS[key] }])}
+                  accessibilityRole=&quot;button&quot;
+                  accessibilityLabel={`Add sample photo: ${PHOTO_LABELS[key]}`}
+                  radius={4}
+                  overflow=&quot;hidden&quot;
+                  borderWidth={1}
+                  borderColor={C.line}
+                  pressedStyle={{ opacity: 0.6 }}
+                &gt;
+                  &lt;Image src={PHOTOS[key]} w={wide ? 64 : 54} h={wide ? 48 : 42} resizeMode=&quot;cover&quot; alt=&quot;&quot; /&gt;
+                &lt;/Block&gt;
+              ))}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+          {draft.photos.length &gt; 0 &amp;&amp; (
+            &lt;&gt;
+              &lt;SectionLabel right={&lt;Text c={C.link} size={12} onPress={() =&gt; set({ photos: [] })}&gt;remove all&lt;/Text&gt;}&gt;
+                {draft.photos.length} of {MAX_PHOTOS} images
+              &lt;/SectionLabel&gt;
+              &lt;Block gap={10} direction=&quot;row&quot; wrap&gt;
+                {draft.photos.map((photo, index) =&gt; (
+                  &lt;Block key={photo.id} gap={0} w={tileW} radius={6} overflow=&quot;hidden&quot; borderWidth={index === 0 ? 2 : 1} borderColor={index === 0 ? C.purple : C.line} bg={C.white}&gt;
+                    &lt;Block gap={0} position=&quot;relative&quot;&gt;
+                      &lt;Image src={photoSource(photo)} w=&quot;100%&quot; h={Math.round(tileW * 0.72)} resizeMode=&quot;cover&quot; alt={photo.caption ?? `image ${index + 1}`} /&gt;
+                      &lt;Block gap={0} position=&quot;absolute&quot; left={6} top={6}&gt;
+                        {index === 0 ? (
+                          &lt;Badge size=&quot;xs&quot; variant=&quot;filled&quot; color={C.purple}&gt;
+                            cover
+                          &lt;/Badge&gt;
+                        ) : (
+                          &lt;Badge size=&quot;xs&quot; variant=&quot;filled&quot; color={C.ink}&gt;
+                            {index + 1}
+                          &lt;/Badge&gt;
+                        )}
+                      &lt;/Block&gt;
+                    &lt;/Block&gt;
+                    &lt;Block gap={0} direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot; px={2}&gt;
+                      &lt;IconButton icon=&quot;arrow-left&quot; size=&quot;sm&quot; variant=&quot;ghost&quot; iconColor={C.body} disabled={index === 0} accessibilityLabel={`Move image ${index + 1} earlier`} onPress={() =&gt; move(index, -1)} /&gt;
+                      &lt;IconButton icon=&quot;arrow-right&quot; size=&quot;sm&quot; variant=&quot;ghost&quot; iconColor={C.body} disabled={index === draft.photos.length - 1} accessibilityLabel={`Move image ${index + 1} later`} onPress={() =&gt; move(index, 1)} /&gt;
+                      &lt;IconButton icon=&quot;trash&quot; size=&quot;sm&quot; variant=&quot;ghost&quot; iconColor={C.red} accessibilityLabel={`Remove image ${index + 1}`} onPress={() =&gt; remove(photo.id)} /&gt;
+                    &lt;/Block&gt;
+                  &lt;/Block&gt;
+                ))}
+              &lt;/Block&gt;
+            &lt;/&gt;
+          )}
+        &lt;/Block&gt;
+      )}
+
+      {step === 5 &amp;&amp; listing &amp;&amp; (
+        &lt;Block gap={12}&gt;
+          &lt;Block gap={8} direction=&quot;row&quot; align=&quot;center&quot; p={10} radius={6} bg={C.amberPale}&gt;
+            &lt;Icon name=&quot;eye&quot; color={C.amber} size={16} /&gt;
+            &lt;Text c={C.amber} size={13} flex={1}&gt;
+              This is how your posting will look. Use back to edit.
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;Block gap={0} p={wide ? 16 : 10} radius={8} borderWidth={1} borderColor={C.lineStrong} borderStyle=&quot;dashed&quot;&gt;
+            &lt;ListingBody listing={listing} preview /&gt;
+          &lt;/Block&gt;
+          &lt;Text c={C.muted} size={12}&gt;
+            By publishing you agree to the townlist demo terms. Your posting stays on this device.
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      )}
+    &lt;/Screen&gt;
+  );
+}
+</code></pre></section><section id="file-10"><h2>screens/Results.tsx</h2><pre><code>import { useState } from &#39;react&#39;;
+import { useWindowDimensions } from &#39;react-native&#39;;
+import { Block, Chip, Icon, IconButton, Input, ScrollArea, SegmentedControl, Text, useToast } from &#39;@plocks/ui&#39;;
+import { C } from &#39;../theme&#39;;
+import { sectionById, subLabel } from &#39;../data&#39;;
+import { useStore, type Filter, type Sort } from &#39;../store&#39;;
+import { EmptyNote, ListingRow, ListingTile, Screen, useWide } from &#39;../components&#39;;
+import { CityButton, SearchBar } from &#39;./Home&#39;;
+
+const SORTS: { value: Sort; label: string }[] = [
+  { value: &#39;newest&#39;, label: &#39;newest&#39; },
+  { value: &#39;price-asc&#39;, label: &#39;price ↑&#39; },
+  { value: &#39;price-desc&#39;, label: &#39;price ↓&#39; },
+];
+
+export function filterTitle(filter: Filter) {
+  if (filter.section &amp;&amp; filter.sub) return subLabel(filter.section, filter.sub);
+  if (filter.section) return `all ${sectionById(filter.section).label}`;
+  return filter.query ? `“${filter.query}”` : &#39;all posts&#39;;
+}
+
+export function Results({ initial }: { initial: Filter }) {
+  const store = useStore();
+  const toast = useToast();
+  const wide = useWide();
+  const { width } = useWindowDimensions();
+  const [filter, setFilter] = useState&lt;Filter&gt;(initial);
+  const [view, setView] = useState&lt;&#39;list&#39; | &#39;gallery&#39;&gt;(&#39;list&#39;);
+  const [showPrice, setShowPrice] = useState(!!(initial.min || initial.max));
+  const results = store.search(filter);
+  const set = (patch: Partial&lt;Filter&gt;) =&gt; setFilter((old) =&gt; ({ ...old, ...patch }));
+  const section = filter.section ? sectionById(filter.section) : undefined;
+  const columns = wide ? 4 : width &gt;= 560 ? 3 : 2;
+  const contentW = Math.min(wide ? width - 220 - 48 : width - 28, 880);
+  const tileW = Math.floor((contentW - (columns - 1) * 10) / columns);
+  const open = (id: string) =&gt; store.push({ name: &#39;listing&#39;, id });
+
+  return (
+    &lt;Screen
+      back
+      title={filterTitle(filter)}
+      subtitle={`${results.length} result${results.length === 1 ? &#39;&#39; : &#39;s&#39;} · ${store.city.name}${store.radius ? ` +${store.radius}mi` : &#39;&#39;}`}
+      right={
+        &lt;Block gap={4} direction=&quot;row&quot; align=&quot;center&quot;&gt;
+          &lt;IconButton
+            icon=&quot;bookmark&quot;
+            variant=&quot;ghost&quot;
+            iconColor={C.purple}
+            accessibilityLabel=&quot;Save this search&quot;
+            onPress={() =&gt; {
+              store.saveSearch(filter);
+              toast.show({ title: &#39;Search saved&#39;, message: &#39;Find it under saved.&#39;, autoHide: 2200 });
+            }}
+          /&gt;
+          {wide &amp;&amp; &lt;CityButton /&gt;}
+        &lt;/Block&gt;
+      }
+    &gt;
+      &lt;Block gap={6} direction=&quot;row&quot; align=&quot;center&quot; mb={8} wrap&gt;
+        &lt;Text c={C.link} size={12} onPress={() =&gt; store.push({ name: &#39;cities&#39; })}&gt;
+          {store.city.name}
+        &lt;/Text&gt;
+        {section &amp;&amp; (
+          &lt;&gt;
+            &lt;Text c={C.faint} size={12}&gt;›&lt;/Text&gt;
+            &lt;Text c={C.link} size={12} onPress={() =&gt; set({ sub: undefined })}&gt;
+              {section.label}
+            &lt;/Text&gt;
+          &lt;/&gt;
+        )}
+        {filter.sub &amp;&amp; filter.section &amp;&amp; (
+          &lt;&gt;
+            &lt;Text c={C.faint} size={12}&gt;›&lt;/Text&gt;
+            &lt;Text c={C.ink} size={12}&gt;
+              {subLabel(filter.section, filter.sub)}
+            &lt;/Text&gt;
+          &lt;/&gt;
+        )}
+      &lt;/Block&gt;
+      &lt;SearchBar initial={filter.query} onSubmit={(query) =&gt; set({ query })} /&gt;
+
+      {section &amp;&amp; (
+        &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} mt={10} contentProps={{ gap: 6, direction: &#39;row&#39; }}&gt;
+          &lt;Chip size=&quot;xs&quot; variant={!filter.sub ? &#39;filled&#39; : &#39;outline&#39;} color={C.purple} onPress={() =&gt; set({ sub: undefined })}&gt;
+            all
+          &lt;/Chip&gt;
+          {section.subs.map((item) =&gt; (
+            &lt;Chip
+              key={item.id}
+              size=&quot;xs&quot;
+              variant={filter.sub === item.id ? &#39;filled&#39; : &#39;outline&#39;}
+              color={C.purple}
+              onPress={() =&gt; set({ sub: filter.sub === item.id ? undefined : item.id })}
+            &gt;
+              {item.label}
+            &lt;/Chip&gt;
+          ))}
+        &lt;/ScrollArea&gt;
+      )}
+
+      &lt;Block gap={8} direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot; wrap mt={10} pb={10} borderBottomWidth={1} borderBottomColor={C.line}&gt;
+        &lt;Block gap={6} direction=&quot;row&quot; wrap align=&quot;center&quot;&gt;
+          &lt;Chip size=&quot;xs&quot; variant={filter.hasImage ? &#39;light&#39; : &#39;outline&#39;} color={C.purple} onPress={() =&gt; set({ hasImage: !filter.hasImage })} startSection={filter.hasImage ? &lt;Icon name=&quot;check&quot; size={12} color={C.purple} /&gt; : undefined}&gt;
+            has image
+          &lt;/Chip&gt;
+          &lt;Chip size=&quot;xs&quot; variant={filter.today ? &#39;light&#39; : &#39;outline&#39;} color={C.purple} onPress={() =&gt; set({ today: !filter.today })} startSection={filter.today ? &lt;Icon name=&quot;check&quot; size={12} color={C.purple} /&gt; : undefined}&gt;
+            posted today
+          &lt;/Chip&gt;
+          &lt;Chip size=&quot;xs&quot; variant={showPrice || filter.min || filter.max ? &#39;light&#39; : &#39;outline&#39;} color={C.purple} onPress={() =&gt; setShowPrice(!showPrice)} endSection={&lt;Icon name={showPrice ? &#39;chevron-up&#39; : &#39;chevron-down&#39;} size={12} color={C.purple} /&gt;}&gt;
+            {filter.min || filter.max ? `$${filter.min || 0}–${filter.max ? &#39;$&#39; + filter.max : &#39;any&#39;}` : &#39;price&#39;}
+          &lt;/Chip&gt;
+        &lt;/Block&gt;
+        &lt;Block gap={8} direction=&quot;row&quot; align=&quot;center&quot;&gt;
+          &lt;SegmentedControl
+            size=&quot;xs&quot;
+            data={SORTS}
+            value={filter.sort ?? &#39;newest&#39;}
+            onChange={(value) =&gt; set({ sort: value as Sort })}
+            color={C.purple}
+            accessibilityLabel=&quot;Sort results&quot;
+          /&gt;
+          &lt;SegmentedControl
+            size=&quot;xs&quot;
+            data={[
+              { value: &#39;list&#39;, label: &lt;Icon name=&quot;list&quot; size={14} color={view === &#39;list&#39; ? C.white : C.muted} /&gt; },
+              { value: &#39;gallery&#39;, label: &lt;Icon name=&quot;grid&quot; size={14} color={view === &#39;gallery&#39; ? C.white : C.muted} /&gt; },
+            ]}
+            value={view}
+            onChange={(value) =&gt; setView(value as typeof view)}
+            color={C.purple}
+            accessibilityLabel=&quot;Results view&quot;
+          /&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      {showPrice &amp;&amp; (
+        &lt;Block gap={8} direction=&quot;row&quot; align=&quot;center&quot; py={10} borderBottomWidth={1} borderBottomColor={C.line}&gt;
+          &lt;Input variant=&quot;outline&quot; size=&quot;sm&quot; value={filter.min ?? &#39;&#39;} onChangeText={(min) =&gt; set({ min: min.replace(/[^0-9]/g, &#39;&#39;) })} placeholder=&quot;min $&quot; keyboardType=&quot;number-pad&quot; mb={0} flex={1} radius={6} accessibilityLabel=&quot;Minimum price&quot; /&gt;
+          &lt;Text c={C.muted}&gt;to&lt;/Text&gt;
+          &lt;Input variant=&quot;outline&quot; size=&quot;sm&quot; value={filter.max ?? &#39;&#39;} onChangeText={(max) =&gt; set({ max: max.replace(/[^0-9]/g, &#39;&#39;) })} placeholder=&quot;max $&quot; keyboardType=&quot;number-pad&quot; mb={0} flex={1} radius={6} accessibilityLabel=&quot;Maximum price&quot; /&gt;
+          &lt;Text c={C.link} size={12} onPress={() =&gt; set({ min: undefined, max: undefined })}&gt;
+            reset
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      )}
+
+      {results.length === 0 ? (
+        &lt;EmptyNote icon=&quot;search&quot; title=&quot;No posts found&quot;&gt;
+          Try another search, a wider radius, or fewer filters.
+          {&#39;\n&#39;}
+          &lt;Text c={C.link} size={13} onPress={() =&gt; store.push({ name: &#39;cities&#39; })}&gt;
+            change area or radius
+          &lt;/Text&gt;
+        &lt;/EmptyNote&gt;
+      ) : view === &#39;list&#39; ? (
+        results.map((item) =&gt; &lt;ListingRow key={item.id} listing={item} onPress={() =&gt; open(item.id)} /&gt;)
+      ) : (
+        &lt;Block gap={10} direction=&quot;row&quot; wrap pt={12}&gt;
+          {results.map((item) =&gt; (
+            &lt;ListingTile key={item.id} listing={item} w={tileW} onPress={() =&gt; open(item.id)} /&gt;
+          ))}
+        &lt;/Block&gt;
+      )}
+      {store.hidden.length &gt; 0 &amp;&amp; results.length &gt; 0 &amp;&amp; (
+        &lt;Text c={C.faint} size={11} ta=&quot;center&quot; mt={16}&gt;
+          {store.hidden.length} hidden post{store.hidden.length === 1 ? &#39;&#39; : &#39;s&#39;} not shown
+        &lt;/Text&gt;
+      )}
+    &lt;/Screen&gt;
+  );
+}
+</code></pre></section><section id="file-11"><h2>screens/Saved.tsx</h2><pre><code>import { useState } from &#39;react&#39;;
+import { Block, Button, Icon, IconButton, SegmentedControl, Text } from &#39;@plocks/ui&#39;;
+import { C } from &#39;../theme&#39;;
+import { cityById, type Listing } from &#39;../data&#39;;
+import { useStore } from &#39;../store&#39;;
+import { EmptyNote, ListingRow, Screen } from &#39;../components&#39;;
+import { filterTitle } from &#39;./Results&#39;;
+
+type View = &#39;favorites&#39; | &#39;searches&#39; | &#39;posts&#39; | &#39;hidden&#39;;
+
+export function Saved() {
+  const store = useStore();
+  const [view, setView] = useState&lt;View&gt;(&#39;favorites&#39;);
+  const pick = (ids: string[]) =&gt; ids.map(store.listingById).filter((item): item is Listing =&gt; !!item);
+  const favorites = pick(store.favorites);
+  const hidden = pick(store.hidden);
+  const open = (id: string) =&gt; store.push({ name: &#39;listing&#39;, id });
+
+  return (
+    &lt;Screen title=&quot;saved&quot; subtitle=&quot;favorites, searches, and your posts&quot; maw={760}&gt;
+      &lt;SegmentedControl
+        fullWidth
+        size=&quot;sm&quot;
+        color={C.purple}
+        value={view}
+        onChange={(value) =&gt; setView(value as View)}
+        data={[
+          { value: &#39;favorites&#39;, label: `favorites ${favorites.length}` },
+          { value: &#39;searches&#39;, label: `searches ${store.searches.length}` },
+          { value: &#39;posts&#39;, label: `my posts ${store.posts.length}` },
+          { value: &#39;hidden&#39;, label: `hidden ${hidden.length}` },
+        ]}
+        accessibilityLabel=&quot;Saved items&quot;
+      /&gt;
+      &lt;Block gap={0} mt={8}&gt;
+        {view === &#39;favorites&#39; &amp;&amp;
+          (favorites.length ? (
+            favorites.map((item) =&gt; &lt;ListingRow key={item.id} listing={item} onPress={() =&gt; open(item.id)} /&gt;)
+          ) : (
+            &lt;EmptyNote icon=&quot;star&quot; title=&quot;No favorites yet&quot;&gt;
+              Tap the star on any post to keep it here.
+            &lt;/EmptyNote&gt;
+          ))}
+        {view === &#39;searches&#39; &amp;&amp;
+          (store.searches.length ? (
+            store.searches.map((saved) =&gt; (
+              &lt;Block
+                key={saved.id}
+                onPress={() =&gt; store.runSearch(saved)}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel={`Run search ${filterTitle(saved.filter)}`}
+                direction=&quot;row&quot;
+                align=&quot;center&quot;
+                gap={12}
+                py={12}
+                borderBottomWidth={1}
+                borderBottomColor={C.line}
+                pressedStyle={{ opacity: 0.6 }}
+              &gt;
+                &lt;Icon name=&quot;bookmark&quot; color={C.purple} size={18} /&gt;
+                &lt;Block flex={1} miw={0} gap={1}&gt;
+                  &lt;Text c={C.link} fw=&quot;semibold&quot; size={15}&gt;
+                    {filterTitle(saved.filter)}
+                    {saved.filter.query &amp;&amp; saved.filter.section ? ` · “${saved.filter.query}”` : &#39;&#39;}
+                  &lt;/Text&gt;
+                  &lt;Text c={C.muted} size={12}&gt;
+                    {cityById(saved.cityId).name}
+                    {saved.radius ? ` +${saved.radius}mi` : &#39;&#39;}
+                    {saved.filter.hasImage ? &#39; · has image&#39; : &#39;&#39;}
+                    {saved.filter.today ? &#39; · today&#39; : &#39;&#39;}
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+                &lt;IconButton icon=&quot;trash&quot; variant=&quot;ghost&quot; iconColor={C.muted} accessibilityLabel=&quot;Delete saved search&quot; onPress={() =&gt; store.removeSearch(saved.id)} /&gt;
+              &lt;/Block&gt;
+            ))
+          ) : (
+            &lt;EmptyNote icon=&quot;bookmark&quot; title=&quot;No saved searches&quot;&gt;
+              Use the bookmark on a results page to save a search.
+            &lt;/EmptyNote&gt;
+          ))}
+        {view === &#39;posts&#39; &amp;&amp; (
+          &lt;&gt;
+            {store.posts.map((item) =&gt; (
+              &lt;ListingRow key={item.id} listing={item} onPress={() =&gt; open(item.id)} /&gt;
+            ))}
+            &lt;Block gap={0} align=&quot;center&quot; mt={18}&gt;
+              &lt;Button title=&quot;create a new post&quot; variant=&quot;light&quot; color={C.purple} startSection={&lt;Icon name=&quot;plus&quot; size={15} color={C.purple} /&gt;} onPress={() =&gt; store.goTab(&#39;post&#39;, true)} /&gt;
+            &lt;/Block&gt;
+          &lt;/&gt;
+        )}
+        {view === &#39;hidden&#39; &amp;&amp;
+          (hidden.length ? (
+            hidden.map((item) =&gt; &lt;ListingRow key={item.id} listing={item} onPress={() =&gt; open(item.id)} /&gt;)
+          ) : (
+            &lt;EmptyNote icon=&quot;eye&quot; title=&quot;No hidden posts&quot;&gt;
+              Posts you hide are kept out of your results.
+            &lt;/EmptyNote&gt;
+          ))}
+      &lt;/Block&gt;
+    &lt;/Screen&gt;
+  );
+}
+</code></pre></section><section id="file-12"><h2>store.tsx</h2><pre><code>/** App state for Townlist: navigation stacks, area, listings, favorites, and messages. */
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from &#39;react&#39;;
+import AsyncStorage from &#39;@react-native-async-storage/async-storage&#39;;
+import {
+  CITIES,
+  HOME_CITY,
+  LISTINGS,
+  THREADS,
+  cityById,
+  distance,
+  type Listing,
+  type SectionId,
+  type Thread,
+} from &#39;./data&#39;;
+
+export type Tab = &#39;browse&#39; | &#39;saved&#39; | &#39;post&#39; | &#39;messages&#39;;
+export type Sort = &#39;newest&#39; | &#39;price-asc&#39; | &#39;price-desc&#39;;
+export type Filter = {
+  query: string;
+  section?: SectionId;
+  sub?: string;
+  hasImage?: boolean;
+  today?: boolean;
+  min?: string;
+  max?: string;
+  sort?: Sort;
+};
+export type Route =
+  | { name: &#39;home&#39; }
+  | { name: &#39;categories&#39;; section?: SectionId }
+  | { name: &#39;cities&#39; }
+  | { name: &#39;results&#39;; filter: Filter }
+  | { name: &#39;listing&#39;; id: string }
+  | { name: &#39;threads&#39; }
+  | { name: &#39;thread&#39;; id: string }
+  | { name: &#39;saved&#39; }
+  | { name: &#39;post&#39; };
+export type SavedSearch = { id: string; filter: Filter; cityId: string; radius: number };
+
+const ROOTS: Record&lt;Tab, Route&gt; = {
+  browse: { name: &#39;home&#39; },
+  saved: { name: &#39;saved&#39; },
+  post: { name: &#39;post&#39; },
+  messages: { name: &#39;threads&#39; },
+};
+const STORAGE = &#39;plocks-townlist-example:v2&#39;;
+const DAY = 24 * 60 * 60_000;
+
+type Persisted = {
+  posts: Listing[];
+  favorites: string[];
+  hidden: string[];
+  threads: Thread[];
+  cityId: string;
+  radius: number;
+  searches: SavedSearch[];
+};
+
+function useTownlistState() {
+  const [tab, setTab] = useState&lt;Tab&gt;(&#39;browse&#39;);
+  const [stacks, setStacks] = useState&lt;Record&lt;Tab, Route[]&gt;&gt;({
+    browse: [ROOTS.browse],
+    saved: [ROOTS.saved],
+    post: [ROOTS.post],
+    messages: [ROOTS.messages],
+  });
+  const [posts, setPosts] = useState&lt;Listing[]&gt;(LISTINGS.filter((item) =&gt; item.mine));
+  const [favorites, setFavorites] = useState&lt;string[]&gt;([&#39;7803&#39;, &#39;7804&#39;]);
+  const [hidden, setHidden] = useState&lt;string[]&gt;([]);
+  const [flagged, setFlagged] = useState&lt;string[]&gt;([]);
+  const [threads, setThreads] = useState&lt;Thread[]&gt;(THREADS);
+  const [cityId, setCityId] = useState(HOME_CITY);
+  const [radius, setRadius] = useState(25);
+  const [searches, setSearches] = useState&lt;SavedSearch[]&gt;([]);
+  const [ready, setReady] = useState(false);
+  const replyTimers = useRef&lt;ReturnType&lt;typeof setTimeout&gt;[]&gt;([]);
+
+  useEffect(() =&gt; {
+    AsyncStorage.getItem(STORAGE)
+      .then((raw) =&gt; {
+        if (!raw) return;
+        const data = JSON.parse(raw) as Partial&lt;Persisted&gt;;
+        if (Array.isArray(data.posts)) setPosts(data.posts);
+        if (Array.isArray(data.favorites)) setFavorites(data.favorites);
+        if (Array.isArray(data.hidden)) setHidden(data.hidden);
+        if (Array.isArray(data.threads)) setThreads(data.threads);
+        if (Array.isArray(data.searches)) setSearches(data.searches);
+        if (typeof data.cityId === &#39;string&#39; &amp;&amp; CITIES.some((city) =&gt; city.id === data.cityId)) setCityId(data.cityId);
+        if (typeof data.radius === &#39;number&#39;) setRadius(data.radius);
+      })
+      .catch(() =&gt; {})
+      .finally(() =&gt; setReady(true));
+    const timers = replyTimers.current;
+    return () =&gt; timers.forEach(clearTimeout);
+  }, []);
+  useEffect(() =&gt; {
+    if (!ready) return;
+    const data: Persisted = { posts, favorites, hidden, threads, cityId, radius, searches };
+    AsyncStorage.setItem(STORAGE, JSON.stringify(data)).catch(() =&gt; {});
+  }, [ready, posts, favorites, hidden, threads, cityId, radius, searches]);
+
+  const listings = useMemo(() =&gt; [...posts, ...LISTINGS.filter((item) =&gt; !item.mine)], [posts]);
+  const listingById = useCallback((id: string) =&gt; listings.find((item) =&gt; item.id === id), [listings]);
+  const city = cityById(cityId);
+
+  /** Listings in the current area (city plus anything within the search radius). */
+  const inArea = useCallback(
+    (item: Listing) =&gt; item.cityId === cityId || distance(city, cityById(item.cityId)) &lt;= radius,
+    [city, cityId, radius],
+  );
+
+  const search = useCallback(
+    (filter: Filter, options: { includeHidden?: boolean } = {}) =&gt; {
+      const words = filter.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const min = Number(filter.min);
+      const max = Number(filter.max);
+      const now = Date.now();
+      const found = listings.filter(
+        (item) =&gt;
+          inArea(item) &amp;&amp;
+          (options.includeHidden || !hidden.includes(item.id)) &amp;&amp;
+          (!filter.section || item.section === filter.section) &amp;&amp;
+          (!filter.sub || item.sub === filter.sub) &amp;&amp;
+          (!filter.hasImage || item.photos.length &gt; 0) &amp;&amp;
+          (!filter.today || now - item.postedAt &lt; DAY) &amp;&amp;
+          (!filter.min || (item.price ?? 0) &gt;= min) &amp;&amp;
+          (!filter.max || (item.price ?? 0) &lt;= max) &amp;&amp;
+          words.every((word) =&gt; `${item.title} ${item.body} ${item.hood}`.toLowerCase().includes(word)),
+      );
+      const sort = filter.sort ?? &#39;newest&#39;;
+      return found.sort((a, b) =&gt;
+        sort === &#39;newest&#39; ? b.postedAt - a.postedAt : sort === &#39;price-asc&#39; ? (a.price ?? 0) - (b.price ?? 0) : (b.price ?? 0) - (a.price ?? 0),
+      );
+    },
+    [listings, inArea, hidden],
+  );
+
+  const stack = stacks[tab];
+  const route = stack[stack.length - 1];
+  const push = useCallback(
+    (next: Route) =&gt; setStacks((old) =&gt; ({ ...old, [tab]: [...old[tab], next] })),
+    [tab],
+  );
+  const replace = useCallback(
+    (next: Route) =&gt; setStacks((old) =&gt; ({ ...old, [tab]: [...old[tab].slice(0, -1), next] })),
+    [tab],
+  );
+  const back = useCallback(
+    () =&gt; setStacks((old) =&gt; ({ ...old, [tab]: old[tab].length &gt; 1 ? old[tab].slice(0, -1) : old[tab] })),
+    [tab],
+  );
+  const goTab = useCallback(
+    (next: Tab, reset = false) =&gt; {
+      if (next === tab || reset) setStacks((old) =&gt; ({ ...old, [next]: [ROOTS[next]] }));
+      setTab(next);
+    },
+    [tab],
+  );
+  /** Jump to a tab with a route on top of its root. */
+  const openIn = useCallback((next: Tab, target: Route) =&gt; {
+    setStacks((old) =&gt; ({ ...old, [next]: [ROOTS[next], target] }));
+    setTab(next);
+  }, []);
+
+  const toggle = (setter: typeof setFavorites) =&gt; (id: string) =&gt;
+    setter((old) =&gt; (old.includes(id) ? old.filter((item) =&gt; item !== id) : [...old, id]));
+
+  function publish(listing: Listing) {
+    setPosts((old) =&gt; [listing, ...old]);
+  }
+  function removePost(id: string) {
+    setPosts((old) =&gt; old.filter((item) =&gt; item.id !== id));
+  }
+
+  /** Starts (or continues) a conversation about a listing; returns the thread id. */
+  function reply(listing: Listing, text: string) {
+    const existing = threads.find((item) =&gt; item.listingId === listing.id);
+    const id = existing?.id ?? `t-${Date.now()}`;
+    const message = { id: `${id}-${Date.now()}`, from: &#39;me&#39; as const, text, at: Date.now() };
+    setThreads((old) =&gt;
+      existing
+        ? old.map((item) =&gt; (item.id === id ? { ...item, messages: [...item.messages, message] } : item))
+        : [{ id, listingId: listing.id, name: listing.seller, role: &#39;buying&#39;, unread: 0, messages: [message] }, ...old],
+    );
+    scheduleAutoReply(id, listing.seller);
+    return id;
+  }
+  function send(threadId: string, text: string) {
+    const message = { id: `${threadId}-${Date.now()}`, from: &#39;me&#39; as const, text, at: Date.now() };
+    setThreads((old) =&gt; old.map((item) =&gt; (item.id === threadId ? { ...item, messages: [...item.messages, message] } : item)));
+    const thread = threads.find((item) =&gt; item.id === threadId);
+    if (thread) scheduleAutoReply(threadId, thread.name);
+  }
+  function scheduleAutoReply(threadId: string, name: string) {
+    const timer = setTimeout(() =&gt; {
+      setThreads((old) =&gt;
+        old.map((item) =&gt;
+          item.id === threadId
+            ? {
+                ...item,
+                unread: item.unread + 1,
+                messages: [
+                  ...item.messages,
+                  { id: `${threadId}-r${Date.now()}`, from: &#39;them&#39;, text: `Thanks for the message! This is a demo reply from ${name}.`, at: Date.now() },
+                ],
+              }
+            : item,
+        ),
+      );
+    }, 2200);
+    replyTimers.current.push(timer);
+  }
+  function markRead(threadId: string) {
+    setThreads((old) =&gt; old.map((item) =&gt; (item.id === threadId &amp;&amp; item.unread ? { ...item, unread: 0 } : item)));
+  }
+  function saveSearch(filter: Filter) {
+    setSearches((old) =&gt; [{ id: `s-${Date.now()}`, filter, cityId, radius }, ...old]);
+  }
+  function removeSearch(id: string) {
+    setSearches((old) =&gt; old.filter((item) =&gt; item.id !== id));
+  }
+  function runSearch(saved: SavedSearch) {
+    setCityId(saved.cityId);
+    setRadius(saved.radius);
+    openIn(&#39;browse&#39;, { name: &#39;results&#39;, filter: saved.filter });
+  }
+
+  return {
+    tab,
+    route,
+    canGoBack: stack.length &gt; 1,
+    push,
+    replace,
+    back,
+    goTab,
+    openIn,
+    listings,
+    posts,
+    listingById,
+    search,
+    inArea,
+    city,
+    cityId,
+    setCityId,
+    radius,
+    setRadius,
+    favorites,
+    toggleFavorite: toggle(setFavorites),
+    hidden,
+    toggleHidden: toggle(setHidden),
+    flagged,
+    flag: (id: string) =&gt; setFlagged((old) =&gt; (old.includes(id) ? old : [...old, id])),
+    publish,
+    removePost,
+    threads,
+    reply,
+    send,
+    markRead,
+    unread: threads.reduce((sum, item) =&gt; sum + item.unread, 0),
+    searches,
+    saveSearch,
+    removeSearch,
+    runSearch,
+  };
+}
+
+export type Store = ReturnType&lt;typeof useTownlistState&gt;;
+const StoreContext = createContext&lt;Store | null&gt;(null);
+
+export function StoreProvider({ children }: { children: ReactNode }) {
+  const store = useTownlistState();
+  return &lt;StoreContext.Provider value={store}&gt;{children}&lt;/StoreContext.Provider&gt;;
+}
+
+export function useStore() {
+  const store = useContext(StoreContext);
+  if (!store) throw new Error(&#39;useStore needs StoreProvider&#39;);
+  return store;
+}
+</code></pre></section><section id="file-13"><h2>theme.ts</h2><pre><code>/** Townlist palette: utilitarian classifieds look with purple links. */
+export const C = {
+  purple: &#39;#5B2A8C&#39;,
+  purpleDark: &#39;#43206A&#39;,
+  link: &#39;#5B2A8C&#39;,
+  visited: &#39;#7A4BA8&#39;,
+  ink: &#39;#1F1D22&#39;,
+  body: &#39;#33303A&#39;,
+  muted: &#39;#6E6A75&#39;,
+  faint: &#39;#9A96A0&#39;,
+  line: &#39;#E3E0E7&#39;,
+  lineStrong: &#39;#CFCAD6&#39;,
+  pale: &#39;#F6F4F9&#39;,
+  paler: &#39;#FBFAFD&#39;,
+  tint: &#39;#EEE8F5&#39;,
+  white: &#39;#FFFFFF&#39;,
+  green: &#39;#1F6B45&#39;,
+  greenPale: &#39;#E6F2EA&#39;,
+  amber: &#39;#8A5A00&#39;,
+  amberPale: &#39;#FBF1DC&#39;,
+  red: &#39;#A3283B&#39;,
+  redPale: &#39;#F9E6E9&#39;,
+  map: &#39;#ECEFE6&#39;,
+  mapRoad: &#39;#FFFFFF&#39;,
+  mapWater: &#39;#D6E4EE&#39;,
+  mapPark: &#39;#D9E8D2&#39;,
+  bubbleMe: &#39;#5B2A8C&#39;,
+  bubbleThem: &#39;#F0EEF3&#39;,
+};
+
+export const WIDE = 880;
+</code></pre></section></main></body></html>

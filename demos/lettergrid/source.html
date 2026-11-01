@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en"><head><!--plocks-demo-seo--><title>Lettergrid demo source | plocks</title><meta name="description" content="Browse the source code for the Lettergrid demo built with plocks."/><link rel="canonical" href="https://plocks.dev/demos/lettergrid/source.html"/><!--/plocks-demo-seo--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>body{margin:0;background:#111319;color:#eef0f3;font:15px system-ui,sans-serif}header{padding:24px;position:sticky;top:0;background:#1b1e26;border-bottom:1px solid #353a46}h1{font-size:20px;margin:0 0 12px}nav{display:flex;gap:12px;flex-wrap:wrap}a{color:#9dbeff}main{max-width:1100px;margin:auto;padding:24px}section{margin-bottom:32px;scroll-margin-top:130px}h2{font-size:18px}pre{overflow:auto;background:#1b1e26;border:1px solid #353a46;border-radius:10px;padding:18px;line-height:1.5}code{font:13px ui-monospace,SFMono-Regular,monospace}</style>
+</head><body><header><h1>lettergrid source</h1><nav><a href="/demos/lettergrid/">Open live demo</a><a href="#file-0">App.tsx</a><a href="#file-1">index.ts</a></nav></header><main><section id="file-0"><h2>App.tsx</h2><pre><code>import { useEffect, useReducer, useRef, useState } from &#39;react&#39;;
+import { Animated, Platform, StatusBar, useColorScheme } from &#39;react-native&#39;;
+import type { LayoutChangeEvent } from &#39;react-native&#39;;
+import { SafeAreaProvider } from &#39;react-native-safe-area-context&#39;;
+import { IconBackspace, IconMoon, IconRefresh, IconSun } from &#39;@tabler/icons-react-native&#39;;
+
+import { Block, Button, MotionBlock, PlocksProvider, SafeArea, Text } from &#39;@plocks/ui&#39;;
+
+type Mark = &#39;correct&#39; | &#39;present&#39; | &#39;absent&#39;;
+type Palette = {
+  background: string;
+  ink: string;
+  muted: string;
+  empty: string;
+  filled: string;
+  key: string;
+  correct: string;
+  present: string;
+  absent: string;
+  toast: string;
+  toastInk: string;
+};
+
+const LIGHT: Palette = {
+  background: &#39;#FFFFFF&#39;,
+  ink: &#39;#1C1D20&#39;,
+  muted: &#39;#6B6E73&#39;,
+  empty: &#39;#DCDEE2&#39;,
+  filled: &#39;#8A8D92&#39;,
+  key: &#39;#DDE0E4&#39;,
+  correct: &#39;#4E9A57&#39;,
+  present: &#39;#C9A227&#39;,
+  absent: &#39;#7B7E83&#39;,
+  toast: &#39;#1C1D20&#39;,
+  toastInk: &#39;#FFFFFF&#39;,
+};
+const DARK: Palette = {
+  background: &#39;#121315&#39;,
+  ink: &#39;#F2F3F5&#39;,
+  muted: &#39;#9A9DA3&#39;,
+  empty: &#39;#36383C&#39;,
+  filled: &#39;#5C5F65&#39;,
+  key: &#39;#5A5D63&#39;,
+  correct: &#39;#4E9A57&#39;,
+  present: &#39;#B8952A&#39;,
+  absent: &#39;#3A3C40&#39;,
+  toast: &#39;#F2F3F5&#39;,
+  toastInk: &#39;#121315&#39;,
+};
+
+const WORDS = [
+  &#39;PLANT&#39;, &#39;LIGHT&#39;, &#39;STONE&#39;, &#39;BREAD&#39;, &#39;TRAIN&#39;, &#39;OCEAN&#39;, &#39;MUSIC&#39;, &#39;CRANE&#39;, &#39;FLAME&#39;, &#39;GRAPE&#39;,
+  &#39;HOUSE&#39;, &#39;MAPLE&#39;, &#39;RIVER&#39;, &#39;SPOON&#39;, &#39;TIGER&#39;, &#39;CLOUD&#39;, &#39;BRICK&#39;, &#39;CHAIR&#39;, &#39;DANCE&#39;, &#39;EARTH&#39;,
+  &#39;FROST&#39;, &#39;GLOVE&#39;, &#39;HONEY&#39;, &#39;JUICE&#39;, &#39;KNIFE&#39;, &#39;LEMON&#39;, &#39;MOUSE&#39;, &#39;NORTH&#39;, &#39;PIANO&#39;, &#39;QUILT&#39;,
+  &#39;ROBIN&#39;, &#39;SHEEP&#39;, &#39;TOAST&#39;, &#39;UNCLE&#39;, &#39;VOICE&#39;, &#39;WHEAT&#39;, &#39;YOUTH&#39;, &#39;ZEBRA&#39;, &#39;BEACH&#39;, &#39;CANDY&#39;,
+];
+const ROWS = 6;
+const COLS = 5;
+const GAP = 6;
+const STEP = 280; // ms between tile reveals
+const REVEAL = STEP * COLS + 120;
+const KEY_ROWS = [&#39;QWERTYUIOP&#39;, &#39;ASDFGHJKL&#39;, &#39;ENTER ZXCVBNM BACK&#39;];
+const PRAISE = [&#39;Genius&#39;, &#39;Magnificent&#39;, &#39;Impressive&#39;, &#39;Splendid&#39;, &#39;Great&#39;, &#39;Phew&#39;];
+const KEYBOARD_HEIGHT = 3 * 58 + 2 * 8 + 12;
+const RANK: Record&lt;Mark, number&gt; = { absent: 0, present: 1, correct: 2 };
+
+const pick = () =&gt; WORDS[Math.floor(Math.random() * WORDS.length)];
+
+function marks(guess: string, answer: string): Mark[] {
+  const result: Mark[] = Array(COLS).fill(&#39;absent&#39;);
+  const pool = answer.split(&#39;&#39;);
+  for (let i = 0; i &lt; COLS; i++)
+    if (guess[i] === answer[i]) {
+      result[i] = &#39;correct&#39;;
+      pool[i] = &#39;&#39;;
+    }
+  for (let i = 0; i &lt; COLS; i++)
+    if (result[i] !== &#39;correct&#39;) {
+      const index = pool.indexOf(guess[i]);
+      if (index &gt;= 0) {
+        result[i] = &#39;present&#39;;
+        pool[index] = &#39;&#39;;
+      }
+    }
+  return result;
+}
+
+type Toast = { text: string; id: number; delay: number };
+type State = {
+  answer: string;
+  guesses: string[];
+  current: string;
+  status: &#39;playing&#39; | &#39;won&#39; | &#39;lost&#39;;
+  toast: Toast | null;
+  shake: number;
+};
+type Action = { type: &#39;key&#39;; key: string } | { type: &#39;new&#39; };
+
+const fresh = (): State =&gt; ({ answer: pick(), guesses: [], current: &#39;&#39;, status: &#39;playing&#39;, toast: null, shake: 0 });
+const toast = (state: State, text: string, delay = 0): Toast =&gt; ({
+  text,
+  delay,
+  id: (state.toast?.id ?? 0) + 1,
+});
+
+function reducer(state: State, action: Action): State {
+  if (action.type === &#39;new&#39;) return { ...fresh(), toast: toast(state, &#39;&#39;) };
+  if (state.status !== &#39;playing&#39;) return state;
+  const { key } = action;
+  if (key === &#39;BACK&#39;) return { ...state, current: state.current.slice(0, -1) };
+  if (key === &#39;ENTER&#39;) {
+    if (state.current.length &lt; COLS)
+      return { ...state, toast: toast(state, &#39;Not enough letters&#39;), shake: state.shake + 1 };
+    const guesses = [...state.guesses, state.current];
+    if (state.current === state.answer)
+      return { ...state, guesses, current: &#39;&#39;, status: &#39;won&#39;, toast: toast(state, PRAISE[guesses.length - 1], REVEAL) };
+    if (guesses.length === ROWS)
+      return { ...state, guesses, current: &#39;&#39;, status: &#39;lost&#39;, toast: toast(state, state.answer, REVEAL) };
+    return { ...state, guesses, current: &#39;&#39; };
+  }
+  if (/^[A-Z]$/.test(key) &amp;&amp; state.current.length &lt; COLS) return { ...state, current: state.current + key };
+  return state;
+}
+
+function Tile({
+  letter,
+  mark,
+  index,
+  size,
+  palette,
+}: {
+  letter: string;
+  mark?: Mark;
+  index: number;
+  size: number;
+  palette: Palette;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const [shown, setShown] = useState(!!mark);
+
+  useEffect(() =&gt; {
+    if (!letter || mark) return;
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 1.1, duration: 60, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: 90, useNativeDriver: true }),
+    ]).start();
+  }, [letter, mark, scale]);
+
+  useEffect(() =&gt; {
+    if (!mark) {
+      setShown(false);
+      return;
+    }
+    const half = setTimeout(() =&gt; setShown(true), index * STEP + 140);
+    Animated.sequence([
+      Animated.delay(index * STEP),
+      Animated.timing(scale, { toValue: 0.2, duration: 140, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: 140, useNativeDriver: true }),
+    ]).start();
+    return () =&gt; clearTimeout(half);
+  }, [mark, index, scale]);
+
+  const revealed = mark &amp;&amp; shown;
+  const color = revealed ? palette[mark] : undefined;
+  return (
+    &lt;MotionBlock
+      scale={scale}
+      w={size}
+      h={size}
+      justify=&quot;center&quot;
+      align=&quot;center&quot;
+      borderWidth={revealed ? 0 : 2}
+      borderColor={letter ? palette.filled : palette.empty}
+      bg={color ?? palette.background}
+    &gt;
+      &lt;Text c={revealed ? &#39;#FFFFFF&#39; : palette.ink} fw=&quot;bold&quot; size={Math.round(size * 0.5)} tt=&quot;uppercase&quot;&gt;
+        {letter}
+      &lt;/Text&gt;
+    &lt;/MotionBlock&gt;
+  );
+}
+
+function Row({
+  guess,
+  answer,
+  size,
+  palette,
+  shake,
+}: {
+  guess: string;
+  answer?: string;
+  size: number;
+  palette: Palette;
+  shake?: number;
+}) {
+  const offset = useRef(new Animated.Value(0)).current;
+  useEffect(() =&gt; {
+    if (!shake) return;
+    Animated.sequence(
+      [-8, 8, -6, 6, -3, 0].map((toValue) =&gt; Animated.timing(offset, { toValue, duration: 50, useNativeDriver: true })),
+    ).start();
+  }, [shake, offset]);
+  const rowMarks = answer ? marks(guess, answer) : [];
+  return (
+    &lt;MotionBlock translateX={offset} direction=&quot;row&quot; gap={GAP}&gt;
+      {Array.from({ length: COLS }, (_, col) =&gt; (
+        &lt;Tile key={col} index={col} letter={guess[col] ?? &#39;&#39;} mark={rowMarks[col]} size={size} palette={palette} /&gt;
+      ))}
+    &lt;/MotionBlock&gt;
+  );
+}
+
+function Key({
+  label,
+  mark,
+  palette,
+  onPress,
+}: {
+  label: string;
+  mark?: Mark;
+  palette: Palette;
+  onPress: (key: string) =&gt; void;
+}) {
+  const wide = label === &#39;ENTER&#39; || label === &#39;BACK&#39;;
+  return (
+    &lt;Block
+      flex={wide ? 1.5 : 1}
+      h={58}
+      radius={6}
+      justify=&quot;center&quot;
+      align=&quot;center&quot;
+      bg={mark ? palette[mark] : palette.key}
+      pressedStyle={{ opacity: 0.7 }}
+      onPress={() =&gt; onPress(label)}
+      role=&quot;button&quot;
+      aria-label={label === &#39;BACK&#39; ? &#39;Backspace&#39; : label === &#39;ENTER&#39; ? &#39;Enter&#39; : label}
+    &gt;
+      {label === &#39;BACK&#39; ? (
+        &lt;IconBackspace size={24} color={palette.ink} /&gt;
+      ) : (
+        &lt;Text c={mark ? &#39;#FFFFFF&#39; : palette.ink} fw=&quot;bold&quot; size={wide ? 12 : 18}&gt;
+          {label}
+        &lt;/Text&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+function Message({ toast, palette }: { toast: Toast | null; palette: Palette }) {
+  const [visible, setVisible] = useState&lt;Toast | null&gt;(null);
+  useEffect(() =&gt; {
+    if (!toast?.text) {
+      setVisible(null);
+      return;
+    }
+    const show = setTimeout(() =&gt; setVisible(toast), toast.delay);
+    const hide = setTimeout(() =&gt; setVisible(null), toast.delay + 1600);
+    return () =&gt; {
+      clearTimeout(show);
+      clearTimeout(hide);
+    };
+  }, [toast]);
+  if (!visible) return null;
+  return (
+    &lt;Block position=&quot;absolute&quot; top={12} left={0} right={0} align=&quot;center&quot; zIndex={10} pointerEvents=&quot;none&quot;&gt;
+      &lt;Block bg={palette.toast} px={16} py={12} radius={6} shadow=&quot;md&quot;&gt;
+        &lt;Text c={palette.toastInk} fw=&quot;bold&quot; size={15}&gt;
+          {visible.text}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+
+export default function App() {
+  const system = useColorScheme();
+  const [dark, setDark] = useState(system === &#39;dark&#39;);
+  const palette = dark ? DARK : LIGHT;
+  const [state, dispatch] = useReducer(reducer, undefined, fresh);
+  const [board, setBoard] = useState({ w: 0, h: 0 });
+  const [revealed, setRevealed] = useState(0);
+  const [ended, setEnded] = useState(false);
+
+  // Keyboard colors and the end panel wait for the tile reveal to finish.
+  useEffect(() =&gt; {
+    if (state.guesses.length &lt;= revealed) {
+      setRevealed(state.guesses.length);
+      return;
+    }
+    const id = setTimeout(() =&gt; setRevealed(state.guesses.length), REVEAL);
+    return () =&gt; clearTimeout(id);
+  }, [state.guesses.length, revealed]);
+  useEffect(() =&gt; {
+    if (state.status === &#39;playing&#39;) {
+      setEnded(false);
+      return;
+    }
+    const id = setTimeout(() =&gt; setEnded(true), REVEAL + 900);
+    return () =&gt; clearTimeout(id);
+  }, [state.status]);
+
+  useEffect(() =&gt; {
+    if (Platform.OS !== &#39;web&#39; || typeof window === &#39;undefined&#39;) return;
+    // Capture phase, so Enter types into the game even while a header button has focus.
+    const onKey = (event: KeyboardEvent) =&gt; {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const key =
+        event.key === &#39;Enter&#39; ? &#39;ENTER&#39; : event.key === &#39;Backspace&#39; ? &#39;BACK&#39; : /^[a-z]$/i.test(event.key) ? event.key.toUpperCase() : null;
+      if (!key) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dispatch({ type: &#39;key&#39;, key });
+    };
+    window.addEventListener(&#39;keydown&#39;, onKey, true);
+    return () =&gt; window.removeEventListener(&#39;keydown&#39;, onKey, true);
+  }, []);
+
+  const keyMarks: Record&lt;string, Mark&gt; = {};
+  state.guesses.slice(0, revealed).forEach((guess) =&gt;
+    marks(guess, state.answer).forEach((mark, i) =&gt; {
+      const prev = keyMarks[guess[i]];
+      if (!prev || RANK[mark] &gt; RANK[prev]) keyMarks[guess[i]] = mark;
+    }),
+  );
+
+  const size = Math.floor(
+    Math.max(0, Math.min((board.w - GAP * (COLS - 1)) / COLS, (board.h - GAP * (ROWS - 1)) / ROWS, 72)),
+  );
+  const press = (key: string) =&gt; dispatch({ type: &#39;key&#39;, key });
+  const onBoardLayout = (event: LayoutChangeEvent) =&gt; {
+    const { width, height } = event.nativeEvent.layout;
+    setBoard({ w: width, h: height });
+  };
+
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;PlocksProvider theme={{ colorScheme: dark ? &#39;dark&#39; : &#39;light&#39; }}&gt;
+        &lt;SafeArea gap={0} flex={1} bg={palette.background}&gt;
+          &lt;StatusBar barStyle={dark ? &#39;light-content&#39; : &#39;dark-content&#39;} /&gt;
+          &lt;Block
+            direction=&quot;row&quot;
+            align=&quot;center&quot;
+            justify=&quot;space-between&quot;
+            h={52}
+            px={12}
+            borderBottomWidth={1}
+            borderBottomColor={palette.empty}
+          &gt;
+            &lt;Block
+              w={40}
+              h={40}
+              radius=&quot;full&quot;
+              justify=&quot;center&quot;
+              align=&quot;center&quot;
+              onPress={() =&gt; dispatch({ type: &#39;new&#39; })}
+              role=&quot;button&quot;
+              aria-label=&quot;New puzzle&quot;
+            &gt;
+              &lt;IconRefresh size={22} color={palette.ink} /&gt;
+            &lt;/Block&gt;
+            &lt;Text c={palette.ink} fw=&quot;bold&quot; size={26} ff=&quot;Georgia, serif&quot; lts={0.5}&gt;
+              Lettergrid
+            &lt;/Text&gt;
+            &lt;Block
+              w={40}
+              h={40}
+              radius=&quot;full&quot;
+              justify=&quot;center&quot;
+              align=&quot;center&quot;
+              onPress={() =&gt; setDark((value) =&gt; !value)}
+              role=&quot;button&quot;
+              aria-label={dark ? &#39;Use light theme&#39; : &#39;Use dark theme&#39;}
+            &gt;
+              {dark ? &lt;IconSun size={22} color={palette.ink} /&gt; : &lt;IconMoon size={22} color={palette.ink} /&gt;}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+
+          &lt;Block flex={1} w=&quot;100%&quot; maw={500} alignSelf=&quot;center&quot; px={16} py={12} position=&quot;relative&quot;&gt;
+            &lt;Message toast={state.toast} palette={palette} /&gt;
+            &lt;Block flex={1} justify=&quot;center&quot; align=&quot;center&quot; onLayout={onBoardLayout}&gt;
+              {size &gt; 0 &amp;&amp; (
+                &lt;Block gap={GAP}&gt;
+                  {Array.from({ length: ROWS }, (_, row) =&gt; {
+                    const submitted = state.guesses[row];
+                    const active = row === state.guesses.length &amp;&amp; state.status === &#39;playing&#39;;
+                    return (
+                      &lt;Row
+                        key={`${state.answer}-${row}`}
+                        guess={submitted ?? (active ? state.current : &#39;&#39;)}
+                        answer={submitted ? state.answer : undefined}
+                        size={size}
+                        palette={palette}
+                        shake={active ? state.shake : 0}
+                      /&gt;
+                    );
+                  })}
+                &lt;/Block&gt;
+              )}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+
+          {/* Fixed to the keyboard&#39;s height (3 × 58 keys, 2 × 8 gaps, 12 padding) so the board doesn&#39;t move when the end panel swaps in. */}
+          &lt;Block w=&quot;100%&quot; maw={500} alignSelf=&quot;center&quot; px={8} pb={12} gap={8} h={KEYBOARD_HEIGHT} justify=&quot;center&quot;&gt;
+            {ended ? (
+              &lt;Block align=&quot;center&quot; gap={6} px={8}&gt;
+                &lt;Text c={palette.muted} fw=&quot;bold&quot; size={12} lts={1.5}&gt;
+                  {state.status === &#39;won&#39; ? `SOLVED IN ${state.guesses.length}/${ROWS}` : &#39;OUT OF GUESSES&#39;}
+                &lt;/Text&gt;
+                &lt;Text c={palette.ink} fw=&quot;bold&quot; size={28}&gt;
+                  {state.answer}
+                &lt;/Text&gt;
+                &lt;Block mt={10} w=&quot;100%&quot; maw={280}&gt;
+                  &lt;Button
+                    title=&quot;New puzzle&quot;
+                    onPress={() =&gt; dispatch({ type: &#39;new&#39; })}
+                    variant=&quot;filled&quot;
+                    color={palette.correct}
+                    textColor=&quot;#FFFFFF&quot;
+                    radius=&quot;full&quot;
+                    size=&quot;lg&quot;
+                    fullWidth
+                  /&gt;
+                &lt;/Block&gt;
+              &lt;/Block&gt;
+            ) : (
+              KEY_ROWS.map((row) =&gt; (
+                &lt;Block key={row} direction=&quot;row&quot; gap={6} px={row.startsWith(&#39;A&#39;) ? 18 : 0}&gt;
+                  {row.split(row.includes(&#39; &#39;) ? &#39; &#39; : &#39;&#39;).flatMap((part) =&gt;
+                    part === &#39;ENTER&#39; || part === &#39;BACK&#39; ? [part] : part.split(&#39;&#39;),
+                  ).map((key) =&gt; (
+                    &lt;Key key={key} label={key} mark={keyMarks[key]} palette={palette} onPress={press} /&gt;
+                  ))}
+                &lt;/Block&gt;
+              ))
+            )}
+          &lt;/Block&gt;
+        &lt;/SafeArea&gt;
+      &lt;/PlocksProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</code></pre></section><section id="file-1"><h2>index.ts</h2><pre><code>import { registerRootComponent } from &#39;expo&#39;;
+
+import App from &#39;./App&#39;;
+
+registerRootComponent(App);
+</code></pre></section></main></body></html>

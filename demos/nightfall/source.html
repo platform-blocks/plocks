@@ -1,0 +1,2083 @@
+<!doctype html>
+<html lang="en"><head><!--plocks-demo-seo--><title>Nightfall demo source | plocks</title><meta name="description" content="Browse the source code for the Nightfall demo built with plocks."/><link rel="canonical" href="https://plocks.dev/demos/nightfall/source.html"/><!--/plocks-demo-seo--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>body{margin:0;background:#111319;color:#eef0f3;font:15px system-ui,sans-serif}header{padding:24px;position:sticky;top:0;background:#1b1e26;border-bottom:1px solid #353a46}h1{font-size:20px;margin:0 0 12px}nav{display:flex;gap:12px;flex-wrap:wrap}a{color:#9dbeff}main{max-width:1100px;margin:auto;padding:24px}section{margin-bottom:32px;scroll-margin-top:130px}h2{font-size:18px}pre{overflow:auto;background:#1b1e26;border:1px solid #353a46;border-radius:10px;padding:18px;line-height:1.5}code{font:13px ui-monospace,SFMono-Regular,monospace}</style>
+</head><body><header><h1>nightfall source</h1><nav><a href="/demos/nightfall/">Open live demo</a><a href="#file-0">App.tsx</a><a href="#file-1">data.ts</a><a href="#file-2">index.ts</a><a href="#file-3">screens/HomeScreen.tsx</a><a href="#file-4">screens/MyScreen.tsx</a><a href="#file-5">screens/NewHotScreen.tsx</a><a href="#file-6">screens/PlayerScreen.tsx</a><a href="#file-7">screens/ProfilePicker.tsx</a><a href="#file-8">screens/SearchScreen.tsx</a><a href="#file-9">screens/TitleScreen.tsx</a><a href="#file-10">store.tsx</a><a href="#file-11">ui.tsx</a></nav></header><main><section id="file-0"><h2>App.tsx</h2><pre><code>import { StatusBar } from &#39;react-native&#39;;
+import { SafeAreaProvider } from &#39;react-native-safe-area-context&#39;;
+import { Block, BottomAppBar, IconButton, PlocksProvider, SafeArea, Icon, Text } from &#39;@plocks/ui&#39;;
+
+import { NightfallProvider, useNightfall, type Route, type Tab } from &#39;./store&#39;;
+import { C, ProfileTile, useScreen } from &#39;./ui&#39;;
+import { HomeScreen } from &#39;./screens/HomeScreen&#39;;
+import { MyScreen, DownloadsScreen, NotificationsScreen } from &#39;./screens/MyScreen&#39;;
+import { NewHotScreen } from &#39;./screens/NewHotScreen&#39;;
+import { PlayerScreen } from &#39;./screens/PlayerScreen&#39;;
+import { ProfilePicker } from &#39;./screens/ProfilePicker&#39;;
+import { SearchScreen } from &#39;./screens/SearchScreen&#39;;
+import { TitleScreen } from &#39;./screens/TitleScreen&#39;;
+
+function Header() {
+  const app = useNightfall();
+  const { wide, gutter } = useScreen();
+  const profileColor = app.profile?.color ?? C.red;
+
+  if (wide) {
+    const links: { label: string; active: boolean; onPress: () =&gt; void }[] = [
+      { label: &#39;Home&#39;, active: app.tab === &#39;home&#39; &amp;&amp; app.filter === &#39;all&#39;, onPress: () =&gt; app.setFilter(&#39;all&#39;) },
+      { label: &#39;TV Shows&#39;, active: app.tab === &#39;home&#39; &amp;&amp; app.filter === &#39;series&#39;, onPress: () =&gt; app.setFilter(&#39;series&#39;) },
+      { label: &#39;Movies&#39;, active: app.tab === &#39;home&#39; &amp;&amp; app.filter === &#39;movie&#39;, onPress: () =&gt; app.setFilter(&#39;movie&#39;) },
+      { label: &#39;New &amp; Hot&#39;, active: app.tab === &#39;new&#39;, onPress: () =&gt; app.setTab(&#39;new&#39;) },
+      { label: &#39;My Nightfall&#39;, active: app.tab === &#39;my&#39;, onPress: () =&gt; app.setTab(&#39;my&#39;) },
+    ];
+    return (
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={28} px={gutter} h={68} bg={C.black}&gt;
+        &lt;Text c={C.red} fw=&quot;900&quot; size={28} lts={1} onPress={() =&gt; app.setFilter(&#39;all&#39;)}&gt;
+          NIGHTFALL
+        &lt;/Text&gt;
+        &lt;Block direction=&quot;row&quot; gap={22} flex={1} align=&quot;center&quot;&gt;
+          {links.map((link) =&gt; (
+            &lt;Text key={link.label} c={link.active ? C.white : C.soft} fw={link.active ? &#39;bold&#39; : &#39;normal&#39;} size={14} onPress={link.onPress}&gt;
+              {link.label}
+            &lt;/Text&gt;
+          ))}
+        &lt;/Block&gt;
+        &lt;IconButton icon=&quot;search&quot; variant=&quot;ghost&quot; iconColor={C.white} accessibilityLabel=&quot;Search&quot; onPress={() =&gt; app.push({ name: &#39;search&#39; })} /&gt;
+        &lt;IconButton icon=&quot;bell&quot; variant=&quot;ghost&quot; iconColor={C.white} accessibilityLabel=&quot;Notifications&quot; onPress={() =&gt; app.push({ name: &#39;notifications&#39; })} /&gt;
+        &lt;Block gap={0} onPress={() =&gt; app.setTab(&#39;my&#39;)} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;My Nightfall&quot;&gt;
+          &lt;ProfileTile color={profileColor} size={32} /&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+    );
+  }
+
+  const heading = app.tab === &#39;home&#39; ? `For ${app.profile?.name ?? &#39;You&#39;}` : app.tab === &#39;new&#39; ? &#39;New &amp; Hot&#39; : &#39;My Nightfall&#39;;
+  return (
+    &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={4} px={gutter} h={56} bg={C.black}&gt;
+      &lt;Text c={C.white} fw=&quot;bold&quot; size={22} flex={1} numberOfLines={1}&gt;
+        {heading}
+      &lt;/Text&gt;
+      &lt;IconButton icon=&quot;download&quot; variant=&quot;ghost&quot; iconColor={C.white} accessibilityLabel=&quot;Downloads&quot; onPress={() =&gt; app.push({ name: &#39;downloads&#39; })} /&gt;
+      &lt;IconButton icon=&quot;search&quot; variant=&quot;ghost&quot; iconColor={C.white} accessibilityLabel=&quot;Search&quot; onPress={() =&gt; app.push({ name: &#39;search&#39; })} /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function RouteScreen({ route }: { route: Route }) {
+  switch (route.name) {
+    case &#39;title&#39;:
+      return &lt;TitleScreen id={route.id} /&gt;;
+    case &#39;player&#39;:
+      return &lt;PlayerScreen route={route} /&gt;;
+    case &#39;search&#39;:
+      return &lt;SearchScreen /&gt;;
+    case &#39;downloads&#39;:
+      return &lt;DownloadsScreen /&gt;;
+    case &#39;notifications&#39;:
+      return &lt;NotificationsScreen /&gt;;
+  }
+}
+
+function Nightfall() {
+  const app = useNightfall();
+  const { wide } = useScreen();
+  if (!app.profile) return &lt;ProfilePicker /&gt;;
+
+  return (
+    &lt;Block flex={1} gap={0} position=&quot;relative&quot;&gt;
+      {/* Tab screens stay mounted under pushed pages so Back returns to the same scroll position. */}
+      &lt;Block flex={1} gap={0}&gt;
+        &lt;Header /&gt;
+        &lt;Block flex={1} gap={0} w=&quot;100%&quot; maw={wide ? 1400 : undefined} alignSelf=&quot;center&quot;&gt;
+          {app.tab === &#39;home&#39; &amp;&amp; &lt;HomeScreen /&gt;}
+          {app.tab === &#39;new&#39; &amp;&amp; &lt;NewHotScreen /&gt;}
+          {app.tab === &#39;my&#39; &amp;&amp; &lt;MyScreen /&gt;}
+        &lt;/Block&gt;
+        {!wide &amp;&amp; (
+          &lt;BottomAppBar
+            accessibilityLabel=&quot;Main&quot;
+            activeKey={app.tab}
+            onItemPress={(key) =&gt; app.setTab(key as Tab)}
+            bg=&quot;#121212F2&quot;
+            withBorder={false}
+            indicator={false}
+            activeColor={C.white}
+            inactiveColor={C.muted}
+            items={[
+              {
+                key: &#39;home&#39;,
+                label: &#39;Home&#39;,
+                icon: ({ active, color }) =&gt; (active ? &lt;Icon name=&quot;home&quot; variant=&quot;filled&quot; size={24} color={color} /&gt; : &lt;Icon name=&quot;home&quot; size={24} color={color} /&gt;),
+              },
+              {
+                key: &#39;new&#39;,
+                label: &#39;New &amp; Hot&#39;,
+                icon: ({ active, color }) =&gt; &lt;Icon name=&quot;flame&quot; variant={active ? &#39;filled&#39; : &#39;outlined&#39;} size={24} color={color} /&gt;,
+              },
+              {
+                key: &#39;my&#39;,
+                label: &#39;My Nightfall&#39;,
+                icon: () =&gt; &lt;ProfileTile color={app.profile?.color ?? C.red} size={24} /&gt;,
+              },
+            ]}
+          /&gt;
+        )}
+      &lt;/Block&gt;
+      {app.stack.map((route, index) =&gt; (
+        &lt;Block key={`${index}:${JSON.stringify(route)}`} position=&quot;absolute&quot; inset={0} zIndex={10 + index} bg={C.black} gap={0}&gt;
+          &lt;RouteScreen route={route} /&gt;
+        &lt;/Block&gt;
+      ))}
+    &lt;/Block&gt;
+  );
+}
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;PlocksProvider theme={{ colorScheme: &#39;dark&#39; }}&gt;
+          &lt;NightfallProvider&gt;
+            &lt;SafeArea gap={0} flex={1} bg={C.black}&gt;
+              &lt;StatusBar barStyle=&quot;light-content&quot; /&gt;
+              &lt;Nightfall /&gt;
+            &lt;/SafeArea&gt;
+          &lt;/NightfallProvider&gt;
+      &lt;/PlocksProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</code></pre></section><section id="file-1"><h2>data.ts</h2><pre><code>/** Fictional Nightfall catalog. Every title, person and episode here is invented demo content. */
+
+export const ART = [
+  require(&#39;./assets/scene-forest.webp&#39;),
+  require(&#39;./assets/scene-city.webp&#39;),
+  require(&#39;./assets/scene-desert.webp&#39;),
+  require(&#39;./assets/scene-lake.webp&#39;),
+  require(&#39;./assets/scene-ocean.webp&#39;),
+];
+
+export type Kind = &#39;movie&#39; | &#39;series&#39;;
+
+export interface Episode {
+  n: number;
+  title: string;
+  length: string;
+  synopsis: string;
+}
+
+export interface Title {
+  id: string;
+  title: string;
+  kind: Kind;
+  genres: string[];
+  /** Mood tags (&quot;This title is…&quot;). */
+  moods: string[];
+  year: string;
+  rating: string;
+  /** Movie runtime, or a season count label for series. */
+  length: string;
+  art: number;
+  /** Colour wash laid over the shared scene art so reused images read as different titles. */
+  tint: string;
+  match: number;
+  caption: string;
+  synopsis: string;
+  cast: string[];
+  creator: string;
+  original?: boolean;
+  label?: &#39;New Season&#39; | &#39;Recently Added&#39; | &#39;New Episodes&#39;;
+  /** Release note for unreleased titles, such as &quot;Nov 6&quot;. */
+  coming?: { month: string; day: string; note: string };
+  seasons?: Episode[][];
+}
+
+const ep = (n: number, title: string, length: string, synopsis: string): Episode =&gt; ({ n, title, length, synopsis });
+
+export const TITLES: Title[] = [
+  {
+    id: &#39;dust&#39;,
+    title: &#39;Dust &amp; Static&#39;,
+    kind: &#39;series&#39;,
+    genres: [&#39;Sci-Fi&#39;, &#39;Thriller&#39;],
+    moods: [&#39;Gritty&#39;, &#39;Suspenseful&#39;, &#39;Mind-Bending&#39;],
+    year: &#39;2026&#39;,
+    rating: &#39;TV-MA&#39;,
+    length: &#39;2 Seasons&#39;,
+    art: 2,
+    tint: &#39;#C2410C55&#39;,
+    match: 97,
+    caption: &#39;The signal came from nowhere. Then it started answering back.&#39;,
+    synopsis:
+      &#39;At a remote desert observatory, a night-shift engineer picks up a broadcast that predicts tomorrow. Every warning she ignores comes true.&#39;,
+    cast: [&#39;Maya Chen&#39;, &#39;Isaac Holt&#39;, &#39;Nadia Cole&#39;, &#39;Evan Price&#39;, &#39;Rosa Field&#39;],
+    creator: &#39;Hanna Voss&#39;,
+    original: true,
+    label: &#39;New Season&#39;,
+    seasons: [
+      [
+        ep(1, &#39;Dead Air&#39;, &#39;52m&#39;, &#39;A routine calibration catches a voice on a frequency nobody uses.&#39;),
+        ep(2, &#39;Carrier Wave&#39;, &#39;48m&#39;, &#39;Iris tests the broadcast with a prediction she can check by morning.&#39;),
+        ep(3, &#39;Interference&#39;, &#39;51m&#39;, &#39;A visitor from the agency asks too many questions about the dish.&#39;),
+        ep(4, &#39;Feedback Loop&#39;, &#39;55m&#39;, &#39;The signal names someone inside the observatory.&#39;),
+        ep(5, &#39;Ground Station&#39;, &#39;49m&#39;, &#39;A sandstorm cuts the power and the broadcast keeps going.&#39;),
+        ep(6, &#39;Sign Off&#39;, &#39;61m&#39;, &#39;Iris decides whether to answer the voice at last.&#39;),
+      ],
+      [
+        ep(1, &#39;Static Bloom&#39;, &#39;54m&#39;, &#39;Six months later, the dish turns on by itself.&#39;),
+        ep(2, &#39;Night Relay&#39;, &#39;50m&#39;, &#39;A second station picks up the same voice across the border.&#39;),
+        ep(3, &#39;Low Band&#39;, &#39;47m&#39;, &#39;Old logbooks reveal the signal has called before.&#39;),
+        ep(4, &#39;Open Channel&#39;, &#39;58m&#39;, &#39;The team broadcasts a reply and waits.&#39;),
+      ],
+    ],
+  },
+  {
+    id: &#39;evergreen&#39;,
+    title: &#39;Evergreen&#39;,
+    kind: &#39;movie&#39;,
+    genres: [&#39;Adventure&#39;, &#39;Drama&#39;],
+    moods: [&#39;Heartfelt&#39;, &#39;Inspiring&#39;],
+    year: &#39;2026&#39;,
+    rating: &#39;PG-13&#39;,
+    length: &#39;1h 48m&#39;,
+    art: 0,
+    tint: &#39;#15803D33&#39;,
+    match: 98,
+    caption: &#39;Some paths lead you back to yourself.&#39;,
+    synopsis:
+      &#39;A field researcher returns to the forest where everything began and finds an unexpected new trail that is not on any map.&#39;,
+    cast: [&#39;Ava Morgan&#39;, &#39;Elliot Hayes&#39;, &#39;Mina Brooks&#39;, &#39;Leo Carter&#39;],
+    creator: &#39;Ruth Okafor&#39;,
+    original: true,
+  },
+  {
+    id: &#39;tidekeepers&#39;,
+    title: &#39;The Tidekeepers&#39;,
+    kind: &#39;series&#39;,
+    genres: [&#39;Fantasy&#39;, &#39;Drama&#39;],
+    moods: [&#39;Imaginative&#39;, &#39;Epic&#39;],
+    year: &#39;2025&#39;,
+    rating: &#39;TV-14&#39;,
+    length: &#39;1 Season&#39;,
+    art: 4,
+    tint: &#39;#1D4ED855&#39;,
+    match: 95,
+    caption: &#39;The sea keeps its promises. People do not.&#39;,
+    synopsis:
+      &#39;On an island where the tide obeys an old pact, the last keeper must find an heir before the water forgets its place.&#39;,
+    cast: [&#39;Kai Bennett&#39;, &#39;Lena Ortiz&#39;, &#39;Owen Blake&#39;, &#39;Dara Quinn&#39;],
+    creator: &#39;Tomas Wilde&#39;,
+    original: true,
+    label: &#39;New Episodes&#39;,
+    seasons: [
+      [
+        ep(1, &#39;Low Water&#39;, &#39;57m&#39;, &#39;The tide fails to turn for the first time in a hundred years.&#39;),
+        ep(2, &#39;The Lighthouse Key&#39;, &#39;53m&#39;, &#39;Mara inherits a key and a duty she never asked for.&#39;),
+        ep(3, &#39;Salt Ledger&#39;, &#39;49m&#39;, &#39;The pact turns out to have a second signature.&#39;),
+        ep(4, &#39;Undertow&#39;, &#39;55m&#39;, &#39;A storm brings a stranger who knows the old words.&#39;),
+        ep(5, &#39;High Water&#39;, &#39;62m&#39;, &#39;The island chooses its keeper.&#39;),
+      ],
+    ],
+  },
+  {
+    id: &#39;afterdark&#39;,
+    title: &#39;After Dark&#39;,
+    kind: &#39;movie&#39;,
+    genres: [&#39;Mystery&#39;, &#39;Thriller&#39;],
+    moods: [&#39;Dark&#39;, &#39;Suspenseful&#39;],
+    year: &#39;2026&#39;,
+    rating: &#39;R&#39;,
+    length: &#39;2h 02m&#39;,
+    art: 1,
+    tint: &#39;#7C3AED44&#39;,
+    match: 92,
+    caption: &#39;Every city keeps a secret.&#39;,
+    synopsis: &#39;One night, one city, and a clue hidden in plain sight. A cab driver has until dawn to prove what she saw.&#39;,
+    cast: [&#39;Nora Vale&#39;, &#39;Julian Cross&#39;, &#39;Iris Chen&#39;, &#39;Marcus Reed&#39;],
+    creator: &#39;Dev Anand Rao&#39;,
+    original: true,
+  },
+  {
+    id: &#39;stillwater&#39;,
+    title: &#39;Stillwater&#39;,
+    kind: &#39;series&#39;,
+    genres: [&#39;Documentary&#39;, &#39;Nature&#39;],
+    moods: [&#39;Soothing&#39;, &#39;Visually Striking&#39;],
+    year: &#39;2026&#39;,
+    rating: &#39;TV-G&#39;,
+    length: &#39;2 Seasons&#39;,
+    art: 3,
+    tint: &#39;#0E749033&#39;,
+    match: 89,
+    caption: &#39;Beneath the surface.&#39;,
+    synopsis: &#39;An intimate look at the wild places where water shapes every life around it, filmed across four seasons.&#39;,
+    cast: [&#39;Elena Park&#39;, &#39;Samir Shah&#39;],
+    creator: &#39;Elena Park&#39;,
+    seasons: [
+      [
+        ep(1, &#39;Thaw&#39;, &#39;44m&#39;, &#39;Spring melt wakes a mountain lake and everything that depends on it.&#39;),
+        ep(2, &#39;Shallows&#39;, &#39;42m&#39;, &#39;Life crowds into the warm edges of the water.&#39;),
+        ep(3, &#39;Deep Cold&#39;, &#39;46m&#39;, &#39;Under the ice, the lake keeps moving.&#39;),
+      ],
+      [
+        ep(1, &#39;Estuary&#39;, &#39;45m&#39;, &#39;Where rivers meet the sea, two worlds trade places twice a day.&#39;),
+        ep(2, &#39;Floodplain&#39;, &#39;43m&#39;, &#39;A once-a-decade flood remakes a valley overnight.&#39;),
+      ],
+    ],
+  },
+  {
+    id: &#39;nightshift&#39;,
+    title: &#39;Night Shift&#39;,
+    kind: &#39;series&#39;,
+    genres: [&#39;Comedy&#39;],
+    moods: [&#39;Witty&#39;, &#39;Feel-Good&#39;],
+    year: &#39;2024&#39;,
+    rating: &#39;TV-14&#39;,
+    length: &#39;2 Seasons&#39;,
+    art: 1,
+    tint: &#39;#DB277744&#39;,
+    match: 94,
+    caption: &#39;The city never sleeps. Neither do they.&#39;,
+    synopsis: &#39;A mismatched team keeps a tiny late-night radio station on the air, one strange caller at a time.&#39;,
+    cast: [&#39;Riley James&#39;, &#39;Theo Martin&#39;, &#39;Zoe Patel&#39;, &#39;Miles Grant&#39;],
+    creator: &#39;Gabe Lindqvist&#39;,
+    original: true,
+    seasons: [
+      [
+        ep(1, &#39;Graveyard Slot&#39;, &#39;28m&#39;, &#39;Dee takes over the 2 a.m. show nobody else wants.&#39;),
+        ep(2, &#39;Caller Four&#39;, &#39;26m&#39;, &#39;A regular caller claims to be the station’s founder.&#39;),
+        ep(3, &#39;Dead Air Fund&#39;, &#39;27m&#39;, &#39;The team throws a pledge drive with no budget.&#39;),
+        ep(4, &#39;Static Love&#39;, &#39;29m&#39;, &#39;Two listeners fall for each other live on air.&#39;),
+      ],
+      [
+        ep(1, &#39;Signal Boost&#39;, &#39;30m&#39;, &#39;A viral clip brings the wrong kind of attention.&#39;),
+        ep(2, &#39;Request Line&#39;, &#39;27m&#39;, &#39;Theo plays a song he swore he never would.&#39;),
+        ep(3, &#39;Sunrise&#39;, &#39;31m&#39;, &#39;The last show before the station is sold.&#39;),
+      ],
+    ],
+  },
+  {
+    id: &#39;goldenhour&#39;,
+    title: &#39;Golden Hour&#39;,
+    kind: &#39;movie&#39;,
+    genres: [&#39;Drama&#39;],
+    moods: [&#39;Emotional&#39;, &#39;Heartfelt&#39;],
+    year: &#39;2025&#39;,
+    rating: &#39;PG-13&#39;,
+    length: &#39;1h 39m&#39;,
+    art: 2,
+    tint: &#39;#CA8A0444&#39;,
+    match: 90,
+    caption: &#39;The light changes everything.&#39;,
+    synopsis: &#39;Two old friends cross the desert to make good on a promise they made twenty years ago.&#39;,
+    cast: [&#39;Sofia Reyes&#39;, &#39;Caleb Ward&#39;, &#39;Amara Bell&#39;, &#39;Jonah Wells&#39;],
+    creator: &#39;Lucia Marchetti&#39;,
+    label: &#39;Recently Added&#39;,
+  },
+  {
+    id: &#39;hollowpines&#39;,
+    title: &#39;Hollow Pines&#39;,
+    kind: &#39;series&#39;,
+    genres: [&#39;Horror&#39;, &#39;Mystery&#39;],
+    moods: [&#39;Eerie&#39;, &#39;Ominous&#39;],
+    year: &#39;2025&#39;,
+    rating: &#39;TV-MA&#39;,
+    length: &#39;1 Season&#39;,
+    art: 0,
+    tint: &#39;#11182799&#39;,
+    match: 86,
+    caption: &#39;Nobody hikes the north trail twice.&#39;,
+    synopsis: &#39;When a camp counsellor goes missing, a small mountain town learns the woods have been counting.&#39;,
+    cast: [&#39;Piper Lane&#39;, &#39;Finn Walker&#39;, &#39;June Ellis&#39;, &#39;Arlo Stone&#39;],
+    creator: &#39;Marcus Dahl&#39;,
+    original: true,
+    seasons: [
+      [
+        ep(1, &#39;Trailhead&#39;, &#39;47m&#39;, &#39;The first night of camp ends with an empty bunk.&#39;),
+        ep(2, &#39;Cairns&#39;, &#39;45m&#39;, &#39;Someone is building stone markers around the town.&#39;),
+        ep(3, &#39;Ranger Station&#39;, &#39;50m&#39;, &#39;An old ranger finally talks about 1994.&#39;),
+        ep(4, &#39;North Trail&#39;, &#39;58m&#39;, &#39;The search party splits up. Not everyone comes back.&#39;),
+      ],
+    ],
+  },
+  {
+    id: &#39;deepblue&#39;,
+    title: &#39;Deep Blue&#39;,
+    kind: &#39;movie&#39;,
+    genres: [&#39;Adventure&#39;, &#39;Family&#39;],
+    moods: [&#39;Exciting&#39;, &#39;Feel-Good&#39;],
+    year: &#39;2025&#39;,
+    rating: &#39;PG&#39;,
+    length: &#39;1h 31m&#39;,
+    art: 4,
+    tint: &#39;#0369A133&#39;,
+    match: 91,
+    caption: &#39;The horizon is only the beginning.&#39;,
+    synopsis: &#39;A small crew sets sail toward a distant island and a much larger discovery beneath it.&#39;,
+    cast: [&#39;Kai Bennett&#39;, &#39;Lena Ortiz&#39;, &#39;Owen Blake&#39;],
+    creator: &#39;Imani Brooks&#39;,
+  },
+  {
+    id: &#39;mirage&#39;,
+    title: &#39;Mirage&#39;,
+    kind: &#39;movie&#39;,
+    genres: [&#39;Sci-Fi&#39;, &#39;Thriller&#39;],
+    moods: [&#39;Mind-Bending&#39;, &#39;Suspenseful&#39;],
+    year: &#39;2026&#39;,
+    rating: &#39;PG-13&#39;,
+    length: &#39;1h 56m&#39;,
+    art: 2,
+    tint: &#39;#9333EA33&#39;,
+    match: 93,
+    caption: &#39;What you see is only the start.&#39;,
+    synopsis: &#39;A strange signal brings a research team to the edge of the desert, where the horizon refuses to stay put.&#39;,
+    cast: [&#39;Maya Chen&#39;, &#39;Isaac Holt&#39;, &#39;Nadia Cole&#39;, &#39;Evan Price&#39;],
+    creator: &#39;Hanna Voss&#39;,
+    original: true,
+    label: &#39;Recently Added&#39;,
+  },
+  {
+    id: &#39;lanterns&#39;,
+    title: &#39;Paper Lanterns&#39;,
+    kind: &#39;movie&#39;,
+    genres: [&#39;Romance&#39;, &#39;Comedy&#39;],
+    moods: [&#39;Romantic&#39;, &#39;Charming&#39;],
+    year: &#39;2026&#39;,
+    rating: &#39;PG&#39;,
+    length: &#39;1h 44m&#39;,
+    art: 3,
+    tint: &#39;#F9731633&#39;,
+    match: 88,
+    caption: &#39;One lake. One summer. One very bad idea.&#39;,
+    synopsis: &#39;A wedding planner and a rival caterer get stranded at a lakeside festival they both swore to ruin.&#39;,
+    cast: [&#39;Tessa Cole&#39;, &#39;Micah Ford&#39;, &#39;Zoe Patel&#39;, &#39;Riley James&#39;],
+    creator: &#39;Noor Haddad&#39;,
+  },
+  {
+    id: &#39;wildwood&#39;,
+    title: &#39;Wildwood&#39;,
+    kind: &#39;movie&#39;,
+    genres: [&#39;Family&#39;, &#39;Adventure&#39;],
+    moods: [&#39;Heartfelt&#39;, &#39;Feel-Good&#39;],
+    year: &#39;2025&#39;,
+    rating: &#39;PG&#39;,
+    length: &#39;1h 27m&#39;,
+    art: 0,
+    tint: &#39;#65A30D33&#39;,
+    match: 87,
+    caption: &#39;A summer to remember.&#39;,
+    synopsis: &#39;Four siblings discover their favourite campsite has one last surprise before it closes for good.&#39;,
+    cast: [&#39;Piper Lane&#39;, &#39;Finn Walker&#39;, &#39;June Ellis&#39;, &#39;Arlo Stone&#39;],
+    creator: &#39;Sam Ortega&#39;,
+  },
+  {
+    id: &#39;northern&#39;,
+    title: &#39;Northern Signal&#39;,
+    kind: &#39;series&#39;,
+    genres: [&#39;Thriller&#39;, &#39;Drama&#39;],
+    moods: [&#39;Tense&#39;, &#39;Atmospheric&#39;],
+    year: &#39;2026&#39;,
+    rating: &#39;TV-MA&#39;,
+    length: &#39;1 Season&#39;,
+    art: 3,
+    tint: &#39;#0F766E55&#39;,
+    match: 96,
+    caption: &#39;Out here, the radio is the only witness.&#39;,
+    synopsis: &#39;A lighthouse radio operator hears a mayday from a ship that sank forty years ago.&#39;,
+    cast: [&#39;Nora Vale&#39;, &#39;Owen Blake&#39;, &#39;Amara Bell&#39;],
+    creator: &#39;Tomas Wilde&#39;,
+    original: true,
+    coming: { month: &#39;NOV&#39;, day: &#39;06&#39;, note: &#39;Coming Friday&#39; },
+    seasons: [[ep(1, &#39;Mayday&#39;, &#39;54m&#39;, &#39;A call comes in on a channel that was closed decades ago.&#39;)]],
+  },
+  {
+    id: &#39;glasshouse&#39;,
+    title: &#39;Glasshouse&#39;,
+    kind: &#39;movie&#39;,
+    genres: [&#39;Mystery&#39;, &#39;Drama&#39;],
+    moods: [&#39;Stylish&#39;, &#39;Twisty&#39;],
+    year: &#39;2026&#39;,
+    rating: &#39;R&#39;,
+    length: &#39;2h 08m&#39;,
+    art: 1,
+    tint: &#39;#BE123C44&#39;,
+    match: 90,
+    caption: &#39;Everyone can see in. Nobody can see out.&#39;,
+    synopsis: &#39;An architect’s celebrated glass house becomes the scene of a disappearance that every guest saw — differently.&#39;,
+    cast: [&#39;Julian Cross&#39;, &#39;Iris Chen&#39;, &#39;Sofia Reyes&#39;],
+    creator: &#39;Dev Anand Rao&#39;,
+    original: true,
+    coming: { month: &#39;NOV&#39;, day: &#39;13&#39;, note: &#39;Coming Nov 13&#39; },
+  },
+  {
+    id: &#39;saltwater&#39;,
+    title: &#39;Saltwater Saints&#39;,
+    kind: &#39;series&#39;,
+    genres: [&#39;Comedy&#39;, &#39;Drama&#39;],
+    moods: [&#39;Warm&#39;, &#39;Quirky&#39;],
+    year: &#39;2026&#39;,
+    rating: &#39;TV-14&#39;,
+    length: &#39;1 Season&#39;,
+    art: 4,
+    tint: &#39;#0284C744&#39;,
+    match: 93,
+    caption: &#39;Every harbour town needs a patron saint. This one got three.&#39;,
+    synopsis: &#39;Three estranged sisters inherit a failing fishing boat and the family feud that comes with it.&#39;,
+    cast: [&#39;Lena Ortiz&#39;, &#39;Tessa Cole&#39;, &#39;June Ellis&#39;],
+    creator: &#39;Noor Haddad&#39;,
+    coming: { month: &#39;NOV&#39;, day: &#39;20&#39;, note: &#39;Coming Nov 20&#39; },
+    seasons: [[ep(1, &#39;Low Tide Blessing&#39;, &#39;41m&#39;, &#39;The sisters meet at the dock for the first time in a decade.&#39;)]],
+  },
+];
+
+export const byId = (id: string) =&gt; TITLES.find((item) =&gt; item.id === id) ?? TITLES[0];
+export const released = TITLES.filter((item) =&gt; !item.coming);
+export const comingSoon = TITLES.filter((item) =&gt; item.coming);
+export const TOP_SHOWS = [&#39;dust&#39;, &#39;tidekeepers&#39;, &#39;nightshift&#39;, &#39;hollowpines&#39;, &#39;stillwater&#39;];
+export const TOP_MOVIES = [&#39;evergreen&#39;, &#39;mirage&#39;, &#39;afterdark&#39;, &#39;goldenhour&#39;, &#39;lanterns&#39;, &#39;deepblue&#39;, &#39;wildwood&#39;];
+export const topRank = (title: Title) =&gt; {
+  const list = title.kind === &#39;series&#39; ? TOP_SHOWS : TOP_MOVIES;
+  const index = list.indexOf(title.id);
+  return index &lt; 0 ? null : index + 1;
+};
+export const GENRES = Array.from(new Set(released.flatMap((item) =&gt; item.genres))).sort();
+export const TOP_SEARCHES = [&#39;afterdark&#39;, &#39;dust&#39;, &#39;evergreen&#39;, &#39;hollowpines&#39;, &#39;lanterns&#39;, &#39;tidekeepers&#39;, &#39;mirage&#39;, &#39;nightshift&#39;];
+
+export function similarTo(title: Title) {
+  return released
+    .filter((item) =&gt; item.id !== title.id)
+    .map((item) =&gt; ({ item, score: item.genres.filter((genre) =&gt; title.genres.includes(genre)).length + (item.kind === title.kind ? 0.5 : 0) }))
+    .sort((a, b) =&gt; b.score - a.score)
+    .map(({ item }) =&gt; item);
+}
+
+export const trailersFor = (title: Title) =&gt; [
+  { id: `${title.id}:trailer`, label: title.coming ? &#39;Official Teaser&#39; : &#39;Official Trailer&#39;, length: &#39;2:18&#39; },
+  { id: `${title.id}:look`, label: title.kind === &#39;series&#39; ? &#39;Season 1 Recap&#39; : &#39;First Look&#39;, length: &#39;1:42&#39; },
+  { id: `${title.id}:bts`, label: &#39;Behind the Scenes&#39;, length: &#39;4:05&#39; },
+];
+
+export const PROFILES = [
+  { id: &#39;avery&#39;, name: &#39;Avery&#39;, color: &#39;#2F6FDB&#39; },
+  { id: &#39;jordan&#39;, name: &#39;Jordan&#39;, color: &#39;#E5A00D&#39; },
+  { id: &#39;sam&#39;, name: &#39;Sam&#39;, color: &#39;#2BAE66&#39; },
+  { id: &#39;kids&#39;, name: &#39;Kids&#39;, color: &#39;#E5487D&#39; },
+];
+export type Profile = (typeof PROFILES)[number];
+
+export const NOTIFICATIONS = [
+  { id: &#39;n1&#39;, titleId: &#39;tidekeepers&#39;, kicker: &#39;New Episodes&#39;, text: &#39;The Tidekeepers&#39;, date: &#39;Today&#39; },
+  { id: &#39;n2&#39;, titleId: &#39;northern&#39;, kicker: &#39;Coming Friday&#39;, text: &#39;Northern Signal — remind me?&#39;, date: &#39;Yesterday&#39; },
+  { id: &#39;n3&#39;, titleId: &#39;dust&#39;, kicker: &#39;New Season&#39;, text: &#39;Dust &amp; Static Season 2 is here&#39;, date: &#39;Oct 24&#39; },
+  { id: &#39;n4&#39;, titleId: &#39;mirage&#39;, kicker: &#39;Recently Added&#39;, text: &#39;Mirage&#39;, date: &#39;Oct 19&#39; },
+];
+
+export const CAST_COLORS = [&#39;#663BA1&#39;, &#39;#AF484E&#39;, &#39;#2C777B&#39;, &#39;#9A6B2C&#39;, &#39;#3B5BA1&#39;];
+export const initials = (name: string) =&gt;
+  name
+    .split(&#39; &#39;)
+    .map((part) =&gt; part[0])
+    .join(&#39;&#39;);
+</code></pre></section><section id="file-2"><h2>index.ts</h2><pre><code>import { registerRootComponent } from &#39;expo&#39;;
+import App from &#39;./App&#39;;
+
+registerRootComponent(App);
+</code></pre></section><section id="file-3"><h2>screens/HomeScreen.tsx</h2><pre><code>import { BackgroundImage, Block, Button, Chip, Gradient, Icon, Menu, MenuDropdown, MenuItem, Progress, ScrollArea, Text } from &#39;@plocks/ui&#39;;
+
+import { ART, GENRES, TOP_MOVIES, TOP_SHOWS, byId, released, type Title } from &#39;../data&#39;;
+import { useNightfall, type Filter } from &#39;../store&#39;;
+import { C, Dots, Mark, Poster, PosterGrid, Shelf, useScreen } from &#39;../ui&#39;;
+
+const FEATURED: Record&lt;Filter, string&gt; = { all: &#39;dust&#39;, series: &#39;tidekeepers&#39;, movie: &#39;evergreen&#39; };
+
+export function HomeScreen() {
+  const app = useNightfall();
+  const { wide, gutter, poster } = useScreen();
+  const pool = released.filter((item) =&gt; app.filter === &#39;all&#39; || item.kind === app.filter);
+  const hero = byId(FEATURED[app.filter]);
+  const inList = app.myList.includes(hero.id);
+  const continuing = pool.filter((item) =&gt; {
+    const value = app.resume(item).value;
+    return value &gt; 0 &amp;&amp; value &lt; 1;
+  });
+  const showTopMovies = app.filter === &#39;movie&#39;;
+  const top = (showTopMovies ? TOP_MOVIES : TOP_SHOWS).map(byId);
+  const kindLabel = app.filter === &#39;series&#39; ? &#39;TV Shows&#39; : app.filter === &#39;movie&#39; ? &#39;Movies&#39; : &#39;&#39;;
+  const genreTitles = app.genre ? pool.filter((item) =&gt; item.genres.includes(app.genre!)) : [];
+  const shelf = (heading: string, titles: Title[]) =&gt;
+    titles.length &gt; 0 &amp;&amp; (
+      &lt;Shelf heading={heading}&gt;
+        {titles.map((item) =&gt; (
+          &lt;Poster key={item.id} title={item} w={poster} onPress={() =&gt; app.openTitle(item.id)} /&gt;
+        ))}
+      &lt;/Shelf&gt;
+    );
+
+  return (
+    &lt;ScrollArea flex={1} contentProps={{ pb: 40 }}&gt;
+      &lt;Block direction=&quot;row&quot; gap={8} px={gutter} py={10} align=&quot;center&quot; wrap=&quot;wrap&quot;&gt;
+        {app.filter !== &#39;all&#39; &amp;&amp; (
+          &lt;Chip
+            variant=&quot;outline&quot;
+            color={C.soft}
+            onPress={() =&gt; app.setFilter(&#39;all&#39;)}
+            accessibilityLabel=&quot;Clear filters&quot;
+            labelProps={{ c: C.white }}
+          &gt;
+            &lt;Icon name=&quot;x&quot; size={14} color={C.white} /&gt;
+          &lt;/Chip&gt;
+        )}
+        {(app.filter === &#39;all&#39; || app.filter === &#39;series&#39;) &amp;&amp; (
+          &lt;Chip
+            variant={app.filter === &#39;series&#39; ? &#39;filled&#39; : &#39;outline&#39;}
+            color={app.filter === &#39;series&#39; ? C.raised : C.soft}
+            labelProps={{ c: C.white, fw: &#39;600&#39; }}
+            onPress={() =&gt; app.setFilter(&#39;series&#39;)}
+          &gt;
+            TV Shows
+          &lt;/Chip&gt;
+        )}
+        {(app.filter === &#39;all&#39; || app.filter === &#39;movie&#39;) &amp;&amp; (
+          &lt;Chip
+            variant={app.filter === &#39;movie&#39; ? &#39;filled&#39; : &#39;outline&#39;}
+            color={app.filter === &#39;movie&#39; ? C.raised : C.soft}
+            labelProps={{ c: C.white, fw: &#39;600&#39; }}
+            onPress={() =&gt; app.setFilter(&#39;movie&#39;)}
+          &gt;
+            Movies
+          &lt;/Chip&gt;
+        )}
+        &lt;Menu position=&quot;bottom-start&quot; mah={360}&gt;
+          &lt;Chip
+            variant={app.genre ? &#39;filled&#39; : &#39;outline&#39;}
+            color={app.genre ? C.raised : C.soft}
+            labelProps={{ c: C.white, fw: &#39;600&#39; }}
+            endSection={&lt;Icon name=&quot;chevron-down&quot; size={14} color={C.white} /&gt;}
+          &gt;
+            {app.genre ?? (kindLabel ? &#39;All Categories&#39; : &#39;Categories&#39;)}
+          &lt;/Chip&gt;
+          &lt;MenuDropdown&gt;
+            &lt;MenuItem onPress={() =&gt; app.setFilter(app.filter, null)}&gt;{`All ${kindLabel || &#39;Categories&#39;}`}&lt;/MenuItem&gt;
+            {GENRES.map((item) =&gt; (
+              &lt;MenuItem key={item} onPress={() =&gt; app.setFilter(app.filter, item)}&gt;
+                {item}
+              &lt;/MenuItem&gt;
+            ))}
+          &lt;/MenuDropdown&gt;
+        &lt;/Menu&gt;
+      &lt;/Block&gt;
+
+      {app.genre ? (
+        &lt;Block px={gutter} gap={14} mt={10}&gt;
+          &lt;Text c={C.white} fw=&quot;bold&quot; size={wide ? 28 : 22}&gt;
+            {app.genre} {kindLabel}
+          &lt;/Text&gt;
+          {genreTitles.length ? (
+            &lt;PosterGrid titles={genreTitles} onPress={app.openTitle} /&gt;
+          ) : (
+            &lt;Text c={C.muted}&gt;Nothing in {app.genre} yet. Try another category.&lt;/Text&gt;
+          )}
+        &lt;/Block&gt;
+      ) : (
+        &lt;&gt;
+          &lt;Block px={wide ? 0 : gutter} gap={0}&gt;
+            &lt;BackgroundImage source={ART[hero.art]} w=&quot;100%&quot; h={wide ? 520 : 470} radius={wide ? 0 : 10} justify=&quot;flex-end&quot;&gt;
+              &lt;Gradient colors={[hero.tint, &#39;#0000&#39;, &#39;#000C&#39;, wide ? C.black : &#39;#000E&#39;]} flex={1} justify=&quot;flex-end&quot; align={wide ? &#39;flex-start&#39; : &#39;center&#39;} px={wide ? 48 : 18} pb={wide ? 60 : 18} gap={12}&gt;
+                &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={6}&gt;
+                  &lt;Mark size={18} /&gt;
+                  &lt;Text c={C.soft} fw=&quot;bold&quot; size={11} lts={3}&gt;
+                    {hero.kind === &#39;series&#39; ? &#39;SERIES&#39; : &#39;FILM&#39;}
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+                &lt;Text c={C.white} fw=&quot;900&quot; size={wide ? 60 : 40} lh={wide ? 62 : 42} tt=&quot;uppercase&quot; ta={wide ? &#39;left&#39; : &#39;center&#39;}&gt;
+                  {hero.title}
+                &lt;/Text&gt;
+                {wide ? (
+                  &lt;Text c={C.white} size={17} lh={25} maw={520}&gt;
+                    {hero.synopsis}
+                  &lt;/Text&gt;
+                ) : (
+                  &lt;Dots items={hero.moods.concat(hero.genres[0])} /&gt;
+                )}
+                &lt;Block direction=&quot;row&quot; gap={10} w={wide ? undefined : &#39;100%&#39;}&gt;
+                                      &lt;Button
+                      title=&quot;Play&quot;
+                      startSection={&lt;Icon name=&quot;play&quot; variant=&quot;filled&quot; size={20} color={C.black} /&gt;}
+                      color={C.white}
+                      textColor={C.black}
+                      flex={wide ? undefined : 1}
+                      onPress={() =&gt; app.play(hero.id)}
+                    /&gt;
+                                      &lt;Button
+                      title=&quot;My List&quot;
+                      startSection={inList ? &lt;Icon name=&quot;check&quot; size={20} color={C.white} /&gt; : &lt;Icon name=&quot;plus&quot; size={20} color={C.white} /&gt;}
+                      color=&quot;#6D6D6EB3&quot;
+                      textColor={C.white}
+                      flex={wide ? undefined : 1}
+                      onPress={() =&gt; app.toggleList(hero.id)}
+                    /&gt;
+                  {wide &amp;&amp; (
+                    &lt;Button
+                      title=&quot;More Info&quot;
+                      startSection={&lt;Icon name=&quot;info&quot; size={20} color={C.white} /&gt;}
+                      color=&quot;#6D6D6EB3&quot;
+                      textColor={C.white}
+                      onPress={() =&gt; app.openTitle(hero.id)}
+                    /&gt;
+                  )}
+                &lt;/Block&gt;
+              &lt;/Gradient&gt;
+            &lt;/BackgroundImage&gt;
+          &lt;/Block&gt;
+
+          {continuing.length &gt; 0 &amp;&amp; (
+            &lt;Shelf heading={`Continue Watching for ${app.profile?.name ?? &#39;you&#39;}`}&gt;
+              {continuing.map((item) =&gt; (
+                &lt;ContinueCard key={item.id} title={item} w={poster} /&gt;
+              ))}
+            &lt;/Shelf&gt;
+          )}
+
+          &lt;Shelf heading={`Top 10 ${showTopMovies ? &#39;Movies&#39; : &#39;TV Shows&#39;} Today`}&gt;
+            {top.map((item, index) =&gt; (
+              &lt;Block
+                key={item.id}
+                direction=&quot;row&quot;
+                align=&quot;flex-end&quot;
+                gap={0}
+                onPress={() =&gt; app.openTitle(item.id)}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel={`Number ${index + 1}, ${item.title}`}
+              &gt;
+                &lt;Text c=&quot;transparent&quot; stroke={{ c: &quot;#8C8C8C&quot;, w: 2 }} fw=&quot;900&quot; size={wide ? 150 : 104} lh={wide ? 140 : 96} lts={-8} mr={-10}&gt;
+                  {index + 1}
+                &lt;/Text&gt;
+                &lt;Poster title={item} w={poster} onPress={() =&gt; app.openTitle(item.id)} /&gt;
+              &lt;/Block&gt;
+            ))}
+          &lt;/Shelf&gt;
+
+          {shelf(&#39;Trending Now&#39;, pool.slice().sort((a, b) =&gt; b.match - a.match))}
+          {shelf(&#39;My List&#39;, pool.filter((item) =&gt; app.myList.includes(item.id)))}
+          {shelf(&#39;New Releases&#39;, pool.filter((item) =&gt; item.label || item.year === &#39;2026&#39;))}
+          {shelf(&#39;Only on Nightfall&#39;, pool.filter((item) =&gt; item.original))}
+          {shelf(&#39;Edge-of-Your-Seat Thrillers&#39;, pool.filter((item) =&gt; item.genres.some((genre) =&gt; [&#39;Thriller&#39;, &#39;Mystery&#39;, &#39;Horror&#39;].includes(genre))))}
+          {shelf(&#39;Feel-Good Favourites&#39;, pool.filter((item) =&gt; item.moods.some((mood) =&gt; [&#39;Feel-Good&#39;, &#39;Heartfelt&#39;, &#39;Witty&#39;, &#39;Charming&#39;].includes(mood))))}
+        &lt;/&gt;
+      )}
+    &lt;/ScrollArea&gt;
+  );
+}
+
+function ContinueCard({ title, w }: { title: Title; w: number }) {
+  const app = useNightfall();
+  const resume = app.resume(title);
+  return (
+    &lt;Block w={w} gap={0} radius={6} overflow=&quot;hidden&quot; bg={C.panel}&gt;
+      &lt;Block gap={0} onPress={() =&gt; app.play(title.id)} accessibilityRole=&quot;button&quot; accessibilityLabel={`Resume ${title.title}`}&gt;
+        &lt;Poster title={title} w={w} onPress={() =&gt; app.play(title.id)} /&gt;
+      &lt;/Block&gt;
+      &lt;Progress value={resume.value * 100} size={3} radius={0} color={C.red} trackColor=&quot;#4D4D4D&quot; /&gt;
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot; px={8} py={6} gap={4}&gt;
+        &lt;Text c={C.soft} size={11} fw=&quot;600&quot;&gt;
+          {resume.label || `${Math.round((1 - resume.value) * 100)}% left`}
+        &lt;/Text&gt;
+        &lt;Block gap={0} onPress={() =&gt; app.openTitle(title.id)} accessibilityRole=&quot;button&quot; accessibilityLabel={`${title.title} details`}&gt;
+          &lt;Icon name=&quot;info&quot; size={20} color={C.soft} /&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-4"><h2>screens/MyScreen.tsx</h2><pre><code>import { Block, Button, Icon, IconButton, Menu, MenuDivider, MenuDropdown, MenuItem, Progress, ScrollArea, Text } from &#39;@plocks/ui&#39;;
+
+import { NOTIFICATIONS, PROFILES, TITLES, byId, trailersFor } from &#39;../data&#39;;
+import { useNightfall } from &#39;../store&#39;;
+import { C, Poster, ProfileTile, Shelf, Still, useScreen } from &#39;../ui&#39;;
+
+/** &quot;My Nightfall&quot;: profile, notifications, downloads and personal shelves. */
+export function MyScreen() {
+  const app = useNightfall();
+  const { wide, gutter, poster } = useScreen();
+  const profile = app.profile ?? PROFILES[0];
+  const liked = TITLES.filter((item) =&gt; app.ratings[item.id] === &#39;up&#39; || app.ratings[item.id] === &#39;love&#39;);
+  const list = TITLES.filter((item) =&gt; app.myList.includes(item.id));
+  const downloads = Object.keys(app.downloads);
+
+  return (
+    &lt;ScrollArea flex={1} contentProps={{ pb: 40 }}&gt;
+      &lt;Block gap={0} w=&quot;100%&quot; maw={1100} alignSelf=&quot;center&quot;&gt;
+        &lt;Block align=&quot;center&quot; gap={10} pt={20}&gt;
+          &lt;ProfileTile color={profile.color} size={wide ? 96 : 72} /&gt;
+          &lt;Menu position=&quot;bottom&quot;&gt;
+            &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={4} accessibilityRole=&quot;button&quot; accessibilityLabel=&quot;Switch profile&quot;&gt;
+              &lt;Text c={C.white} fw=&quot;bold&quot; size={22}&gt;
+                {profile.name}
+              &lt;/Text&gt;
+              &lt;Icon name=&quot;chevron-down&quot; size={18} color={C.white} /&gt;
+            &lt;/Block&gt;
+            &lt;MenuDropdown&gt;
+              {PROFILES.filter((item) =&gt; item.id !== profile.id).map((item) =&gt; (
+                &lt;MenuItem key={item.id} startSection={&lt;ProfileTile color={item.color} size={22} /&gt;} onPress={() =&gt; app.selectProfile(item.id)}&gt;
+                  {item.name}
+                &lt;/MenuItem&gt;
+              ))}
+              &lt;MenuDivider /&gt;
+              &lt;MenuItem startSection={&lt;Icon name=&quot;edit&quot; size={16} color={C.soft} /&gt;} onPress={() =&gt; app.selectProfile(null)}&gt;
+                Manage Profiles
+              &lt;/MenuItem&gt;
+            &lt;/MenuDropdown&gt;
+          &lt;/Menu&gt;
+        &lt;/Block&gt;
+
+        &lt;Block px={gutter} mt={20} gap={4}&gt;
+          &lt;MenuRow
+            icon={
+              &lt;Block bg={C.red} w={36} h={36} radius=&quot;full&quot; align=&quot;center&quot; justify=&quot;center&quot; gap={0}&gt;
+                &lt;Icon name=&quot;bell&quot; size={20} color={C.white} /&gt;
+              &lt;/Block&gt;
+            }
+            label=&quot;Notifications&quot;
+            detail={`${NOTIFICATIONS.length} new`}
+            onPress={() =&gt; app.push({ name: &#39;notifications&#39; })}
+          /&gt;
+          &lt;MenuRow
+            icon={
+              &lt;Block bg=&quot;#0071EB&quot; w={36} h={36} radius=&quot;full&quot; align=&quot;center&quot; justify=&quot;center&quot; gap={0}&gt;
+                &lt;Icon name=&quot;download&quot; size={20} color={C.white} /&gt;
+              &lt;/Block&gt;
+            }
+            label=&quot;Downloads&quot;
+            detail={downloads.length ? `${downloads.length} title${downloads.length === 1 ? &#39;&#39; : &#39;s&#39;}` : &#39;None yet&#39;}
+            onPress={() =&gt; app.push({ name: &#39;downloads&#39; })}
+          /&gt;
+        &lt;/Block&gt;
+
+        {liked.length &gt; 0 &amp;&amp; (
+          &lt;Shelf heading=&quot;TV Shows &amp; Movies You Liked&quot;&gt;
+            {liked.map((item) =&gt; (
+              &lt;Poster key={item.id} title={item} w={poster} onPress={() =&gt; app.openTitle(item.id)} /&gt;
+            ))}
+          &lt;/Shelf&gt;
+        )}
+        &lt;Shelf heading=&quot;My List&quot;&gt;
+          {list.length ? (
+            list.map((item) =&gt; &lt;Poster key={item.id} title={item} w={poster} onPress={() =&gt; app.openTitle(item.id)} /&gt;)
+          ) : (
+            &lt;Text c={C.muted}&gt;Add shows and movies to keep track of what you want to watch.&lt;/Text&gt;
+          )}
+        &lt;/Shelf&gt;
+        {app.trailers.length &gt; 0 &amp;&amp; (
+          &lt;Shelf heading=&quot;Trailers You&#39;ve Watched&quot;&gt;
+            {app.trailers.map(byId).map((item) =&gt; (
+              &lt;Block
+                key={item.id}
+                w={wide ? 300 : 220}
+                gap={6}
+                onPress={() =&gt; app.playTrailer(item.id, trailersFor(item)[0].id)}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel={`Play ${item.title} trailer`}
+              &gt;
+                &lt;Still title={item} w=&quot;100%&quot; play /&gt;
+                &lt;Text c={C.soft} size={12} numberOfLines={1}&gt;
+                  {trailersFor(item)[0].label}: {item.title}
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+            ))}
+          &lt;/Shelf&gt;
+        )}
+      &lt;/Block&gt;
+    &lt;/ScrollArea&gt;
+  );
+}
+
+function MenuRow({ icon, label, detail, onPress }: { icon: React.ReactNode; label: string; detail: string; onPress: () =&gt; void }) {
+  return (
+    &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={14} py={10} onPress={onPress} accessibilityRole=&quot;button&quot; accessibilityLabel={label}&gt;
+      {icon}
+      &lt;Block flex={1} gap={0}&gt;
+        &lt;Text c={C.white} fw=&quot;bold&quot; size={16}&gt;
+          {label}
+        &lt;/Text&gt;
+        &lt;Text c={C.muted} size={12}&gt;
+          {detail}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      &lt;Icon name=&quot;chevron-right&quot; size={20} color={C.muted} /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function PageHeader({ heading }: { heading: string }) {
+  const app = useNightfall();
+  const { gutter } = useScreen();
+  return (
+    &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} px={gutter} py={10}&gt;
+      &lt;IconButton icon=&quot;arrowLeft&quot; variant=&quot;ghost&quot; iconColor={C.white} accessibilityLabel=&quot;Back&quot; onPress={app.back} /&gt;
+      &lt;Text c={C.white} fw=&quot;bold&quot; size={20}&gt;
+        {heading}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+export function DownloadsScreen() {
+  const app = useNightfall();
+  const { gutter, wide } = useScreen();
+  const ids = Object.keys(app.downloads);
+  return (
+    &lt;Block flex={1} gap={0}&gt;
+      &lt;PageHeader heading=&quot;Downloads&quot; /&gt;
+      &lt;ScrollArea flex={1} contentProps={{ px: gutter, pb: 40, gap: 16 }}&gt;
+        &lt;Block gap={0} w=&quot;100%&quot; maw={900} alignSelf=&quot;center&quot;&gt;
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} mb={16}&gt;
+            &lt;Icon name=&quot;circle-check&quot; variant=&quot;filled&quot; size={16} color=&quot;#0071EB&quot; /&gt;
+            &lt;Text c={C.soft} size={13}&gt;
+              Smart Downloads · &lt;Text c=&quot;#0071EB&quot; size={13} fw=&quot;bold&quot;&gt;ON&lt;/Text&gt;
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          {ids.length === 0 ? (
+            &lt;Block align=&quot;center&quot; gap={14} py={40}&gt;
+              &lt;Block w={120} h={120} radius=&quot;full&quot; bg={C.raised} align=&quot;center&quot; justify=&quot;center&quot; gap={0}&gt;
+                &lt;Icon name=&quot;download&quot; size={56} color={C.muted} /&gt;
+              &lt;/Block&gt;
+              &lt;Text c={C.white} fw=&quot;bold&quot; size={18} ta=&quot;center&quot;&gt;
+                Movies and TV shows that you download appear here.
+              &lt;/Text&gt;
+              &lt;Button title=&quot;Find Something to Download&quot; color={C.white} textColor={C.black} onPress={() =&gt; app.setTab(&#39;home&#39;)} /&gt;
+            &lt;/Block&gt;
+          ) : (
+            ids.map((id) =&gt; {
+              const title = byId(id);
+              const value = app.downloads[id];
+              return (
+                &lt;Block key={id} direction=&quot;row&quot; align=&quot;center&quot; gap={12} mb={16}&gt;
+                  &lt;Block gap={0} w={wide ? 180 : 130} onPress={() =&gt; app.play(id)} accessibilityRole=&quot;button&quot; accessibilityLabel={`Play ${title.title}`}&gt;
+                    &lt;Still title={title} w=&quot;100%&quot; play={value === 1} /&gt;
+                  &lt;/Block&gt;
+                  &lt;Block flex={1} gap={4}&gt;
+                    &lt;Text c={C.white} fw=&quot;bold&quot; size={15} numberOfLines={1}&gt;
+                      {title.title}
+                    &lt;/Text&gt;
+                    {value &lt; 1 ? (
+                      &lt;&gt;
+                        &lt;Text c={C.muted} size={12}&gt;
+                          Downloading… {Math.round(value * 100)}%
+                        &lt;/Text&gt;
+                        &lt;Progress value={value * 100} size={3} color=&quot;#0071EB&quot; trackColor=&quot;#444&quot; /&gt;
+                      &lt;/&gt;
+                    ) : (
+                      &lt;Text c={C.muted} size={12}&gt;
+                        {title.kind === &#39;series&#39; ? &#39;1 Episode&#39; : title.length} | {title.kind === &#39;series&#39; ? &#39;312&#39; : &#39;1.1&#39;} {title.kind === &#39;series&#39; ? &#39;MB&#39; : &#39;GB&#39;}
+                      &lt;/Text&gt;
+                    )}
+                  &lt;/Block&gt;
+                  &lt;IconButton
+                    icon=&quot;trash&quot;
+                    variant=&quot;ghost&quot;
+                    iconColor={C.muted}
+                    accessibilityLabel={`Delete ${title.title} download`}
+                    onPress={() =&gt; app.removeDownload(id)}
+                  /&gt;
+                &lt;/Block&gt;
+              );
+            })
+          )}
+        &lt;/Block&gt;
+      &lt;/ScrollArea&gt;
+    &lt;/Block&gt;
+  );
+}
+
+export function NotificationsScreen() {
+  const app = useNightfall();
+  const { gutter, wide } = useScreen();
+  return (
+    &lt;Block flex={1} gap={0}&gt;
+      &lt;PageHeader heading=&quot;Notifications&quot; /&gt;
+      &lt;ScrollArea flex={1} contentProps={{ px: gutter, pb: 40 }}&gt;
+        &lt;Block gap={18} w=&quot;100%&quot; maw={900} alignSelf=&quot;center&quot;&gt;
+          {NOTIFICATIONS.map((item) =&gt; {
+            const title = byId(item.titleId);
+            return (
+              &lt;Block key={item.id} direction=&quot;row&quot; align=&quot;center&quot; gap={12} onPress={() =&gt; app.openTitle(title.id)} accessibilityRole=&quot;button&quot; accessibilityLabel={item.text}&gt;
+                &lt;Block gap={0} w={wide ? 160 : 120}&gt;
+                  &lt;Still title={title} w=&quot;100%&quot; /&gt;
+                &lt;/Block&gt;
+                &lt;Block flex={1} gap={2}&gt;
+                  &lt;Text c={C.white} fw=&quot;bold&quot; size={14}&gt;
+                    {item.kicker}
+                  &lt;/Text&gt;
+                  &lt;Text c={C.soft} size={13}&gt;
+                    {item.text}
+                  &lt;/Text&gt;
+                  &lt;Text c={C.muted} size={11}&gt;
+                    {item.date}
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              &lt;/Block&gt;
+            );
+          })}
+        &lt;/Block&gt;
+      &lt;/ScrollArea&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-5"><h2>screens/NewHotScreen.tsx</h2><pre><code>import { useState } from &#39;react&#39;;
+import { Block, Chip, Icon, ScrollArea, Text, useToast } from &#39;@plocks/ui&#39;;
+
+import { TOP_MOVIES, TOP_SHOWS, byId, comingSoon, released, type Title } from &#39;../data&#39;;
+import { useNightfall } from &#39;../store&#39;;
+import { Action, C, Dots, Mark, Still, useScreen } from &#39;../ui&#39;;
+
+type Section = &#39;coming&#39; | &#39;everyone&#39; | &#39;shows&#39; | &#39;movies&#39;;
+const SECTIONS: { key: Section; label: string }[] = [
+  { key: &#39;coming&#39;, label: &#39;🍿 Coming Soon&#39; },
+  { key: &#39;everyone&#39;, label: &quot;🔥 Everyone&#39;s Watching&quot; },
+  { key: &#39;shows&#39;, label: &#39;🔟 Top 10 TV Shows&#39; },
+  { key: &#39;movies&#39;, label: &#39;🔟 Top 10 Movies&#39; },
+];
+
+export function NewHotScreen() {
+  const { gutter } = useScreen();
+  const [section, setSection] = useState&lt;Section&gt;(&#39;coming&#39;);
+  const items =
+    section === &#39;coming&#39;
+      ? comingSoon
+      : section === &#39;everyone&#39;
+        ? released.filter((item) =&gt; item.label || item.match &gt;= 93)
+        : (section === &#39;shows&#39; ? TOP_SHOWS : TOP_MOVIES).map(byId);
+
+  return (
+    &lt;Block flex={1} gap={0}&gt;
+      &lt;Block gap={0}&gt;
+      &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} contentProps={{ px: gutter, py: 10, gap: 8, direction: &#39;row&#39; }}&gt;
+        {SECTIONS.map((item) =&gt; (
+          &lt;Chip
+            key={item.key}
+            variant=&quot;filled&quot;
+            color={section === item.key ? C.white : C.raised}
+            labelProps={{ c: section === item.key ? C.black : C.white, fw: &#39;bold&#39; }}
+            pressed={section === item.key}
+            onPress={() =&gt; setSection(item.key)}
+          &gt;
+            {item.label}
+          &lt;/Chip&gt;
+        ))}
+      &lt;/ScrollArea&gt;
+      &lt;/Block&gt;
+      &lt;ScrollArea flex={1} contentProps={{ px: gutter, pb: 40, pt: 8 }}&gt;
+        &lt;Block gap={0} w=&quot;100%&quot; maw={760} alignSelf=&quot;center&quot;&gt;
+          {items.map((item, index) =&gt; (
+            &lt;Entry key={item.id} title={item} lead={section === &#39;coming&#39; ? &#39;date&#39; : section === &#39;everyone&#39; ? &#39;none&#39; : &#39;rank&#39;} rank={index + 1} /&gt;
+          ))}
+        &lt;/Block&gt;
+      &lt;/ScrollArea&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function Entry({ title, lead, rank }: { title: Title; lead: &#39;date&#39; | &#39;rank&#39; | &#39;none&#39;; rank: number }) {
+  const app = useNightfall();
+  const toast = useToast();
+  const { wide } = useScreen();
+  const reminded = app.reminders.includes(title.id);
+  const inList = app.myList.includes(title.id);
+  const share = () =&gt; toast.show({ title: &#39;Link copied&#39;, message: `nightfall.example/title/${title.id}`, autoHide: 2500 });
+  return (
+    &lt;Block direction=&quot;row&quot; gap={wide ? 18 : 10} mb={wide ? 40 : 30}&gt;
+      {lead !== &#39;none&#39; &amp;&amp; (
+        &lt;Block w={wide ? 64 : 44} align=&quot;center&quot; gap={0}&gt;
+          {lead === &#39;date&#39; ? (
+            &lt;&gt;
+              &lt;Text c={C.muted} fw=&quot;bold&quot; size={wide ? 14 : 12}&gt;
+                {title.coming?.month}
+              &lt;/Text&gt;
+              &lt;Text c={C.white} fw=&quot;900&quot; size={wide ? 38 : 30} lh={wide ? 40 : 32}&gt;
+                {title.coming?.day}
+              &lt;/Text&gt;
+            &lt;/&gt;
+          ) : (
+            &lt;Text c={C.white} fw=&quot;900&quot; size={wide ? 52 : 38} lh={wide ? 54 : 40}&gt;
+              {rank}
+            &lt;/Text&gt;
+          )}
+        &lt;/Block&gt;
+      )}
+      &lt;Block flex={1} gap={10}&gt;
+        &lt;Block gap={0} onPress={() =&gt; (title.coming ? app.playTrailer(title.id, `${title.id}:trailer`) : app.openTitle(title.id))} accessibilityRole=&quot;button&quot; accessibilityLabel={title.coming ? `Play ${title.title} teaser` : title.title}&gt;
+          &lt;Still title={title} w=&quot;100%&quot; play radius={8}&gt;
+            &lt;Block position=&quot;absolute&quot; left={10} bottom={8} gap={0}&gt;
+              &lt;Text c={C.white} fw=&quot;900&quot; size={wide ? 30 : 20} tt=&quot;uppercase&quot;&gt;
+                {title.title}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          &lt;/Still&gt;
+        &lt;/Block&gt;
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot; gap={8}&gt;
+          &lt;Block flex={1} gap={0}&gt;
+            {title.coming &amp;&amp; (
+              &lt;Text c={C.white} fw=&quot;bold&quot; size={13}&gt;
+                {title.coming.note}
+              &lt;/Text&gt;
+            )}
+          &lt;/Block&gt;
+          {title.coming ? (
+            &lt;&gt;
+              &lt;Action
+                icon={&lt;Icon name={reminded ? &#39;bell-ringing&#39; : &#39;bell&#39;} size={22} color={C.white} /&gt;}
+                label={reminded ? &#39;Reminder Set&#39; : &#39;Remind Me&#39;}
+                onPress={() =&gt; app.toggleReminder(title.id)}
+              /&gt;
+              &lt;Action icon={&lt;Icon name=&quot;info&quot; size={22} color={C.white} /&gt;} label=&quot;Info&quot; onPress={() =&gt; app.openTitle(title.id)} /&gt;
+            &lt;/&gt;
+          ) : (
+            &lt;&gt;
+              &lt;Action icon={&lt;Icon name=&quot;share&quot; size={22} color={C.white} /&gt;} label=&quot;Share&quot; onPress={share} /&gt;
+              &lt;Action
+                icon={inList ? &lt;Icon name=&quot;check&quot; size={22} color={C.white} /&gt; : &lt;Icon name=&quot;plus&quot; size={22} color={C.white} /&gt;}
+                label=&quot;My List&quot;
+                onPress={() =&gt; app.toggleList(title.id)}
+              /&gt;
+              &lt;Action icon={&lt;Icon name=&quot;play&quot; variant=&quot;filled&quot; size={22} color={C.white} /&gt;} label=&quot;Play&quot; onPress={() =&gt; app.play(title.id)} /&gt;
+            &lt;/&gt;
+          )}
+        &lt;/Block&gt;
+        {title.original &amp;&amp; (
+          &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={6}&gt;
+            &lt;Mark size={14} /&gt;
+            &lt;Text c={C.soft} fw=&quot;bold&quot; size={10} lts={3}&gt;
+              {title.kind === &#39;series&#39; ? &#39;SERIES&#39; : &#39;FILM&#39;}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        )}
+        &lt;Text c={C.white} fw=&quot;bold&quot; size={wide ? 20 : 17}&gt;
+          {title.title}
+        &lt;/Text&gt;
+        &lt;Text c={C.muted} size={13} lh={19}&gt;
+          {title.synopsis}
+        &lt;/Text&gt;
+        &lt;Block gap={0} align=&quot;flex-start&quot;&gt;
+          &lt;Dots items={title.moods.concat(title.genres)} c={C.white} size={12} ta=&quot;left&quot; /&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-6"><h2>screens/PlayerScreen.tsx</h2><pre><code>import { useState } from &#39;react&#39;;
+import { Asset } from &#39;expo-asset&#39;;
+import { Block, Button, Icon, IconButton, Text } from &#39;@plocks/ui&#39;;
+import { Video, type VideoState } from &#39;@plocks/media&#39;;
+
+import { byId, trailersFor } from &#39;../data&#39;;
+import { progressKey, useNightfall, type Route } from &#39;../store&#39;;
+import { C, useScreen } from &#39;../ui&#39;;
+
+const SAMPLE_CLIP = Asset.fromModule(require(&#39;../assets/demo-clip.mp4&#39;)).uri;
+
+/** Full-screen player. Every title plays the bundled sample clip; progress feeds Continue Watching. */
+export function PlayerScreen({ route }: { route: Extract&lt;Route, { name: &#39;player&#39; }&gt; }) {
+  const app = useNightfall();
+  const { gutter } = useScreen();
+  const [error, setError] = useState&lt;string | null&gt;(null);
+  const title = byId(route.id);
+  const { s, e, trailer } = route;
+  const episode = s &amp;&amp; e ? title.seasons?.[s - 1]?.[e - 1] : undefined;
+  const nextEpisode = s &amp;&amp; e ? (title.seasons?.[s - 1]?.[e] ? [s, e + 1] : title.seasons?.[s]?.[0] ? [s + 1, 1] : null) : null;
+  const trailerLabel = trailer ? trailersFor(title).find((item) =&gt; item.id === trailer)?.label : undefined;
+  const key = progressKey(title.id, s, e);
+
+  return (
+    &lt;Block flex={1} bg=&quot;#000&quot; gap={0}&gt;
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={10} px={gutter} py={10}&gt;
+        &lt;IconButton icon=&quot;arrowLeft&quot; variant=&quot;ghost&quot; iconColor={C.white} accessibilityLabel=&quot;Exit player&quot; onPress={app.back} /&gt;
+        &lt;Block flex={1} gap={0}&gt;
+          &lt;Text c={C.white} fw=&quot;bold&quot; size={17} numberOfLines={1}&gt;
+            {title.title}
+          &lt;/Text&gt;
+          &lt;Text c={C.muted} size={12} numberOfLines={1}&gt;
+            {trailerLabel ?? (episode ? `S${s}:E${e} “${episode.title}”` : title.length)}
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+      &lt;Block flex={1} w=&quot;100%&quot; maw={1100} alignSelf=&quot;center&quot; justify=&quot;center&quot; gap={0}&gt;
+        &lt;Video
+          key={`${key}:${trailer ?? &#39;&#39;}`}
+          source={{ url: SAMPLE_CLIP }}
+          w=&quot;100%&quot;
+          aspectRatio={16 / 9}
+          autoPlay
+          controls
+          accessibilityLabel={`Sample clip for ${title.title}`}
+          onTimeUpdate={(state: VideoState) =&gt; {
+            if (trailer || !state.duration) return;
+            app.setProgress(key, Math.min(1, state.currentTime / state.duration), title.id, s, e);
+          }}
+          onError={setError}
+        /&gt;
+        &lt;Block direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot; px={gutter} py={14} gap={10} wrap=&quot;wrap&quot;&gt;
+          &lt;Text c={C.muted} size={12}&gt;
+            {error ? &#39;This clip could not play here.&#39; : &#39;Every title plays the same bundled preview footage.&#39;}
+          &lt;/Text&gt;
+          {nextEpisode &amp;&amp; !trailer &amp;&amp; (
+            &lt;Button
+              title=&quot;Next Episode&quot;
+              startSection={&lt;Icon name=&quot;player-skip-forward&quot; variant=&quot;filled&quot; size={18} color={C.black} /&gt;}
+              color={C.white}
+              textColor={C.black}
+              size=&quot;sm&quot;
+              onPress={() =&gt; {
+                app.back();
+                app.play(title.id, nextEpisode[0], nextEpisode[1]);
+              }}
+            /&gt;
+          )}
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-7"><h2>screens/ProfilePicker.tsx</h2><pre><code>import { Block, Icon, Text } from &#39;@plocks/ui&#39;;
+
+import { PROFILES } from &#39;../data&#39;;
+import { useNightfall } from &#39;../store&#39;;
+import { C, ProfileTile, useScreen } from &#39;../ui&#39;;
+
+/** &quot;Who&#39;s watching?&quot; launch screen. */
+export function ProfilePicker() {
+  const app = useNightfall();
+  const { wide } = useScreen();
+  const size = wide ? 140 : 104;
+  return (
+    &lt;Block flex={1} align=&quot;center&quot; justify=&quot;center&quot; gap={wide ? 36 : 28} p={24}&gt;
+      &lt;Text c={C.red} fw=&quot;900&quot; size={wide ? 36 : 28} lts={2}&gt;
+        NIGHTFALL
+      &lt;/Text&gt;
+      &lt;Text c={C.white} size={wide ? 40 : 24}&gt;
+        Who&#39;s watching?
+      &lt;/Text&gt;
+      &lt;Block direction=&quot;row&quot; wrap=&quot;wrap&quot; justify=&quot;center&quot; gap={wide ? 28 : 20} maw={wide ? 900 : 300}&gt;
+        {PROFILES.map((profile) =&gt; (
+          &lt;Block
+            key={profile.id}
+            align=&quot;center&quot;
+            gap={10}
+            onPress={() =&gt; app.selectProfile(profile.id)}
+            accessibilityRole=&quot;button&quot;
+            accessibilityLabel={`Watch as ${profile.name}`}
+          &gt;
+            &lt;ProfileTile color={profile.color} size={size} /&gt;
+            &lt;Text c={C.muted} size={wide ? 18 : 15}&gt;
+              {profile.name}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        ))}
+        &lt;Block align=&quot;center&quot; gap={10}&gt;
+          &lt;Block w={size} h={size} radius={size / 10} borderWidth={2} borderColor=&quot;#3A3A3A&quot; align=&quot;center&quot; justify=&quot;center&quot; gap={0}&gt;
+            &lt;Icon name=&quot;plus&quot; size={size * 0.4} color={C.muted} /&gt;
+          &lt;/Block&gt;
+          &lt;Text c={C.muted} size={wide ? 18 : 15}&gt;
+            Add Profile
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-8"><h2>screens/SearchScreen.tsx</h2><pre><code>import { useState } from &#39;react&#39;;
+import { Block, Icon, IconButton, Input, ScrollArea, Text } from &#39;@plocks/ui&#39;;
+
+import { TOP_SEARCHES, byId, released, TITLES } from &#39;../data&#39;;
+import { useNightfall } from &#39;../store&#39;;
+import { C, PlayGlyph, PosterGrid, Still, useScreen } from &#39;../ui&#39;;
+
+export function SearchScreen() {
+  const app = useNightfall();
+  const { wide, gutter } = useScreen();
+  const [query, setQuery] = useState(&#39;&#39;);
+  const q = query.trim().toLowerCase();
+  const results = TITLES.filter((item) =&gt;
+    [item.title, item.kind === &#39;series&#39; ? &#39;tv show series&#39; : &#39;movie film&#39;, ...item.genres, ...item.moods, ...item.cast, item.creator]
+      .join(&#39; &#39;)
+      .toLowerCase()
+      .includes(q),
+  );
+  const suggestions = released.filter((item) =&gt; !results.includes(item)).slice(0, wide ? 12 : 9);
+
+  return (
+    &lt;Block flex={1} gap={0}&gt;
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} px={gutter} py={10}&gt;
+        &lt;IconButton icon=&quot;arrowLeft&quot; variant=&quot;ghost&quot; iconColor={C.white} accessibilityLabel=&quot;Back&quot; onPress={app.back} /&gt;
+        &lt;Input
+          variant=&quot;filled&quot;
+          size=&quot;lg&quot;
+          radius={6}
+          value={query}
+          onChangeText={setQuery}
+          placeholder=&quot;Search shows, movies, genres, people&quot;
+          placeholderTextColor=&quot;#8C8C8C&quot;
+          startSection={&lt;Icon name=&quot;search&quot; size={20} color={C.muted} /&gt;}
+          clearable
+          clearButtonLabel=&quot;Clear search&quot;
+          autoFocus
+          mb={0}
+          flex={1}
+          inputColor={C.white}
+          inputFontSize={15}
+          accessibilityLabel=&quot;Search&quot;
+        /&gt;
+      &lt;/Block&gt;
+
+      &lt;ScrollArea flex={1} contentProps={{ px: gutter, pb: 40, gap: 12 }}&gt;
+        {!q ? (
+          &lt;&gt;
+            &lt;Text c={C.white} fw=&quot;bold&quot; size={wide ? 22 : 18} mt={8}&gt;
+              Top Searches
+            &lt;/Text&gt;
+            &lt;Block gap={wide ? 10 : 6} direction={wide ? &#39;row&#39; : &#39;column&#39;} wrap=&quot;wrap&quot;&gt;
+              {TOP_SEARCHES.map(byId).map((item) =&gt; (
+                &lt;Block
+                  key={item.id}
+                  direction=&quot;row&quot;
+                  align=&quot;center&quot;
+                  gap={12}
+                  bg={C.panel}
+                  radius={4}
+                  overflow=&quot;hidden&quot;
+                  w={wide ? &#39;49%&#39; : &#39;100%&#39;}
+                  onPress={() =&gt; app.openTitle(item.id)}
+                  accessibilityRole=&quot;button&quot;
+                  accessibilityLabel={item.title}
+                &gt;
+                  &lt;Still title={item} w={wide ? 168 : 136} radius={0} /&gt;
+                  &lt;Block flex={1} gap={2}&gt;
+                    &lt;Text c={C.white} fw=&quot;600&quot; size={15} numberOfLines={2}&gt;
+                      {item.title}
+                    &lt;/Text&gt;
+                    &lt;Text c={C.muted} size={12}&gt;
+                      {item.kind === &#39;series&#39; ? &#39;TV Show&#39; : &#39;Movie&#39;} · {item.genres[0]}
+                    &lt;/Text&gt;
+                  &lt;/Block&gt;
+                  &lt;Block gap={0} pr={14} onPress={() =&gt; app.play(item.id)} accessibilityRole=&quot;button&quot; accessibilityLabel={`Play ${item.title}`}&gt;
+                    &lt;PlayGlyph size={34} /&gt;
+                  &lt;/Block&gt;
+                &lt;/Block&gt;
+              ))}
+            &lt;/Block&gt;
+          &lt;/&gt;
+        ) : results.length ? (
+          &lt;&gt;
+            &lt;Text c={C.white} fw=&quot;bold&quot; size={wide ? 22 : 18} mt={8}&gt;
+              Movies &amp; TV
+            &lt;/Text&gt;
+            &lt;PosterGrid titles={results} onPress={app.openTitle} /&gt;
+          &lt;/&gt;
+        ) : (
+          &lt;&gt;
+            &lt;Block align=&quot;center&quot; gap={8} py={36}&gt;
+              &lt;Text c={C.white} fw=&quot;bold&quot; size={20} ta=&quot;center&quot;&gt;
+                Oh darn. We don&#39;t have that.
+              &lt;/Text&gt;
+              &lt;Text c={C.muted} size={14} ta=&quot;center&quot; maw={360}&gt;
+                Try searching for another movie, show, actor, director or genre.
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+            &lt;Text c={C.white} fw=&quot;bold&quot; size={wide ? 22 : 18}&gt;
+              You might like
+            &lt;/Text&gt;
+            &lt;PosterGrid titles={suggestions} onPress={app.openTitle} /&gt;
+          &lt;/&gt;
+        )}
+      &lt;/ScrollArea&gt;
+    &lt;/Block&gt;
+  );
+}
+</code></pre></section><section id="file-9"><h2>screens/TitleScreen.tsx</h2><pre><code>import { useState } from &#39;react&#39;;
+import { Avatar, BackgroundImage, Block, Button, Gradient, Icon, IconButton, Menu, MenuDropdown, MenuItem, Progress, ScrollArea, Tabs, Text, useToast } from &#39;@plocks/ui&#39;;
+
+import { ART, CAST_COLORS, byId, initials, similarTo, topRank, trailersFor } from &#39;../data&#39;;
+import { progressKey, useNightfall, type Rating } from &#39;../store&#39;;
+import { Action, C, Mark, Meta, PlayGlyph, PosterGrid, Still, useScreen } from &#39;../ui&#39;;
+
+export function TitleScreen({ id }: { id: string }) {
+  const app = useNightfall();
+  const toast = useToast();
+  const { wide, gutter } = useScreen();
+  const title = byId(id);
+  const rank = topRank(title);
+  const series = title.kind === &#39;series&#39;;
+  const [section, setSection] = useState(series ? &#39;episodes&#39; : &#39;more&#39;);
+  const [season, setSeason] = useState(app.lastEp[id]?.[0] ?? 1);
+  const [rating, setRating] = useState(false);
+  const resume = app.resume(title);
+  const inList = app.myList.includes(id);
+  const download = app.downloads[id];
+  const rated = app.ratings[id];
+  const episodes = title.seasons?.[season - 1] ?? [];
+  const thumb = { down: &#39;thumb-down&#39;, up: &#39;thumb-up&#39;, love: &#39;heart&#39; };
+  const reminded = app.reminders.includes(id);
+
+  const share = () =&gt;
+    toast.show({ title: &#39;Link copied&#39;, message: `nightfall.example/title/${title.id}`, autoHide: 2500 });
+  const rate = (value: Rating) =&gt; {
+    app.rate(id, value);
+    setRating(false);
+  };
+
+  return (
+    &lt;ScrollArea flex={1} contentProps={{ pb: 48 }}&gt;
+      &lt;Block gap={0} w=&quot;100%&quot; maw={1100} alignSelf=&quot;center&quot;&gt;
+        &lt;BackgroundImage source={ART[title.art]} w=&quot;100%&quot; h={wide ? 460 : 250} justify=&quot;space-between&quot;&gt;
+          &lt;Gradient colors={[title.tint, &#39;#0000&#39;, C.black]} flex={1} justify=&quot;space-between&quot; p={gutter}&gt;
+            &lt;Block direction=&quot;row&quot; justify=&quot;space-between&quot; gap={0}&gt;
+              &lt;IconButton icon=&quot;arrowLeft&quot; variant=&quot;filled&quot; color=&quot;#000A&quot; iconColor={C.white} accessibilityLabel=&quot;Back&quot; onPress={app.back} /&gt;
+            &lt;/Block&gt;
+            {!title.coming &amp;&amp; (
+              &lt;Block alignSelf=&quot;center&quot; gap={0} onPress={() =&gt; app.play(id)} accessibilityRole=&quot;button&quot; accessibilityLabel={`Play ${title.title}`}&gt;
+                &lt;PlayGlyph size={wide ? 68 : 52} /&gt;
+              &lt;/Block&gt;
+            )}
+            &lt;Block h={20} gap={0} /&gt;
+          &lt;/Gradient&gt;
+        &lt;/BackgroundImage&gt;
+
+        &lt;Block px={gutter} gap={12} mt={wide ? -40 : 0}&gt;
+          {title.original &amp;&amp; (
+            &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={6}&gt;
+              &lt;Mark size={16} /&gt;
+              &lt;Text c={C.soft} fw=&quot;bold&quot; size={11} lts={3}&gt;
+                {series ? &#39;SERIES&#39; : &#39;FILM&#39;}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          )}
+          &lt;Text c={C.white} fw=&quot;900&quot; size={wide ? 44 : 28} lh={wide ? 48 : 32}&gt;
+            {title.title}
+          &lt;/Text&gt;
+          &lt;Meta title={title} /&gt;
+          {rank &amp;&amp; !title.coming &amp;&amp; (
+            &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8}&gt;
+              &lt;Block bg={C.red} px={4} py={1} radius={2} gap={0}&gt;
+                &lt;Text c={C.white} fw=&quot;900&quot; size={10}&gt;
+                  TOP 10
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+              &lt;Text c={C.white} fw=&quot;bold&quot; size={14}&gt;
+                #{rank} in {series ? &#39;TV Shows&#39; : &#39;Movies&#39;} Today
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          )}
+
+          {title.coming ? (
+            &lt;Block gap={8} maw={wide ? 420 : undefined}&gt;
+              &lt;Text c={C.white} fw=&quot;bold&quot; size={14}&gt;
+                {title.coming.note}
+              &lt;/Text&gt;
+              &lt;Button
+                title={reminded ? &#39;Reminder set&#39; : &#39;Remind Me&#39;}
+                startSection={&lt;Icon name={reminded ? &#39;bell-ringing&#39; : &#39;bell&#39;} size={20} color={C.black} /&gt;}
+                color={C.white}
+                textColor={C.black}
+                fullWidth
+                onPress={() =&gt; app.toggleReminder(id)}
+              /&gt;
+            &lt;/Block&gt;
+          ) : (
+            &lt;Block gap={8} maw={wide ? 420 : undefined}&gt;
+              &lt;Button
+                title={resume.value &gt; 0 &amp;&amp; resume.value &lt; 1 ? `Resume${resume.label ? ` ${resume.label}` : &#39;&#39;}` : series ? &#39;Play S1:E1&#39; : &#39;Play&#39;}
+                startSection={&lt;Icon name=&quot;play&quot; variant=&quot;filled&quot; size={20} color={C.black} /&gt;}
+                color={C.white}
+                textColor={C.black}
+                fullWidth
+                onPress={() =&gt; app.play(id)}
+              /&gt;
+              {resume.value &gt; 0 &amp;&amp; resume.value &lt; 1 &amp;&amp; &lt;Progress value={resume.value * 100} size={3} color={C.red} trackColor=&quot;#555&quot; /&gt;}
+              &lt;Button
+                title={download === undefined ? &#39;Download&#39; : download &lt; 1 ? `Downloading ${Math.round(download * 100)}%` : &#39;Downloaded&#39;}
+                startSection={
+                  download === 1 ? &lt;Icon name=&quot;circle-check&quot; variant=&quot;filled&quot; size={20} color={C.white} /&gt; : &lt;Icon name=&quot;download&quot; size={20} color={C.white} /&gt;
+                }
+                color=&quot;#333333&quot;
+                textColor={C.white}
+                fullWidth
+                onPress={() =&gt; (download === undefined ? app.download(id) : app.push({ name: &#39;downloads&#39; }))}
+              /&gt;
+            &lt;/Block&gt;
+          )}
+
+          &lt;Text c={C.white} size={wide ? 16 : 14} lh={wide ? 24 : 21} maw={720}&gt;
+            {title.synopsis}
+          &lt;/Text&gt;
+          &lt;Text c={C.muted} size={12} lh={18}&gt;
+            Cast: &lt;Text c={C.soft} size={12}&gt;{title.cast.join(&#39;, &#39;)}&lt;/Text&gt;
+          &lt;/Text&gt;
+          &lt;Text c={C.muted} size={12}&gt;
+            {series ? &#39;Creator&#39; : &#39;Director&#39;}: &lt;Text c={C.soft} size={12}&gt;{title.creator}&lt;/Text&gt;
+          &lt;/Text&gt;
+
+          &lt;Block direction=&quot;row&quot; gap={wide ? 20 : 4} mt={4} align=&quot;flex-start&quot;&gt;
+            &lt;Action
+              icon={inList ? &lt;Icon name=&quot;check&quot; size={26} color={C.white} /&gt; : &lt;Icon name=&quot;plus&quot; size={26} color={C.white} /&gt;}
+              label=&quot;My List&quot;
+              accessibilityLabel={inList ? &#39;Remove from My List&#39; : &#39;Add to My List&#39;}
+              onPress={() =&gt; app.toggleList(id)}
+            /&gt;
+            {!title.coming &amp;&amp; (
+              &lt;Action
+                icon={&lt;Icon name={rated ? thumb[rated] : &#39;thumb-up&#39;} variant={rated ? &#39;filled&#39; : &#39;outlined&#39;} size={26} color={C.white} /&gt;}
+                label={rated === &#39;love&#39; ? &#39;Love this!&#39; : rated === &#39;up&#39; ? &#39;I like this&#39; : rated === &#39;down&#39; ? &#39;Not for me&#39; : &#39;Rate&#39;}
+                onPress={() =&gt; setRating((open) =&gt; !open)}
+              /&gt;
+            )}
+            {title.coming &amp;&amp; (
+              &lt;Action
+                icon={&lt;Icon name={reminded ? &#39;bell-ringing&#39; : &#39;bell&#39;} size={26} color={C.white} /&gt;}
+                label=&quot;Remind Me&quot;
+                onPress={() =&gt; app.toggleReminder(id)}
+              /&gt;
+            )}
+            &lt;Action icon={&lt;Icon name=&quot;share&quot; size={26} color={C.white} /&gt;} label=&quot;Share&quot; onPress={share} /&gt;
+          &lt;/Block&gt;
+          {rating &amp;&amp; (
+            &lt;Block direction=&quot;row&quot; gap={6} bg={C.raised} radius=&quot;full&quot; p={6} alignSelf=&quot;flex-start&quot;&gt;
+              {([&#39;down&#39;, &#39;up&#39;, &#39;love&#39;] as Rating[]).map((value) =&gt; {
+                return (
+                  &lt;Block
+                    key={value}
+                    gap={2}
+                    align=&quot;center&quot;
+                    px={14}
+                    py={6}
+                    radius=&quot;full&quot;
+                    bg={rated === value ? &#39;#FFFFFF22&#39; : undefined}
+                    onPress={() =&gt; rate(value)}
+                    accessibilityRole=&quot;button&quot;
+                    accessibilityLabel={value === &#39;down&#39; ? &#39;Not for me&#39; : value === &#39;up&#39; ? &#39;I like this&#39; : &#39;Love this&#39;}
+                  &gt;
+                    &lt;Icon name={thumb[value]} variant={rated === value ? &#39;filled&#39; : &#39;outlined&#39;} size={24} color={C.white} /&gt;
+                    &lt;Text c={C.soft} size={10}&gt;
+                      {value === &#39;down&#39; ? &#39;Not for me&#39; : value === &#39;up&#39; ? &#39;I like this&#39; : &#39;Love this!&#39;}
+                    &lt;/Text&gt;
+                  &lt;/Block&gt;
+                );
+              })}
+            &lt;/Block&gt;
+          )}
+
+          &lt;Block gap={6} mt={4}&gt;
+            &lt;Text c={C.muted} size={12}&gt;
+              Genres: &lt;Text c={C.soft} size={12}&gt;{title.genres.join(&#39;, &#39;)}&lt;/Text&gt;
+            &lt;/Text&gt;
+            &lt;Text c={C.muted} size={12}&gt;
+              This {series ? &#39;show&#39; : &#39;movie&#39;} is: &lt;Text c={C.soft} size={12}&gt;{title.moods.join(&#39;, &#39;)}&lt;/Text&gt;
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+
+          &lt;Block gap={10} mt={8}&gt;
+            &lt;Text c={C.white} fw=&quot;bold&quot; size={16}&gt;
+              Cast
+            &lt;/Text&gt;
+            &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} contentProps={{ direction: &#39;row&#39;, gap: 14 }}&gt;
+              {title.cast.map((actor, index) =&gt; (
+                &lt;Block key={actor} w={76} align=&quot;center&quot; gap={6}&gt;
+                  &lt;Avatar
+                    size={52}
+                    fallback={initials(actor)}
+                    bg={CAST_COLORS[index % CAST_COLORS.length]}
+                    textColor={C.white}
+                    showText={false}
+                    accessibilityLabel={actor}
+                  /&gt;
+                  &lt;Text c={C.soft} size={11} ta=&quot;center&quot; numberOfLines={2}&gt;
+                    {actor}
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              ))}
+            &lt;/ScrollArea&gt;
+          &lt;/Block&gt;
+
+          &lt;Block mt={10} gap={0} borderTopWidth={1} borderTopColor={C.line}&gt;
+            &lt;Tabs
+              navigationOnly
+              variant=&quot;line&quot;
+              value={section}
+              onChange={setSection}
+              color={C.red}
+              activeTabTextColor={C.white}
+              labelProps={{ size: 14, fw: &#39;bold&#39;, c: C.muted }}
+              items={[
+                ...(series ? [{ key: &#39;episodes&#39;, label: &#39;Episodes&#39;, content: null }] : []),
+                { key: &#39;more&#39;, label: &#39;More Like This&#39;, content: null },
+                { key: &#39;trailers&#39;, label: &#39;Trailers &amp; More&#39;, content: null },
+              ]}
+            /&gt;
+          &lt;/Block&gt;
+
+          {section === &#39;episodes&#39; &amp;&amp; series &amp;&amp; (
+            &lt;Block gap={14}&gt;
+              {title.seasons &amp;&amp; title.seasons.length &gt; 1 ? (
+                &lt;Menu position=&quot;bottom-start&quot;&gt;
+                  &lt;Button
+                    title={`Season ${season}`}
+                    endSection={&lt;Icon name=&quot;chevron-down&quot; size={16} color={C.white} /&gt;}
+                    color={C.raised}
+                    textColor={C.white}
+                    size=&quot;sm&quot;
+                    accessibilityLabel=&quot;Choose season&quot;
+                  /&gt;
+                  &lt;MenuDropdown&gt;
+                    {title.seasons.map((_, index) =&gt; (
+                      &lt;MenuItem key={index} onPress={() =&gt; setSeason(index + 1)}&gt;
+                        {`Season ${index + 1}${index + 1 === season ? &#39;  ✓&#39; : &#39;&#39;}`}
+                      &lt;/MenuItem&gt;
+                    ))}
+                  &lt;/MenuDropdown&gt;
+                &lt;/Menu&gt;
+              ) : (
+                &lt;Text c={C.soft} fw=&quot;bold&quot; size={14}&gt;
+                  Season 1
+                &lt;/Text&gt;
+              )}
+              {episodes.map((episode) =&gt; {
+                const watched = app.progress[progressKey(id, season, episode.n)] ?? 0;
+                return (
+                  &lt;Block key={episode.n} gap={8}&gt;
+                    &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={12}&gt;
+                      &lt;Block
+                        gap={0}
+                        w={wide ? 200 : 128}
+                        onPress={title.coming ? undefined : () =&gt; app.play(id, season, episode.n)}
+                        accessibilityRole=&quot;button&quot;
+                        accessibilityLabel={`Play episode ${episode.n}, ${episode.title}`}
+                      &gt;
+                        &lt;Still title={title} w=&quot;100%&quot; play={!title.coming} progress={watched} /&gt;
+                      &lt;/Block&gt;
+                      &lt;Block flex={1} gap={2}&gt;
+                        &lt;Text c={C.white} fw=&quot;bold&quot; size={14} numberOfLines={2}&gt;
+                          {episode.n}. {episode.title}
+                        &lt;/Text&gt;
+                        &lt;Text c={C.muted} size={12}&gt;
+                          {episode.length}
+                        &lt;/Text&gt;
+                      &lt;/Block&gt;
+                      {!title.coming &amp;&amp; (
+                        &lt;IconButton
+                          icon={app.downloads[id] === 1 ? &#39;circle-check&#39; : &#39;download&#39;} iconVariant={app.downloads[id] === 1 ? &#39;filled&#39; : &#39;outlined&#39;}
+                          variant=&quot;ghost&quot;
+                          iconColor={C.white}
+                          accessibilityLabel={`Download episode ${episode.n}`}
+                          onPress={() =&gt; app.download(id)}
+                        /&gt;
+                      )}
+                    &lt;/Block&gt;
+                    &lt;Text c={C.muted} size={13} lh={19}&gt;
+                      {episode.synopsis}
+                    &lt;/Text&gt;
+                  &lt;/Block&gt;
+                );
+              })}
+            &lt;/Block&gt;
+          )}
+
+          {section === &#39;more&#39; &amp;&amp; &lt;PosterGrid titles={similarTo(title).slice(0, wide ? 12 : 9)} onPress={app.openTitle} /&gt;}
+
+          {section === &#39;trailers&#39; &amp;&amp; (
+            &lt;Block gap={18} direction={wide ? &#39;row&#39; : &#39;column&#39;} wrap=&quot;wrap&quot;&gt;
+              {trailersFor(title).map((trailer) =&gt; (
+                &lt;Block
+                  key={trailer.id}
+                  gap={8}
+                  w={wide ? 320 : &#39;100%&#39;}
+                  onPress={() =&gt; app.playTrailer(id, trailer.id)}
+                  accessibilityRole=&quot;button&quot;
+                  accessibilityLabel={`Play ${trailer.label}`}
+                &gt;
+                  &lt;Still title={title} w=&quot;100%&quot; play /&gt;
+                  &lt;Text c={C.white} fw=&quot;bold&quot; size={14}&gt;
+                    {trailer.label}: {title.title}{&#39; &#39;}
+                    &lt;Text c={C.muted} size={12}&gt;
+                      {trailer.length}
+                    &lt;/Text&gt;
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              ))}
+            &lt;/Block&gt;
+          )}
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+    &lt;/ScrollArea&gt;
+  );
+}
+</code></pre></section><section id="file-10"><h2>store.tsx</h2><pre><code>import { createContext, useContext, useEffect, useState, type ReactNode } from &#39;react&#39;;
+import AsyncStorage from &#39;@react-native-async-storage/async-storage&#39;;
+
+import { byId, PROFILES, type Profile, type Title } from &#39;./data&#39;;
+
+export type Tab = &#39;home&#39; | &#39;new&#39; | &#39;my&#39;;
+export type Filter = &#39;all&#39; | &#39;series&#39; | &#39;movie&#39;;
+export type Rating = &#39;down&#39; | &#39;up&#39; | &#39;love&#39;;
+export type Route =
+  | { name: &#39;title&#39;; id: string }
+  | { name: &#39;player&#39;; id: string; s?: number; e?: number; trailer?: string }
+  | { name: &#39;search&#39; }
+  | { name: &#39;downloads&#39; }
+  | { name: &#39;notifications&#39; };
+
+interface Saved {
+  myList: string[];
+  progress: Record&lt;string, number&gt;;
+  lastEp: Record&lt;string, [number, number]&gt;;
+  ratings: Record&lt;string, Rating&gt;;
+  reminders: string[];
+  downloads: Record&lt;string, number&gt;;
+  trailers: string[];
+}
+
+const STORAGE = &#39;plocks-nightfall-example:v2&#39;;
+const INITIAL: Saved = {
+  myList: [&#39;stillwater&#39;, &#39;afterdark&#39;, &#39;tidekeepers&#39;],
+  progress: { wildwood: 0.42, &#39;nightshift:1:3&#39;: 0.19, &#39;dust:1:2&#39;: 0.63, &#39;nightshift:1:1&#39;: 1, &#39;nightshift:1:2&#39;: 1, &#39;dust:1:1&#39;: 1 },
+  lastEp: { nightshift: [1, 3], dust: [1, 2] },
+  ratings: { evergreen: &#39;love&#39; },
+  reminders: [&#39;northern&#39;],
+  downloads: { goldenhour: 1 },
+  trailers: [&#39;glasshouse&#39;],
+};
+
+export const progressKey = (id: string, s?: number, e?: number) =&gt; (s &amp;&amp; e ? `${id}:${s}:${e}` : id);
+
+function useNightfallState() {
+  const [profile, setProfile] = useState&lt;Profile | null&gt;(null);
+  const [tab, setTab] = useState&lt;Tab&gt;(&#39;home&#39;);
+  const [filter, setFilter] = useState&lt;Filter&gt;(&#39;all&#39;);
+  const [genre, setGenre] = useState&lt;string | null&gt;(null);
+  const [stack, setStack] = useState&lt;Route[]&gt;([]);
+  const [saved, setSaved] = useState&lt;Saved&gt;(INITIAL);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() =&gt; {
+    AsyncStorage.getItem(STORAGE)
+      .then((raw) =&gt; {
+        if (raw) setSaved({ ...INITIAL, ...(JSON.parse(raw) as Partial&lt;Saved&gt;) });
+      })
+      .catch(() =&gt; {})
+      .finally(() =&gt; setReady(true));
+  }, []);
+  useEffect(() =&gt; {
+    if (ready) AsyncStorage.setItem(STORAGE, JSON.stringify(saved)).catch(() =&gt; {});
+  }, [saved, ready]);
+
+  // Simulated downloads: anything below 1 creeps forward until it finishes.
+  const downloading = Object.values(saved.downloads).some((value) =&gt; value &lt; 1);
+  useEffect(() =&gt; {
+    if (!downloading) return;
+    const timer = setInterval(() =&gt; {
+      setSaved((old) =&gt; ({
+        ...old,
+        downloads: Object.fromEntries(
+          Object.entries(old.downloads).map(([id, value]) =&gt; [id, value &lt; 1 ? Math.min(1, value + 0.08) : value]),
+        ),
+      }));
+    }, 350);
+    return () =&gt; clearInterval(timer);
+  }, [downloading]);
+
+  const toggle = (list: string[], id: string) =&gt; (list.includes(id) ? list.filter((item) =&gt; item !== id) : [...list, id]);
+  const update = (patch: (old: Saved) =&gt; Partial&lt;Saved&gt;) =&gt; setSaved((old) =&gt; ({ ...old, ...patch(old) }));
+
+  return {
+    ...saved,
+    profile,
+    tab,
+    filter,
+    genre,
+    stack,
+    route: stack[stack.length - 1] as Route | undefined,
+    selectProfile: (id: string | null) =&gt; {
+      setProfile(PROFILES.find((item) =&gt; item.id === id) ?? null);
+      setStack([]);
+      setTab(&#39;home&#39;);
+    },
+    setTab: (next: Tab) =&gt; {
+      setStack([]);
+      setTab(next);
+    },
+    setFilter: (next: Filter, nextGenre: string | null = null) =&gt; {
+      setStack([]);
+      setTab(&#39;home&#39;);
+      setFilter(next);
+      setGenre(nextGenre);
+    },
+    push: (next: Route) =&gt; setStack((old) =&gt; [...old, next]),
+    back: () =&gt; setStack((old) =&gt; old.slice(0, -1)),
+    openTitle: (id: string) =&gt; setStack((old) =&gt; [...old, { name: &#39;title&#39;, id }]),
+    play: (id: string, s?: number, e?: number) =&gt; {
+      const title = byId(id);
+      if (title.kind === &#39;series&#39; &amp;&amp; !s) [s, e] = saved.lastEp[id] ?? [1, 1];
+      setStack((old) =&gt; [...old, { name: &#39;player&#39;, id, s, e }]);
+    },
+    playTrailer: (id: string, trailer: string) =&gt; {
+      update((old) =&gt; ({ trailers: old.trailers.includes(id) ? old.trailers : [id, ...old.trailers] }));
+      setStack((old) =&gt; [...old, { name: &#39;player&#39;, id, trailer }]);
+    },
+    toggleList: (id: string) =&gt; update((old) =&gt; ({ myList: toggle(old.myList, id) })),
+    toggleReminder: (id: string) =&gt; update((old) =&gt; ({ reminders: toggle(old.reminders, id) })),
+    rate: (id: string, value: Rating) =&gt;
+      update((old) =&gt; {
+        const ratings = { ...old.ratings };
+        if (ratings[id] === value) delete ratings[id];
+        else ratings[id] = value;
+        return { ratings };
+      }),
+    download: (id: string) =&gt; update((old) =&gt; ({ downloads: { ...old.downloads, [id]: old.downloads[id] ?? 0 } })),
+    removeDownload: (id: string) =&gt;
+      update((old) =&gt; {
+        const downloads = { ...old.downloads };
+        delete downloads[id];
+        return { downloads };
+      }),
+    setProgress: (key: string, value: number, id?: string, s?: number, e?: number) =&gt;
+      setSaved((old) =&gt; {
+        if (Math.abs((old.progress[key] ?? 0) - value) &lt; 0.01 &amp;&amp; value !== 1) return old;
+        const lastEp = id &amp;&amp; s &amp;&amp; e ? { ...old.lastEp, [id]: [s, e] as [number, number] } : old.lastEp;
+        return { ...old, lastEp, progress: { ...old.progress, [key]: value } };
+      }),
+    /** Progress for the title&#39;s resume point (last episode for series). */
+    resume: (title: Title) =&gt; {
+      if (title.kind === &#39;movie&#39;) return { value: saved.progress[title.id] ?? 0, label: &#39;&#39; };
+      const [s, e] = saved.lastEp[title.id] ?? [1, 1];
+      return { value: saved.progress[progressKey(title.id, s, e)] ?? 0, label: `S${s}:E${e}`, s, e };
+    },
+  };
+}
+
+export type Nightfall = ReturnType&lt;typeof useNightfallState&gt;;
+const Context = createContext&lt;Nightfall | null&gt;(null);
+
+export function NightfallProvider({ children }: { children: ReactNode }) {
+  return &lt;Context.Provider value={useNightfallState()}&gt;{children}&lt;/Context.Provider&gt;;
+}
+
+export function useNightfall() {
+  const value = useContext(Context);
+  if (!value) throw new Error(&#39;useNightfall must be used inside NightfallProvider&#39;);
+  return value;
+}
+</code></pre></section><section id="file-11"><h2>ui.tsx</h2><pre><code>import { useState, type ReactNode } from &#39;react&#39;;
+import { useWindowDimensions } from &#39;react-native&#39;;
+import { BackgroundImage, Block, Gradient, Icon, Progress, ScrollArea, Text } from &#39;@plocks/ui&#39;;
+
+import { ART, topRank, type Title } from &#39;./data&#39;;
+
+export const C = {
+  black: &#39;#0D0D0D&#39;,
+  panel: &#39;#181818&#39;,
+  raised: &#39;#262626&#39;,
+  white: &#39;#FFFFFF&#39;,
+  muted: &#39;#A3A3A3&#39;,
+  soft: &#39;#D4D4D4&#39;,
+  red: &#39;#E50914&#39;,
+  green: &#39;#46D369&#39;,
+  line: &#39;#2A2A2A&#39;,
+};
+
+/** Breakpoints used across screens. `wide` switches to the desktop layout with a top nav. */
+export function useScreen() {
+  const { width } = useWindowDimensions();
+  const wide = width &gt;= 900;
+  return { width, wide, gutter: wide ? 40 : 16, poster: wide ? 168 : 112 };
+}
+
+/** The red &quot;N&quot; mark used on originals and in the header. */
+export function Mark({ size = 14 }: { size?: number }) {
+  return (
+    &lt;Text c={C.red} fw=&quot;900&quot; size={size} lh={size}&gt;
+      N
+    &lt;/Text&gt;
+  );
+}
+
+/** Poster: 2:3 art, originals mark, Top 10 flag and an optional ribbon. */
+export function Poster({ title, w, onPress }: { title: Title; w: number; onPress: () =&gt; void }) {
+  const rank = topRank(title);
+  return (
+    &lt;BackgroundImage
+      source={ART[title.art]}
+      w={w}
+      h={Math.round(w * 1.5)}
+      radius={6}
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={title.title}
+    &gt;
+      &lt;Gradient colors={[title.tint, &#39;#0000&#39;, &#39;#000E&#39;]} flex={1} justify=&quot;space-between&quot;&gt;
+        &lt;Block direction=&quot;row&quot; justify=&quot;space-between&quot; align=&quot;flex-start&quot; gap={0}&gt;
+          &lt;Block gap={0} p={7}&gt;
+            {title.original &amp;&amp; &lt;Mark size={w &gt; 140 ? 18 : 14} /&gt;}
+          &lt;/Block&gt;
+          {rank !== null &amp;&amp; rank &lt;= 3 &amp;&amp; !title.coming &amp;&amp; &lt;TopTenFlag /&gt;}
+        &lt;/Block&gt;
+        &lt;Block gap={6}&gt;
+          &lt;Text c={C.white} fw=&quot;900&quot; size={w &gt; 140 ? 18 : 14} lh={w &gt; 140 ? 21 : 16} ta=&quot;center&quot; px={6} numberOfLines={3} tt=&quot;uppercase&quot;&gt;
+            {title.title}
+          &lt;/Text&gt;
+          {title.label ? (
+            &lt;Block bg={C.red} py={3} align=&quot;center&quot; gap={0}&gt;
+              &lt;Text c={C.white} fw=&quot;bold&quot; size={w &gt; 140 ? 11 : 9}&gt;
+                {title.label}
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+          ) : (
+            &lt;Block h={4} gap={0} /&gt;
+          )}
+        &lt;/Block&gt;
+      &lt;/Gradient&gt;
+    &lt;/BackgroundImage&gt;
+  );
+}
+
+export function TopTenFlag() {
+  return (
+    &lt;Block bg={C.red} w={22} pt={2} pb={3} align=&quot;center&quot; gap={0} borderTopRightRadius={6}&gt;
+      &lt;Text c={C.white} fw=&quot;bold&quot; size={7} lh={8}&gt;
+        TOP
+      &lt;/Text&gt;
+      &lt;Text c={C.white} fw=&quot;900&quot; size={11} lh={12}&gt;
+        10
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+/** A titled horizontal shelf. */
+export function Shelf({ heading, children }: { heading: string; children: ReactNode }) {
+  const { wide, gutter } = useScreen();
+  return (
+    &lt;Block gap={wide ? 12 : 9} mt={wide ? 30 : 22}&gt;
+      &lt;Text c={C.white} fw=&quot;bold&quot; size={wide ? 21 : 17} px={gutter}&gt;
+        {heading}
+      &lt;/Text&gt;
+      &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} contentProps={{ px: gutter, gap: wide ? 10 : 8, direction: &#39;row&#39; }}&gt;
+        {children}
+      &lt;/ScrollArea&gt;
+    &lt;/Block&gt;
+  );
+}
+
+/**
+ * Even poster grid. Measures its own width, then picks the column count that keeps
+ * posters near `min` wide, so gutters are identical and every poster shares one 2:3 size.
+ */
+export function PosterGrid({ titles, onPress, min, gap = 8 }: { titles: Title[]; onPress: (id: string) =&gt; void; min?: number; gap?: number }) {
+  const { poster } = useScreen();
+  const [width, setWidth] = useState(0);
+  const target = min ?? poster;
+  const columns = Math.max(3, Math.floor((width + gap) / (target + gap)));
+  const itemW = Math.floor((width - gap * (columns - 1)) / columns);
+  return (
+    &lt;Block direction=&quot;row&quot; wrap=&quot;wrap&quot; gap={gap} w=&quot;100%&quot; onLayout={(event) =&gt; setWidth(event.nativeEvent.layout.width)}&gt;
+      {width &gt; 0 &amp;&amp; titles.map((item) =&gt; &lt;Poster key={item.id} title={item} w={itemW} onPress={() =&gt; onPress(item.id)} /&gt;)}
+    &lt;/Block&gt;
+  );
+}
+
+/** 16:9 still with the title tint and an optional centred play glyph. */
+export function Still({
+  title,
+  w,
+  radius = 6,
+  play = false,
+  progress,
+  children,
+}: {
+  title: Title;
+  w: number | string;
+  radius?: number;
+  play?: boolean;
+  progress?: number;
+  children?: ReactNode;
+}) {
+  return (
+    &lt;BackgroundImage source={ART[title.art]} w={w} aspectRatio={16 / 9} radius={radius}&gt;
+      &lt;Gradient colors={[title.tint, &#39;#0003&#39;]} flex={1} justify=&quot;center&quot; align=&quot;center&quot;&gt;
+        {play &amp;&amp; &lt;PlayGlyph /&gt;}
+        {children}
+      &lt;/Gradient&gt;
+      {progress !== undefined &amp;&amp; progress &gt; 0 &amp;&amp; (
+        &lt;Block position=&quot;absolute&quot; left={0} right={0} bottom={0} gap={0}&gt;
+          &lt;Progress value={progress * 100} size={3} radius={0} color={C.red} trackColor=&quot;#FFFFFF44&quot; /&gt;
+        &lt;/Block&gt;
+      )}
+    &lt;/BackgroundImage&gt;
+  );
+}
+
+export function PlayGlyph({ size = 38 }: { size?: number }) {
+  return (
+    &lt;Block w={size} h={size} radius=&quot;full&quot; borderWidth={1.5} borderColor={C.white} bg=&quot;#0008&quot; align=&quot;center&quot; justify=&quot;center&quot; gap={0}&gt;
+      &lt;Icon name=&quot;play&quot; variant=&quot;filled&quot; size={size * 0.45} color={C.white} /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+/** Icon-over-label action (My List, Rate, Share, Remind Me). */
+export function Action({ icon, label, onPress, accessibilityLabel }: { icon: ReactNode; label: string; onPress: () =&gt; void; accessibilityLabel?: string }) {
+  return (
+    &lt;Block gap={5} align=&quot;center&quot; miw={64} py={4} onPress={onPress} accessibilityRole=&quot;button&quot; accessibilityLabel={accessibilityLabel ?? label}&gt;
+      {icon}
+      &lt;Text c={C.muted} size={11}&gt;
+        {label}
+      &lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+/** Bold meta line: match %, year, rating box, length, HD. */
+export function Meta({ title, size = 13 }: { title: Title; size?: number }) {
+  return (
+    &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={8} wrap=&quot;wrap&quot;&gt;
+      {!title.coming &amp;&amp; (
+        &lt;Text c={C.green} fw=&quot;bold&quot; size={size}&gt;
+          {title.match}% Match
+        &lt;/Text&gt;
+      )}
+      &lt;Text c={C.soft} size={size}&gt;
+        {title.year}
+      &lt;/Text&gt;
+      &lt;Block bg=&quot;#4D4D4D&quot; px={5} radius={2} gap={0}&gt;
+        &lt;Text c={C.white} size={size - 2} fw=&quot;600&quot;&gt;
+          {title.rating}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+      &lt;Text c={C.soft} size={size}&gt;
+        {title.length}
+      &lt;/Text&gt;
+      &lt;Block borderWidth={1} borderColor=&quot;#8C8C8C&quot; px={4} radius={3} gap={0}&gt;
+        &lt;Text c={C.soft} size={size - 3} fw=&quot;bold&quot;&gt;
+          HD
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+    &lt;/Block&gt;
+  );
+}
+
+/** Square profile avatar. */
+export function ProfileTile({ color, size }: { color: string; size: number }) {
+  return (
+    &lt;Block w={size} h={size} radius={size / 10} bg={color} align=&quot;center&quot; justify=&quot;center&quot; gap={size * 0.06}&gt;
+      &lt;Block direction=&quot;row&quot; gap={size * 0.22}&gt;
+        &lt;Block w={size * 0.09} h={size * 0.14} radius=&quot;full&quot; bg=&quot;#FFFFFFE6&quot; gap={0} /&gt;
+        &lt;Block w={size * 0.09} h={size * 0.14} radius=&quot;full&quot; bg=&quot;#FFFFFFE6&quot; gap={0} /&gt;
+      &lt;/Block&gt;
+      &lt;Block w={size * 0.42} h={size * 0.16} borderBottomWidth={size * 0.06} borderLeftWidth={size * 0.06} borderRightWidth={size * 0.06} borderColor=&quot;#FFFFFFE6&quot; gap={0} borderBottomLeftRadius={size * 0.21} borderBottomRightRadius={size * 0.21} mt={size * 0.04} /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+/** Dot-separated genres / moods line. */
+export function Dots({ items, c = C.soft, size = 13, ta = &#39;center&#39; }: { items: string[]; c?: string; size?: number; ta?: &#39;left&#39; | &#39;center&#39; }) {
+  return (
+    &lt;Text c={c} size={size} ta={ta}&gt;
+      {items.join(&#39;  ·  &#39;)}
+    &lt;/Text&gt;
+  );
+}
+</code></pre></section></main></body></html>

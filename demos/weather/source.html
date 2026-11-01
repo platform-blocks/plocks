@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en"><head><!--plocks-demo-seo--><title>Weather demo source | plocks</title><meta name="description" content="Browse the source code for the Weather demo built with plocks."/><link rel="canonical" href="https://plocks.dev/demos/weather/source.html"/><!--/plocks-demo-seo--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>body{margin:0;background:#111319;color:#eef0f3;font:15px system-ui,sans-serif}header{padding:24px;position:sticky;top:0;background:#1b1e26;border-bottom:1px solid #353a46}h1{font-size:20px;margin:0 0 12px}nav{display:flex;gap:12px;flex-wrap:wrap}a{color:#9dbeff}main{max-width:1100px;margin:auto;padding:24px}section{margin-bottom:32px;scroll-margin-top:130px}h2{font-size:18px}pre{overflow:auto;background:#1b1e26;border:1px solid #353a46;border-radius:10px;padding:18px;line-height:1.5}code{font:13px ui-monospace,SFMono-Regular,monospace}</style>
+</head><body><header><h1>weather source</h1><nav><a href="/demos/weather/">Open live demo</a><a href="#file-0">App.tsx</a><a href="#file-1">index.ts</a><a href="#file-2">weather.ts</a></nav></header><main><section id="file-0"><h2>App.tsx</h2><pre><code>import { useEffect, useRef, useState } from &#39;react&#39;;
+import type { ReactNode } from &#39;react&#39;;
+import { StatusBar, useWindowDimensions } from &#39;react-native&#39;;
+import type { ImageSourcePropType } from &#39;react-native&#39;;
+import { SafeAreaProvider } from &#39;react-native-safe-area-context&#39;;
+import { IconCloudOff, IconDroplet, IconRefresh, IconTemperature, IconUmbrella, IconWind } from &#39;@tabler/icons-react-native&#39;;
+import { Block, Gradient, Image, Loader, PlocksProvider, SafeArea, ScrollArea, Skeleton, Text } from &#39;@plocks/ui&#39;;
+
+import { CITIES, dayLabel, describeWeather, getWeather, hourLabel, type City, type Weather } from &#39;./weather&#39;;
+
+const PAGE = &#39;#0B172A&#39;;
+const PANEL = &#39;#15243B&#39;;
+const LINE = &#39;rgba(255,255,255,0.09)&#39;;
+const MUTED = &#39;#9DB0CB&#39;;
+const RAIN = &#39;#7CC8F2&#39;;
+const HERO_BONE: [string, string] = [&#39;rgba(255,255,255,0.14)&#39;, &#39;rgba(255,255,255,0.3)&#39;];
+const BONE: [string, string] = [&#39;rgba(255,255,255,0.06)&#39;, &#39;rgba(255,255,255,0.13)&#39;];
+// Keep the skeleton on screen long enough to read as a loading state, not a flash.
+const MIN_LOADING_MS = 700;
+const SCENES: Record&lt;City[&#39;name&#39;], ImageSourcePropType&gt; = {
+  Phoenix: require(&#39;./assets/scene-desert.webp&#39;),
+  Seattle: require(&#39;./assets/scene-lake.webp&#39;),
+  &#39;New York&#39;: require(&#39;./assets/scene-city.webp&#39;),
+};
+
+type Range = { min: number; max: number };
+
+function dateLabel(observedAt: string): string {
+  return new Intl.DateTimeFormat(&#39;en-US&#39;, { weekday: &#39;long&#39;, month: &#39;long&#39;, day: &#39;numeric&#39;, timeZone: &#39;UTC&#39; })
+    .format(new Date(`${observedAt.slice(0, 10)}T12:00:00Z`));
+}
+
+function wait(ms: number, signal: AbortSignal) {
+  return new Promise&lt;void&gt;(resolve =&gt; {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(&#39;abort&#39;, () =&gt; clearTimeout(timer));
+  });
+}
+
+function Panel({ title, aside, children }: { title: string; aside?: string; children: ReactNode }) {
+  return (
+    &lt;Block gap={14} p={18} bg={PANEL} radius={22} borderWidth={1} borderColor={LINE}&gt;
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot; gap={0}&gt;
+        &lt;Text c={MUTED} size={11} fw=&quot;bold&quot; lts={1.4}&gt;{title}&lt;/Text&gt;
+        {aside ? &lt;Text c={MUTED} size={11}&gt;{aside}&lt;/Text&gt; : null}
+      &lt;/Block&gt;
+      {children}
+    &lt;/Block&gt;
+  );
+}
+
+/** Scene art as a dimmed backdrop: it sets the mood without competing with the text. */
+// Only the lower part of each 3:2 scene is shown, so its sun or moon stays above the frame.
+const SCENE_VISIBLE = 0.45;
+
+function SceneArt({ source, height }: { source: ImageSourcePropType; height: number }) {
+  const artHeight = height / SCENE_VISIBLE;
+  const artWidth = artHeight * 1.5;
+  return (
+    &lt;&gt;
+      &lt;Block
+        gap={0}
+        position=&quot;absolute&quot;
+        bottom={0}
+        left=&quot;50%&quot;
+        ml={-artWidth / 2}
+        w={artWidth}
+        h={artHeight}
+        opacity={0.55}
+        pointerEvents=&quot;none&quot;
+      &gt;
+        &lt;Image source={source} resizeMode=&quot;cover&quot; w=&quot;full&quot; h=&quot;full&quot; alt=&quot;&quot; /&gt;
+      &lt;/Block&gt;
+      {/* Lighter at the top, strongest behind the title block and where the cards begin. */}
+      &lt;Gradient
+        colors={[&#39;rgba(8,18,36,0.2)&#39;, &#39;rgba(8,18,36,0.5)&#39;, &#39;rgba(8,18,36,0.55)&#39;, PAGE]}
+        locations={[0, 0.3, 0.7, 1]}
+        position=&quot;absolute&quot;
+        inset={0}
+      /&gt;
+    &lt;/&gt;
+  );
+}
+
+function TemperatureBar({ low, high, range }: { low: number; high: number; range: Range }) {
+  const span = Math.max(1, range.max - range.min);
+  const left = ((low - range.min) / span) * 100;
+  const width = Math.max(8, ((high - low) / span) * 100);
+  return (
+    &lt;Block gap={0} flex={1} h={5} radius={5} bg=&quot;rgba(255,255,255,0.1)&quot; overflow=&quot;hidden&quot;&gt;
+      &lt;Gradient
+        colors={[&#39;#72C9F7&#39;, &#39;#F6BC78&#39;]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        position=&quot;absolute&quot;
+        top={0}
+        left={`${left}%`}
+        w={`${Math.min(width, 100 - left)}%`}
+        h={5}
+        radius={5}
+      /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function DetailTile({ icon, label, value, hint }: { icon: ReactNode; label: string; value: string; hint: string }) {
+  return (
+    &lt;Block gap={6} basis=&quot;47%&quot; grow p={16} bg={PANEL} radius={22} borderWidth={1} borderColor={LINE} mih={128}&gt;
+      &lt;Block direction=&quot;row&quot; align=&quot;center&quot; gap={6}&gt;
+        {icon}
+        &lt;Text c={MUTED} size={11} fw=&quot;bold&quot; lts={1.2}&gt;{label.toUpperCase()}&lt;/Text&gt;
+      &lt;/Block&gt;
+      &lt;Text c=&quot;#FFFFFF&quot; size={30} fw=&quot;600&quot; mt={4}&gt;{value}&lt;/Text&gt;
+      &lt;Text c={MUTED} size={12} numberOfLines={2}&gt;{hint}&lt;/Text&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function feelsHint(weather: Weather) {
+  const delta = Math.round(weather.feelsLike - weather.temperature);
+  if (Math.abs(delta) &lt; 3) return &#39;Similar to the actual temperature.&#39;;
+  return delta &gt; 0 ? &#39;Feels warmer than it is.&#39; : &#39;Feels cooler than it is.&#39;;
+}
+
+function humidityHint(humidity: number) {
+  if (humidity &lt; 30) return &#39;Dry air today.&#39;;
+  if (humidity &lt; 60) return &#39;Comfortable levels.&#39;;
+  return &#39;Muggy and humid.&#39;;
+}
+
+function windHint(mph: number) {
+  if (mph &lt; 4) return &#39;Calm conditions.&#39;;
+  if (mph &lt; 13) return &#39;A light breeze.&#39;;
+  if (mph &lt; 25) return &#39;Breezy at times.&#39;;
+  return &#39;Strong gusts possible.&#39;;
+}
+
+function HeroSkeleton() {
+  return (
+    // Each bone matches the line it stands in for, so the hero doesn&#39;t shift when data lands.
+    &lt;Block gap={0} align=&quot;center&quot; accessibilityLabel=&quot;Loading weather&quot;&gt;
+      &lt;Skeleton w={150} h={14} radius={7} mt={8} colors={HERO_BONE} /&gt;
+      &lt;Skeleton w={150} h={100} radius={24} mt={14} mb={10} colors={HERO_BONE} /&gt;
+      &lt;Skeleton w={110} h={20} radius={10} mt={2} colors={HERO_BONE} /&gt;
+      &lt;Skeleton w={96} h={14} radius={7} mt={10} colors={HERO_BONE} /&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function CardsSkeleton() {
+  return (
+    &lt;&gt;
+      &lt;Panel title=&quot;HOURLY FORECAST&quot; aside=&quot;Next 10 hours&quot;&gt;
+        &lt;Block direction=&quot;row&quot; gap={14} overflow=&quot;hidden&quot;&gt;
+          {Array.from({ length: 6 }, (_, index) =&gt; (
+            &lt;Block key={index} gap={10} align=&quot;center&quot; w={46}&gt;
+              &lt;Skeleton w={34} h={12} radius={6} colors={BONE} /&gt;
+              &lt;Skeleton shape=&quot;circle&quot; w={30} h={30} colors={BONE} /&gt;
+              &lt;Skeleton w={30} h={16} radius={6} colors={BONE} /&gt;
+              &lt;Block gap={0} h={12} /&gt;
+            &lt;/Block&gt;
+          ))}
+        &lt;/Block&gt;
+      &lt;/Panel&gt;
+      &lt;Panel title=&quot;4-DAY FORECAST&quot;&gt;
+        &lt;Block gap={0}&gt;
+          {Array.from({ length: 4 }, (_, index) =&gt; (
+            &lt;Block key={index} direction=&quot;row&quot; align=&quot;center&quot; gap={12} h={48} borderTopWidth={index ? 1 : 0} borderTopColor={LINE}&gt;
+              &lt;Skeleton w={44} h={14} radius={7} colors={BONE} /&gt;
+              &lt;Skeleton shape=&quot;circle&quot; w={26} h={26} colors={BONE} /&gt;
+              &lt;Block gap={0} flex={1}&gt;
+                &lt;Skeleton h={5} radius={5} colors={BONE} /&gt;
+              &lt;/Block&gt;
+              &lt;Skeleton w={30} h={14} radius={7} colors={BONE} /&gt;
+            &lt;/Block&gt;
+          ))}
+        &lt;/Block&gt;
+      &lt;/Panel&gt;
+      &lt;Block direction=&quot;row&quot; wrap=&quot;wrap&quot; gap={12}&gt;
+        {Array.from({ length: 4 }, (_, index) =&gt; (
+          &lt;Block key={index} gap={12} basis=&quot;47%&quot; grow p={16} bg={PANEL} radius={22} borderWidth={1} borderColor={LINE} mih={128}&gt;
+            &lt;Skeleton w={80} h={11} radius={6} colors={BONE} /&gt;
+            &lt;Skeleton w={64} h={28} radius={8} colors={BONE} /&gt;
+            &lt;Skeleton w=&quot;85%&quot; h={11} radius={6} colors={BONE} /&gt;
+          &lt;/Block&gt;
+        ))}
+      &lt;/Block&gt;
+    &lt;/&gt;
+  );
+}
+
+function WeatherScreen() {
+  const { height } = useWindowDimensions();
+  const heroHeight = Math.max(440, Math.min(520, height * 0.6));
+  const [city, setCity] = useState&lt;City&gt;(CITIES[0]);
+  const [weather, setWeather] = useState&lt;Weather | null&gt;(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState&lt;string | null&gt;(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const loadedCity = useRef&lt;string | null&gt;(null);
+
+  useEffect(() =&gt; {
+    const controller = new AbortController();
+    // A refresh keeps the current forecast on screen; a new city starts from the skeleton.
+    const refreshing = loadedCity.current === city.name;
+    setLoading(true);
+    setError(null);
+    if (!refreshing) setWeather(null);
+
+    Promise.all([getWeather(city, controller.signal), wait(MIN_LOADING_MS, controller.signal)])
+      .then(([next]) =&gt; {
+        loadedCity.current = city.name;
+        setWeather(next);
+      })
+      .catch((cause: unknown) =&gt; {
+        if (controller.signal.aborted) return;
+        if (!refreshing) loadedCity.current = null;
+        setError(cause instanceof Error ? cause.message : &#39;Could not load weather. Please try again.&#39;);
+      })
+      .finally(() =&gt; {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () =&gt; controller.abort();
+  }, [city, refreshKey]);
+
+  const refresh = () =&gt; setRefreshKey(key =&gt; key + 1);
+  const initialLoad = loading &amp;&amp; !weather;
+  const conditions = weather ? describeWeather(weather.code) : null;
+  const days = weather
+    ? [{ date: weather.observedAt.slice(0, 10), code: weather.code, high: weather.high, low: weather.low }, ...weather.forecast]
+    : [];
+  const range: Range | null = weather
+    ? { min: Math.min(...days.map(day =&gt; day.low)), max: Math.max(...days.map(day =&gt; day.high)) }
+    : null;
+  const rainChance = weather ? Math.max(...weather.hourly.map(hour =&gt; hour.rainChance)) : 0;
+
+  return (
+    &lt;SafeArea flex={1} gap={0} bg={PAGE}&gt;
+      &lt;StatusBar barStyle=&quot;light-content&quot; /&gt;
+      &lt;ScrollArea flex={1} contentProps={{ w: &#39;100%&#39;, maw: 560, alignSelf: &#39;center&#39;, pb: 40, gap: 0 }}&gt;
+        &lt;Block gap={0} h={heroHeight} w=&quot;100%&quot; overflow=&quot;hidden&quot; bg={PAGE}&gt;
+          &lt;SceneArt source={SCENES[city.name]} height={heroHeight} /&gt;
+          &lt;Block gap={0} px={20} pt={14} flex={1}&gt;
+            &lt;Block gap={0} direction=&quot;row&quot; align=&quot;center&quot; justify=&quot;space-between&quot;&gt;
+              &lt;Block direction=&quot;row&quot; gap={8}&gt;
+                {CITIES.map(option =&gt; {
+                  const selected = option.name === city.name;
+                  return (
+                    &lt;Block
+                      key={option.name}
+                      gap={0}
+                      px={15}
+                      py={8}
+                      radius={20}
+                      bg={selected ? &#39;#FFFFFF&#39; : &#39;rgba(255,255,255,0.16)&#39;}
+                      borderWidth={1}
+                      borderColor={selected ? &#39;#FFFFFF&#39; : &#39;rgba(255,255,255,0.22)&#39;}
+                      onPress={() =&gt; setCity(option)}
+                      accessibilityRole=&quot;button&quot;
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={option.name}
+                    &gt;
+                      &lt;Text c={selected ? PAGE : &#39;#FFFFFF&#39;} size={13} fw=&quot;600&quot;&gt;{option.name}&lt;/Text&gt;
+                    &lt;/Block&gt;
+                  );
+                })}
+              &lt;/Block&gt;
+              &lt;Block
+                gap={0}
+                w={38}
+                h={38}
+                radius={19}
+                bg=&quot;rgba(255,255,255,0.18)&quot;
+                align=&quot;center&quot;
+                justify=&quot;center&quot;
+                opacity={initialLoad ? 0.45 : 1}
+                disabled={loading}
+                onPress={refresh}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel=&quot;Refresh weather&quot;
+              &gt;
+                {loading &amp;&amp; weather ? (
+                  &lt;Loader size=&quot;xs&quot; color=&quot;#FFFFFF&quot; accessibilityLabel=&quot;Updating weather&quot; /&gt;
+                ) : (
+                  &lt;IconRefresh color=&quot;#FFFFFF&quot; size={18} /&gt;
+                )}
+              &lt;/Block&gt;
+            &lt;/Block&gt;
+
+            &lt;Block gap={0} align=&quot;center&quot; pt={92}&gt;
+              &lt;Text c=&quot;#FFFFFF&quot; size={30} fw=&quot;bold&quot; ta=&quot;center&quot;&gt;{city.name}&lt;/Text&gt;
+              {initialLoad ? (
+                &lt;HeroSkeleton /&gt;
+              ) : weather &amp;&amp; conditions ? (
+                &lt;Block gap={0} align=&quot;center&quot;&gt;
+                  &lt;Text c=&quot;rgba(255,255,255,0.82)&quot; size={13} mt={4} ta=&quot;center&quot;&gt;{dateLabel(weather.observedAt)}&lt;/Text&gt;
+                  &lt;Text c=&quot;#FFFFFF&quot; size={96} lh={124} fw=&quot;200&quot; ta=&quot;center&quot; ml={10}&gt;
+                    {Math.round(weather.temperature)}°
+                  &lt;/Text&gt;
+                  &lt;Text c=&quot;#FFFFFF&quot; size={19} fw=&quot;600&quot; ta=&quot;center&quot;&gt;{conditions.label}&lt;/Text&gt;
+                  &lt;Text c=&quot;rgba(255,255,255,0.86)&quot; size={14} mt={6} ta=&quot;center&quot;&gt;
+                    H:{Math.round(weather.high)}°  L:{Math.round(weather.low)}°
+                  &lt;/Text&gt;
+                &lt;/Block&gt;
+              ) : (
+                &lt;Block gap={0} align=&quot;center&quot;&gt;
+                  &lt;Text c=&quot;rgba(255,255,255,0.82)&quot; size={13} mt={4} ta=&quot;center&quot;&gt;Forecast unavailable&lt;/Text&gt;
+                  &lt;Block gap={0} h={124} justify=&quot;center&quot;&gt;
+                    &lt;IconCloudOff color=&quot;rgba(255,255,255,0.75)&quot; size={72} strokeWidth={1.25} /&gt;
+                  &lt;/Block&gt;
+                &lt;/Block&gt;
+              )}
+            &lt;/Block&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+
+        &lt;Block gap={12} px={16} mt={-40}&gt;
+          {error ? (
+            &lt;Block gap={12} p={18} bg=&quot;#2A1F2E&quot; radius={22} borderWidth={1} borderColor=&quot;rgba(255,140,140,0.25)&quot;&gt;
+              &lt;Text c=&quot;#FFB4B4&quot; size={11} fw=&quot;bold&quot; lts={1.4}&gt;
+                {weather ? &#39;COULDN’T REFRESH&#39; : &#39;WEATHER UNAVAILABLE&#39;}
+              &lt;/Text&gt;
+              &lt;Text c=&quot;#FFFFFF&quot; size={15}&gt;
+                {weather ? `${error} Showing the forecast from ${hourLabel(weather.observedAt)}.` : error}
+              &lt;/Text&gt;
+              &lt;Block
+                gap={0}
+                alignSelf=&quot;flex-start&quot;
+                px={18}
+                py={10}
+                radius={12}
+                bg=&quot;#FFFFFF&quot;
+                onPress={refresh}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel=&quot;Try again&quot;
+              &gt;
+                &lt;Text c={PAGE} fw=&quot;bold&quot; size={13}&gt;Try again&lt;/Text&gt;
+              &lt;/Block&gt;
+            &lt;/Block&gt;
+          ) : null}
+
+          {initialLoad ? (
+            &lt;CardsSkeleton /&gt;
+          ) : weather &amp;&amp; range ? (
+            &lt;&gt;
+              &lt;Panel title=&quot;HOURLY FORECAST&quot; aside=&quot;Next 10 hours&quot;&gt;
+                &lt;ScrollArea horizontal showsHorizontalScrollIndicator={false} mx={-18} contentProps={{ direction: &#39;row&#39;, gap: 14, px: 18 }}&gt;
+                  {weather.hourly.map((hour, index) =&gt; {
+                    const hourConditions = describeWeather(hour.code);
+                    return (
+                      &lt;Block key={hour.time} gap={8} align=&quot;center&quot; w={46}&gt;
+                        &lt;Text c={index === 0 ? &#39;#FFFFFF&#39; : MUTED} size={12} fw={index === 0 ? &#39;bold&#39; : &#39;500&#39;}&gt;
+                          {index === 0 ? &#39;Now&#39; : hourLabel(hour.time)}
+                        &lt;/Text&gt;
+                        &lt;Block gap={0} h={30} justify=&quot;center&quot;&gt;
+                          &lt;Text size={24} accessibilityLabel={hourConditions.label}&gt;{hourConditions.symbol}&lt;/Text&gt;
+                        &lt;/Block&gt;
+                        &lt;Text c=&quot;#FFFFFF&quot; size={16} fw=&quot;600&quot;&gt;{Math.round(hour.temperature)}°&lt;/Text&gt;
+                        &lt;Text c={RAIN} size={10} fw=&quot;600&quot;&gt;{hour.rainChance &gt;= 20 ? `${Math.round(hour.rainChance)}%` : &#39; &#39;}&lt;/Text&gt;
+                      &lt;/Block&gt;
+                    );
+                  })}
+                &lt;/ScrollArea&gt;
+              &lt;/Panel&gt;
+
+              &lt;Panel title=&quot;4-DAY FORECAST&quot;&gt;
+                &lt;Block gap={0}&gt;
+                  {days.map((day, index) =&gt; {
+                    const dayConditions = describeWeather(day.code);
+                    return (
+                      &lt;Block key={day.date} gap={12} direction=&quot;row&quot; align=&quot;center&quot; h={48} borderTopWidth={index ? 1 : 0} borderTopColor={LINE}&gt;
+                        &lt;Text c=&quot;#FFFFFF&quot; size={15} fw=&quot;600&quot; w={52}&gt;{index === 0 ? &#39;Today&#39; : dayLabel(day.date)}&lt;/Text&gt;
+                        &lt;Text size={22} w={28} ta=&quot;center&quot; accessibilityLabel={dayConditions.label}&gt;{dayConditions.symbol}&lt;/Text&gt;
+                        &lt;Text c={MUTED} size={15} w={34} ta=&quot;right&quot;&gt;{Math.round(day.low)}°&lt;/Text&gt;
+                        &lt;TemperatureBar low={day.low} high={day.high} range={range} /&gt;
+                        &lt;Text c=&quot;#FFFFFF&quot; size={15} fw=&quot;600&quot; w={34}&gt;{Math.round(day.high)}°&lt;/Text&gt;
+                      &lt;/Block&gt;
+                    );
+                  })}
+                &lt;/Block&gt;
+              &lt;/Panel&gt;
+
+              &lt;Block direction=&quot;row&quot; wrap=&quot;wrap&quot; gap={12}&gt;
+                &lt;DetailTile icon={&lt;IconTemperature color={MUTED} size={15} /&gt;} label=&quot;Feels like&quot; value={`${Math.round(weather.feelsLike)}°`} hint={feelsHint(weather)} /&gt;
+                &lt;DetailTile icon={&lt;IconDroplet color={MUTED} size={15} /&gt;} label=&quot;Humidity&quot; value={`${Math.round(weather.humidity)}%`} hint={humidityHint(weather.humidity)} /&gt;
+                &lt;DetailTile icon={&lt;IconWind color={MUTED} size={15} /&gt;} label=&quot;Wind&quot; value={`${Math.round(weather.windSpeed)} mph`} hint={windHint(weather.windSpeed)} /&gt;
+                &lt;DetailTile icon={&lt;IconUmbrella color={MUTED} size={15} /&gt;} label=&quot;Rain&quot; value={`${Math.round(rainChance)}%`} hint=&quot;Highest chance in the next 10 hours.&quot; /&gt;
+              &lt;/Block&gt;
+
+              &lt;Text c={MUTED} size={11} ta=&quot;center&quot; mt={8}&gt;
+                {loading ? &#39;Updating…&#39; : `Updated ${hourLabel(weather.observedAt)}`} · Weather by Open-Meteo · °F
+              &lt;/Text&gt;
+            &lt;/&gt;
+          ) : null}
+        &lt;/Block&gt;
+      &lt;/ScrollArea&gt;
+    &lt;/SafeArea&gt;
+  );
+}
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;PlocksProvider theme={{ colorScheme: &#39;dark&#39; }}&gt;
+        &lt;WeatherScreen /&gt;
+      &lt;/PlocksProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</code></pre></section><section id="file-1"><h2>index.ts</h2><pre><code>import { registerRootComponent } from &#39;expo&#39;;
+
+import App from &#39;./App&#39;;
+
+registerRootComponent(App);
+</code></pre></section><section id="file-2"><h2>weather.ts</h2><pre><code>export const CITIES = [
+  { name: &#39;Phoenix&#39;, latitude: 33.45, longitude: -112.07 },
+  { name: &#39;Seattle&#39;, latitude: 47.61, longitude: -122.33 },
+  { name: &#39;New York&#39;, latitude: 40.71, longitude: -74.01 },
+] as const;
+
+export type City = (typeof CITIES)[number];
+
+export interface ForecastDay {
+  date: string;
+  high: number;
+  low: number;
+  code: number;
+}
+
+export interface ForecastHour {
+  time: string;
+  temperature: number;
+  code: number;
+  rainChance: number;
+}
+
+export interface Weather {
+  observedAt: string;
+  temperature: number;
+  feelsLike: number;
+  humidity: number;
+  windSpeed: number;
+  code: number;
+  high: number;
+  low: number;
+  forecast: ForecastDay[];
+  hourly: ForecastHour[];
+}
+
+export function describeWeather(code: number): { label: string; symbol: string } {
+  if (code === 0) return { label: &#39;Clear sky&#39;, symbol: &#39;☀️&#39; };
+  if (code &lt;= 2) return { label: &#39;Partly cloudy&#39;, symbol: &#39;🌤️&#39; };
+  if (code === 3) return { label: &#39;Cloudy&#39;, symbol: &#39;☁️&#39; };
+  if (code &lt;= 48) return { label: &#39;Foggy&#39;, symbol: &#39;🌫️&#39; };
+  if (code &lt;= 67) return { label: &#39;Rainy&#39;, symbol: &#39;🌧️&#39; };
+  if (code &lt;= 77) return { label: &#39;Snowy&#39;, symbol: &#39;❄️&#39; };
+  if (code &lt;= 82) return { label: &#39;Showers&#39;, symbol: &#39;🌦️&#39; };
+  if (code &lt;= 86) return { label: &#39;Snow showers&#39;, symbol: &#39;🌨️&#39; };
+  if (code &lt;= 99) return { label: &#39;Thunderstorms&#39;, symbol: &#39;⛈️&#39; };
+  return { label: &#39;Conditions unavailable&#39;, symbol: &#39;🌡️&#39; };
+}
+
+export function dayLabel(date: string): string {
+  return new Intl.DateTimeFormat(&#39;en&#39;, { weekday: &#39;short&#39;, timeZone: &#39;UTC&#39; }).format(
+    new Date(`${date}T12:00:00Z`),
+  );
+}
+
+export function hourLabel(time: string): string {
+  const hour = Number(time.slice(11, 13));
+  return `${hour % 12 || 12} ${hour &lt; 12 ? &#39;AM&#39; : &#39;PM&#39;}`;
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === &#39;number&#39; &amp;&amp; Number.isFinite(value);
+}
+
+export async function getWeather(city: City, signal?: AbortSignal): Promise&lt;Weather&gt; {
+  const params = new URLSearchParams({
+    latitude: String(city.latitude),
+    longitude: String(city.longitude),
+    current: &#39;temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&#39;,
+    hourly: &#39;temperature_2m,weather_code,precipitation_probability&#39;,
+    daily: &#39;weather_code,temperature_2m_max,temperature_2m_min&#39;,
+    temperature_unit: &#39;fahrenheit&#39;,
+    wind_speed_unit: &#39;mph&#39;,
+    timezone: &#39;auto&#39;,
+    forecast_days: &#39;4&#39;,
+    forecast_hours: &#39;12&#39;,
+  });
+
+  let response: Response;
+  try {
+    response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal });
+  } catch (cause) {
+    if (signal?.aborted) throw cause;
+    throw new Error(&#39;Couldn’t reach the weather service. Check your connection and try again.&#39;);
+  }
+  if (!response.ok) throw new Error(&#39;Weather service is unavailable. Please try again.&#39;);
+
+  const data = await response.json();
+  const current = data?.current;
+  const daily = data?.daily;
+  const hourly = data?.hourly;
+  if (
+    typeof current?.time !== &#39;string&#39; ||
+    !isNumber(current?.temperature_2m) ||
+    !isNumber(current?.apparent_temperature) ||
+    !isNumber(current?.relative_humidity_2m) ||
+    !isNumber(current?.wind_speed_10m) ||
+    !isNumber(current?.weather_code) ||
+    !Array.isArray(daily?.time) ||
+    !Array.isArray(daily?.weather_code) ||
+    !Array.isArray(daily?.temperature_2m_max) ||
+    !Array.isArray(daily?.temperature_2m_min) ||
+    !Array.isArray(hourly?.time) ||
+    !Array.isArray(hourly?.temperature_2m) ||
+    !Array.isArray(hourly?.weather_code) ||
+    !Array.isArray(hourly?.precipitation_probability) ||
+    hourly.time.length &lt; 10 ||
+    hourly.temperature_2m.length &lt; 10 ||
+    hourly.weather_code.length &lt; 10 ||
+    hourly.precipitation_probability.length &lt; 10 ||
+    !hourly.time.slice(0, 10).every((time: unknown) =&gt; typeof time === &#39;string&#39;) ||
+    !hourly.temperature_2m.slice(0, 10).every(isNumber) ||
+    !hourly.weather_code.slice(0, 10).every(isNumber) ||
+    !hourly.precipitation_probability.slice(0, 10).every(isNumber) ||
+    daily.time.length &lt; 4 ||
+    daily.weather_code.length &lt; 4 ||
+    daily.temperature_2m_max.length &lt; 4 ||
+    daily.temperature_2m_min.length &lt; 4 ||
+    !daily.time.slice(0, 4).every((date: unknown) =&gt; typeof date === &#39;string&#39;) ||
+    !daily.weather_code.slice(0, 4).every(isNumber) ||
+    !daily.temperature_2m_max.slice(0, 4).every(isNumber) ||
+    !daily.temperature_2m_min.slice(0, 4).every(isNumber)
+  ) {
+    throw new Error(&#39;Weather data is incomplete. Please try again.&#39;);
+  }
+
+  const forecast: ForecastDay[] = daily.time.slice(1, 4).map((date: string, index: number) =&gt; ({
+    date,
+    code: daily.weather_code[index + 1],
+    high: daily.temperature_2m_max[index + 1],
+    low: daily.temperature_2m_min[index + 1],
+  }));
+
+  const hours: ForecastHour[] = hourly.time.slice(0, 10).map((time: string, index: number) =&gt; ({
+    time,
+    temperature: hourly.temperature_2m[index],
+    code: hourly.weather_code[index],
+    rainChance: hourly.precipitation_probability[index],
+  }));
+
+  return {
+    observedAt: current.time,
+    temperature: current.temperature_2m,
+    feelsLike: current.apparent_temperature,
+    humidity: current.relative_humidity_2m,
+    windSpeed: current.wind_speed_10m,
+    code: current.weather_code,
+    high: daily.temperature_2m_max[0],
+    low: daily.temperature_2m_min[0],
+    forecast,
+    hourly: hours,
+  };
+}
+</code></pre></section></main></body></html>

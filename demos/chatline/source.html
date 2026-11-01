@@ -1,0 +1,1246 @@
+<!doctype html>
+<html lang="en"><head><!--plocks-demo-seo--><title>Chatline demo source | plocks</title><meta name="description" content="Browse the source code for the Chatline demo built with plocks."/><link rel="canonical" href="https://plocks.dev/demos/chatline/source.html"/><!--/plocks-demo-seo--><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>body{margin:0;background:#111319;color:#eef0f3;font:15px system-ui,sans-serif}header{padding:24px;position:sticky;top:0;background:#1b1e26;border-bottom:1px solid #353a46}h1{font-size:20px;margin:0 0 12px}nav{display:flex;gap:12px;flex-wrap:wrap}a{color:#9dbeff}main{max-width:1100px;margin:auto;padding:24px}section{margin-bottom:32px;scroll-margin-top:130px}h2{font-size:18px}pre{overflow:auto;background:#1b1e26;border:1px solid #353a46;border-radius:10px;padding:18px;line-height:1.5}code{font:13px ui-monospace,SFMono-Regular,monospace}</style>
+</head><body><header><h1>chatline source</h1><nav><a href="/demos/chatline/">Open live demo</a><a href="#file-0">App.tsx</a><a href="#file-1">data.ts</a><a href="#file-2">index.ts</a></nav></header><main><section id="file-0"><h2>App.tsx</h2><pre><code>import { useEffect, useRef, useState } from &#39;react&#39;;
+import { Keyboard, Platform, StatusBar, useWindowDimensions, type ScrollView } from &#39;react-native&#39;;
+import AsyncStorage from &#39;@react-native-async-storage/async-storage&#39;;
+import { SafeAreaProvider } from &#39;react-native-safe-area-context&#39;;
+import Svg, { Defs, G, Path, Pattern, Rect } from &#39;react-native-svg&#39;;
+import {
+  IconArrowDownLeft,
+  IconArrowLeft,
+  IconArrowUpRight,
+  IconCamera,
+  IconChecks,
+  IconChevronDown,
+  IconCircleDashed,
+  IconDotsVertical,
+  IconKeyboard,
+  IconLock,
+  IconMessageCircle,
+  IconMessageCirclePlus,
+  IconMicrophone,
+  IconMicrophoneOff,
+  IconMoodSmile,
+  IconPaperclip,
+  IconPhone,
+  IconPhoneOff,
+  IconPhonePlus,
+  IconPlus,
+  IconSearch,
+  IconSend2,
+  IconUser,
+  IconUserPlus,
+  IconVideo,
+  IconVideoOff,
+  IconVolume,
+} from &#39;@tabler/icons-react-native&#39;;
+import { EmojiPicker, type EmojiPickerSelection } from &#39;@plocks/emoji-picker&#39;;
+import {
+  KeyboardAvoidingArea,
+  SafeArea,
+  ScrollArea,
+  Block,
+  Avatar,
+  BottomAppBar,
+  Button,
+  Column,
+  Flex,
+  Gradient,
+  IconButton,
+  Input,
+  PlocksProvider,
+  Row,
+  Text,
+  Title,
+} from &#39;@plocks/ui&#39;;
+
+import { RECENT_CALLS, SEED_CHATS, STATUSES, timeNow, type Chat, type Message } from &#39;./data&#39;;
+
+const COLORS = {
+  green: &#39;#008069&#39;,
+  brightGreen: &#39;#25D366&#39;,
+  pill: &#39;#D8FDD2&#39;,
+  ink: &#39;#111B21&#39;,
+  muted: &#39;#667781&#39;,
+  faint: &#39;#8696A0&#39;,
+  line: &#39;#E9EDEF&#39;,
+  chrome: &#39;#F0F2F5&#39;,
+  white: &#39;#FFFFFF&#39;,
+  chat: &#39;#EFEAE2&#39;,
+  doodle: &#39;#D6CDBF&#39;,
+  outgoing: &#39;#D9FDD3&#39;,
+  tick: &#39;#53BDEB&#39;,
+  missed: &#39;#EA0038&#39;,
+  callBg: &#39;#0B141A&#39;,
+};
+const STORAGE_KEY = &#39;plocks-chatline-app:chats&#39;;
+const THEME = { colorScheme: &#39;light&#39; as const };
+const QUICK_REACTIONS = [&#39;👍&#39;, &#39;❤️&#39;, &#39;😂&#39;, &#39;😮&#39;, &#39;😢&#39;, &#39;🙏&#39;];
+
+type Tab = &#39;chats&#39; | &#39;updates&#39; | &#39;calls&#39;;
+type Filter = &#39;all&#39; | &#39;unread&#39; | &#39;groups&#39;;
+type Detail = { kind: &#39;chat&#39; | &#39;status&#39; | &#39;call&#39;; id: string; video?: boolean } | null;
+type PickerTarget = { kind: &#39;draft&#39; } | { kind: &#39;reaction&#39;; messageId: string } | null;
+
+// Tabler outline glyphs (24px grid) for the chat wallpaper, merged to one path each.
+const DOODLES = {
+  heart: &#39;M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572&#39;,
+  star: &#39;M12 17.75l-6.172 3.245l1.179 -6.873l-5 -4.867l6.9 -1l3.086 -6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873l-6.158 -3.245&#39;,
+  smile: &#39;M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M9 10l.01 0M15 10l.01 0M9.5 15a3.5 3.5 0 0 0 5 0&#39;,
+  music: &#39;M3 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0M13 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0M9 17v-13h10v13M9 8h10&#39;,
+  coffee:
+    &#39;M3 14c.83 .642 2.077 1.017 3.5 1c1.423 .017 2.67 -.358 3.5 -1c.83 -.642 2.077 -1.017 3.5 -1c1.423 -.017 2.67 .358 3.5 1M8 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2M12 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2M3 10h14v5a6 6 0 0 1 -6 6h-2a6 6 0 0 1 -6 -6v-5M16.746 16.726a3 3 0 1 0 .252 -5.555&#39;,
+  camera:
+    &#39;M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0&#39;,
+  cloud:
+    &#39;M6.657 18c-2.572 0 -4.657 -2.007 -4.657 -4.483c0 -2.475 2.085 -4.482 4.657 -4.482c.393 -1.762 1.794 -3.2 3.675 -3.773c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 1.927 -1.551 3.487 -3.465 3.487h-11.878&#39;,
+  moon: &#39;M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008&#39;,
+  leaf: &#39;M5 21c.5 -4.5 2.5 -8 7 -10M9 18c6.218 0 10.5 -3.288 11 -12v-2h-4.014c-9 0 -11.986 4 -12 9c0 1 0 3 2 5h3l.014 0&#39;,
+  gift: &#39;M3 9a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1l0 -2M12 8l0 13M19 12v7a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-7M7.5 8a2.5 2.5 0 0 1 0 -5a4.8 8 0 0 1 4.5 5a4.8 8 0 0 1 4.5 -5a2.5 2.5 0 0 1 0 5&#39;,
+  plane: &#39;M16 10h4a2 2 0 0 1 0 4h-4l-4 7h-3l2 -7h-4l-2 2h-3l2 -4l-2 -4h3l2 2h4l-2 -7h3l4 7&#39;,
+  umbrella: &#39;M4 12a8 8 0 0 1 16 0l-16 0M12 12v6a2 2 0 0 0 4 0&#39;,
+  balloon: &#39;M14 8a2 2 0 0 0 -2 -2M6 8a6 6 0 1 1 12 0c0 4.97 -2.686 9 -6 9s-6 -4.03 -6 -9M12 17v1a2 2 0 0 1 -2 2h-3a2 2 0 0 0 -2 2&#39;,
+  pizza:
+    &#39;M12 21.5c-3.04 0 -5.952 -.714 -8.5 -1.983l8.5 -16.517l8.5 16.517a19.09 19.09 0 0 1 -8.5 1.983M5.38 15.866a14.94 14.94 0 0 0 6.815 1.634a14.944 14.944 0 0 0 6.502 -1.479M13 11.01v-.01M11 14v-.01&#39;,
+  sun: &#39;M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7&#39;,
+};
+// [glyph, x, y, rotation, scale] on a 240px tile.
+const DOODLE_LAYOUT: [keyof typeof DOODLES, number, number, number, number][] = [
+  [&#39;heart&#39;, 12, 10, -12, 1.1],
+  [&#39;music&#39;, 84, 22, 8, 1],
+  [&#39;coffee&#39;, 160, 6, -6, 1.15],
+  [&#39;star&#39;, 206, 70, 18, 0.9],
+  [&#39;smile&#39;, 30, 78, 10, 1.2],
+  [&#39;plane&#39;, 110, 86, -24, 1.1],
+  [&#39;leaf&#39;, 176, 128, 14, 1.1],
+  [&#39;camera&#39;, 8, 150, -8, 1.05],
+  [&#39;moon&#39;, 76, 150, 20, 0.95],
+  [&#39;gift&#39;, 128, 176, -10, 1],
+  [&#39;balloon&#39;, 200, 196, 6, 1],
+  [&#39;cloud&#39;, 30, 206, 0, 1.1],
+  [&#39;umbrella&#39;, 140, 40, 30, 0.85],
+  [&#39;pizza&#39;, 92, 214, -18, 0.9],
+  [&#39;sun&#39;, 196, 12, 0, 0.8],
+];
+
+/** An all-over doodle wallpaper: one tiled SVG pattern, so it costs a few dozen nodes at any size. */
+function DoodleWallpaper({ color }: { color: string }) {
+  return (
+    &lt;Block position=&quot;absolute&quot; inset={0} pointerEvents=&quot;none&quot; aria-hidden&gt;
+      &lt;Svg width=&quot;100%&quot; height=&quot;100%&quot;&gt;
+        &lt;Defs&gt;
+          &lt;Pattern id=&quot;chatline-doodles&quot; patternUnits=&quot;userSpaceOnUse&quot; width={240} height={240}&gt;
+            {DOODLE_LAYOUT.map(([glyph, x, y, rotation, scale]) =&gt; (
+              &lt;G key={glyph} transform={`translate(${x} ${y}) rotate(${rotation} 12 12) scale(${scale})`}&gt;
+                &lt;Path
+                  d={DOODLES[glyph]}
+                  fill=&quot;none&quot;
+                  stroke={color}
+                  strokeWidth={1.5}
+                  strokeLinecap=&quot;round&quot;
+                  strokeLinejoin=&quot;round&quot;
+                /&gt;
+              &lt;/G&gt;
+            ))}
+          &lt;/Pattern&gt;
+        &lt;/Defs&gt;
+        &lt;Rect x={0} y={0} width=&quot;100%&quot; height=&quot;100%&quot; fill=&quot;url(#chatline-doodles)&quot; /&gt;
+      &lt;/Svg&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function isSavedChats(value: unknown): value is Chat[] {
+  return (
+    Array.isArray(value) &amp;&amp;
+    value.length === SEED_CHATS.length &amp;&amp;
+    value.every(
+      (chat) =&gt;
+        chat &amp;&amp;
+        typeof chat === &#39;object&#39; &amp;&amp;
+        typeof chat.id === &#39;string&#39; &amp;&amp;
+        typeof chat.name === &#39;string&#39; &amp;&amp;
+        typeof chat.initials === &#39;string&#39; &amp;&amp;
+        typeof chat.color === &#39;string&#39; &amp;&amp;
+        typeof chat.unread === &#39;number&#39; &amp;&amp;
+        Array.isArray(chat.messages) &amp;&amp;
+        chat.messages.every(
+          (message: Message) =&gt;
+            message &amp;&amp;
+            typeof message.id === &#39;string&#39; &amp;&amp;
+            typeof message.text === &#39;string&#39; &amp;&amp;
+            typeof message.time === &#39;string&#39; &amp;&amp;
+            typeof message.outgoing === &#39;boolean&#39;,
+        ),
+    )
+  );
+}
+
+function ChatAvatar({ chat, size = &#39;lg&#39; }: { chat: Chat; size?: &#39;md&#39; | &#39;lg&#39; | &#39;xl&#39; | &#39;2xl&#39; | &#39;3xl&#39; }) {
+  return (
+    &lt;Avatar
+      size={size}
+      fallback={chat.initials}
+      bg={chat.color}
+      textColor={COLORS.white}
+      accessibilityLabel={`${chat.name} avatar`}
+    /&gt;
+  );
+}
+
+function ChatRow({ chat, active, onPress }: { chat: Chat; active: boolean; onPress: () =&gt; void }) {
+  const last = chat.messages[chat.messages.length - 1];
+  return (
+    &lt;Block
+      gap={0}
+      onPress={onPress}
+      accessibilityRole=&quot;button&quot;
+      accessibilityLabel={`Open chat with ${chat.name}`}
+      bg={active ? COLORS.chrome : COLORS.white}
+      px={16}
+      py={11}
+    &gt;
+      &lt;Row align=&quot;center&quot; gap={14} fullWidth&gt;
+        &lt;ChatAvatar chat={chat} size=&quot;lg&quot; /&gt;
+        &lt;Block gap={3} direction=&quot;column&quot; flex={1} miw={0}&gt;
+          &lt;Row align=&quot;center&quot; justify=&quot;space-between&quot; fullWidth gap=&quot;sm&quot;&gt;
+            &lt;Text c={COLORS.ink} fw=&quot;semibold&quot; size={16} numberOfLines={1} flex={1}&gt;
+              {chat.name}
+            &lt;/Text&gt;
+            &lt;Text c={chat.unread ? COLORS.brightGreen : COLORS.muted} fw={chat.unread ? &#39;semibold&#39; : undefined} size={12}&gt;
+              {last?.time ?? &#39;&#39;}
+            &lt;/Text&gt;
+          &lt;/Row&gt;
+          &lt;Row align=&quot;center&quot; justify=&quot;space-between&quot; fullWidth gap={4}&gt;
+            {last?.outgoing &amp;&amp; &lt;IconChecks size={17} color={COLORS.tick} /&gt;}
+            &lt;Text c={COLORS.muted} size={14} numberOfLines={1} flex={1}&gt;
+              {last?.text ?? &#39;Start a conversation&#39;}
+            &lt;/Text&gt;
+            {chat.unread &gt; 0 &amp;&amp; (
+              &lt;Block align=&quot;center&quot; justify=&quot;center&quot; direction=&quot;row&quot; miw={20} h={20} px={5} radius={10} bg={COLORS.brightGreen}&gt;
+                &lt;Text c={COLORS.white} fw=&quot;bold&quot; size={11}&gt;
+                  {chat.unread}
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+            )}
+          &lt;/Row&gt;
+        &lt;/Block&gt;
+      &lt;/Row&gt;
+    &lt;/Block&gt;
+  );
+}
+
+function MessageBubble({
+  message,
+  first,
+  reacting,
+  onLongPress,
+  onReact,
+  onMoreReactions,
+}: {
+  message: Message;
+  first: boolean;
+  reacting: boolean;
+  onLongPress: () =&gt; void;
+  onReact: (emoji: string) =&gt; void;
+  onMoreReactions: () =&gt; void;
+}) {
+  const side = message.outgoing ? &#39;flex-end&#39; : &#39;flex-start&#39;;
+  return (
+    &lt;Block gap={4} direction=&quot;column&quot; align={side} fullWidth mt={first ? 6 : 0}&gt;
+      {reacting &amp;&amp; (
+        &lt;Block
+          direction=&quot;row&quot;
+          align=&quot;center&quot;
+          gap={2}
+          bg={COLORS.white}
+          radius={24}
+          px={6}
+          py={4}
+          shadow=&quot;md&quot;
+          accessibilityRole=&quot;toolbar&quot;
+          accessibilityLabel=&quot;React to message&quot;
+        &gt;
+          {QUICK_REACTIONS.map((emoji) =&gt; (
+            &lt;Block
+              key={emoji}
+              gap={0}
+              w={38}
+              h={38}
+              radius={19}
+              align=&quot;center&quot;
+              justify=&quot;center&quot;
+              bg={message.reaction === emoji ? COLORS.chrome : undefined}
+              onPress={() =&gt; onReact(emoji)}
+              accessibilityRole=&quot;button&quot;
+              accessibilityLabel={`React ${emoji}`}
+            &gt;
+              &lt;Text size={24}&gt;{emoji}&lt;/Text&gt;
+            &lt;/Block&gt;
+          ))}
+          &lt;IconButton
+            icon={IconPlus}
+            size=&quot;sm&quot;
+            variant=&quot;secondary&quot;
+            color={COLORS.muted}
+            radius=&quot;full&quot;
+            accessibilityLabel=&quot;More reactions&quot;
+            onPress={onMoreReactions}
+          /&gt;
+        &lt;/Block&gt;
+      )}
+      &lt;Flex fullWidth justify={side}&gt;
+        &lt;Block
+          gap={0}
+          direction=&quot;row&quot;
+          wrap=&quot;wrap&quot;
+          align=&quot;flex-end&quot;
+          maw=&quot;80%&quot;
+          pl={9}
+          pr={7}
+          pt={6}
+          pb={5}
+          radius={8}
+          bg={message.outgoing ? COLORS.outgoing : COLORS.white}
+          borderTopRightRadius={message.outgoing &amp;&amp; first ? 0 : 8}
+          borderTopLeftRadius={!message.outgoing &amp;&amp; first ? 0 : 8}
+          shadow=&quot;xs&quot;
+          onLongPress={onLongPress}
+          accessibilityHint=&quot;Long press to react&quot;
+        &gt;
+          &lt;Text c={COLORS.ink} size={15} lh={20} pr={8} shrink={1}&gt;
+            {message.text}
+          &lt;/Text&gt;
+          &lt;Row align=&quot;center&quot; gap={3} ml=&quot;auto&quot; mb={-1}&gt;
+            &lt;Text c={COLORS.muted} size={11}&gt;
+              {message.time}
+            &lt;/Text&gt;
+            {message.outgoing &amp;&amp; &lt;IconChecks size={16} color={COLORS.tick} /&gt;}
+          &lt;/Row&gt;
+        &lt;/Block&gt;
+      &lt;/Flex&gt;
+      {message.reaction &amp;&amp; (
+        &lt;Block
+          gap={0}
+          direction=&quot;row&quot;
+          mt={-10}
+          mx={10}
+          px={5}
+          py={1}
+          radius={12}
+          bg={COLORS.white}
+          borderWidth={1}
+          borderColor={COLORS.chat}
+          onPress={() =&gt; onReact(message.reaction!)}
+          accessibilityRole=&quot;button&quot;
+          accessibilityLabel={`Remove reaction ${message.reaction}`}
+        &gt;
+          &lt;Text size={14}&gt;{message.reaction}&lt;/Text&gt;
+        &lt;/Block&gt;
+      )}
+    &lt;/Block&gt;
+  );
+}
+
+function formatDuration(seconds: number) {
+  return `${String(Math.floor(seconds / 60)).padStart(2, &#39;0&#39;)}:${String(seconds % 60).padStart(2, &#39;0&#39;)}`;
+}
+
+function CallControl({
+  label,
+  icon,
+  active = false,
+  danger = false,
+  onPress,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  active?: boolean;
+  danger?: boolean;
+  onPress: () =&gt; void;
+}) {
+  return (
+    &lt;Block
+      gap={0}
+      w={58}
+      h={58}
+      radius={29}
+      align=&quot;center&quot;
+      justify=&quot;center&quot;
+      bg={danger ? COLORS.missed : active ? COLORS.white : &#39;rgba(255,255,255,0.14)&#39;}
+      onPress={onPress}
+      accessibilityRole={danger ? &#39;button&#39; : &#39;switch&#39;}
+      accessibilityState={danger ? undefined : { checked: active }}
+      accessibilityLabel={label}
+    &gt;
+      {icon}
+    &lt;/Block&gt;
+  );
+}
+
+function CallScreen({ chat, video, onEnd }: { chat: Chat; video: boolean; onEnd: () =&gt; void }) {
+  const [elapsed, setElapsed] = useState(-3);
+  const [speaker, setSpeaker] = useState(video);
+  const [camera, setCamera] = useState(video);
+  const [muted, setMuted] = useState(false);
+
+  useEffect(() =&gt; {
+    const timer = setInterval(() =&gt; setElapsed((value) =&gt; value + 1), 1000);
+    return () =&gt; clearInterval(timer);
+  }, []);
+
+  const status = elapsed &lt; -1 ? &#39;Calling…&#39; : elapsed &lt; 0 ? &#39;Ringing…&#39; : formatDuration(elapsed);
+  const iconColor = (on: boolean) =&gt; (on ? COLORS.ink : COLORS.white);
+
+  return (
+    &lt;Gradient
+      colors={[chat.color, &#39;#1F2C33&#39;, COLORS.callBg]}
+      locations={[0, 0.45, 1]}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      direction=&quot;column&quot;
+      flex={1}
+      px={20}
+      pt={14}
+      pb={28}
+    &gt;
+      &lt;StatusBar barStyle=&quot;light-content&quot; /&gt;
+      &lt;Row align=&quot;center&quot; justify=&quot;space-between&quot; fullWidth&gt;
+        &lt;IconButton
+          icon={IconChevronDown}
+          variant=&quot;ghost&quot;
+          iconColor={COLORS.white}
+          accessibilityLabel=&quot;Minimize call&quot;
+          onPress={onEnd}
+        /&gt;
+        &lt;Row align=&quot;center&quot; gap={5}&gt;
+          &lt;IconLock size={13} color=&quot;rgba(255,255,255,0.75)&quot; /&gt;
+          &lt;Text c=&quot;rgba(255,255,255,0.75)&quot; size={12}&gt;
+            End-to-end encrypted
+          &lt;/Text&gt;
+        &lt;/Row&gt;
+        &lt;IconButton icon={IconUserPlus} variant=&quot;ghost&quot; iconColor={COLORS.white} accessibilityLabel=&quot;Add participant&quot; /&gt;
+      &lt;/Row&gt;
+
+      &lt;Block align=&quot;center&quot; gap={6} direction=&quot;column&quot; mt={36}&gt;
+        &lt;Text c={COLORS.white} fw=&quot;bold&quot; size={28} ta=&quot;center&quot;&gt;
+          {chat.name}
+        &lt;/Text&gt;
+        &lt;Text c=&quot;rgba(255,255,255,0.8)&quot; size={15} accessibilityLiveRegion=&quot;polite&quot;&gt;
+          {video ? &#39;Video call&#39; : &#39;Voice call&#39;} · {status}
+        &lt;/Text&gt;
+      &lt;/Block&gt;
+
+      &lt;Block align=&quot;center&quot; justify=&quot;center&quot; direction=&quot;row&quot; flex={1}&gt;
+        &lt;Block align=&quot;center&quot; justify=&quot;center&quot; gap={0} p={22} radius={999} bg=&quot;rgba(255,255,255,0.06)&quot;&gt;
+          &lt;Block align=&quot;center&quot; justify=&quot;center&quot; gap={0} p={18} radius={999} bg=&quot;rgba(255,255,255,0.08)&quot;&gt;
+            &lt;Avatar size={128} fallback={chat.initials} bg={chat.color} textColor={COLORS.white} accessibilityLabel={`${chat.name} avatar`} /&gt;
+          &lt;/Block&gt;
+        &lt;/Block&gt;
+      &lt;/Block&gt;
+
+      &lt;Block
+        direction=&quot;row&quot;
+        align=&quot;center&quot;
+        justify=&quot;space-between&quot;
+        alignSelf=&quot;center&quot;
+        w=&quot;100%&quot;
+        maw={360}
+        px={18}
+        py={16}
+        radius={36}
+        bg=&quot;rgba(255,255,255,0.1)&quot;
+        accessibilityRole=&quot;toolbar&quot;
+        accessibilityLabel=&quot;Call controls&quot;
+      &gt;
+        &lt;CallControl label=&quot;Speaker&quot; active={speaker} onPress={() =&gt; setSpeaker((on) =&gt; !on)} icon={&lt;IconVolume size={26} color={iconColor(speaker)} /&gt;} /&gt;
+        &lt;CallControl
+          label=&quot;Camera&quot;
+          active={camera}
+          onPress={() =&gt; setCamera((on) =&gt; !on)}
+          icon={camera ? &lt;IconVideo size={26} color={iconColor(true)} /&gt; : &lt;IconVideoOff size={26} color={iconColor(false)} /&gt;}
+        /&gt;
+        &lt;CallControl
+          label=&quot;Mute&quot;
+          active={muted}
+          onPress={() =&gt; setMuted((on) =&gt; !on)}
+          icon={muted ? &lt;IconMicrophoneOff size={26} color={iconColor(true)} /&gt; : &lt;IconMicrophone size={26} color={iconColor(false)} /&gt;}
+        /&gt;
+        &lt;CallControl label=&quot;End call&quot; danger onPress={onEnd} icon={&lt;IconPhoneOff size={26} color={COLORS.white} /&gt;} /&gt;
+      &lt;/Block&gt;
+    &lt;/Gradient&gt;
+  );
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    &lt;Text c={COLORS.ink} fw=&quot;bold&quot; size={17} px={16} pt={18} pb={8}&gt;
+      {children}
+    &lt;/Text&gt;
+  );
+}
+
+function ChatlineScreen() {
+  const { width } = useWindowDimensions();
+  const desktop = width &gt;= 820;
+  const messageScroll = useRef&lt;ScrollView&gt;(null);
+  const [chats, setChats] = useState&lt;Chat[]&gt;(SEED_CHATS);
+  const [ready, setReady] = useState(false);
+  const [tab, setTab] = useState&lt;Tab&gt;(&#39;chats&#39;);
+  const [filter, setFilter] = useState&lt;Filter&gt;(&#39;all&#39;);
+  const [query, setQuery] = useState(&#39;&#39;);
+  const [draft, setDraft] = useState(&#39;&#39;);
+  const [detail, setDetail] = useState&lt;Detail&gt;(null);
+  const [newChat, setNewChat] = useState(false);
+  const [picker, setPicker] = useState&lt;PickerTarget&gt;(null);
+  const [reactingTo, setReactingTo] = useState&lt;string | null&gt;(null);
+
+  useEffect(() =&gt; {
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((saved) =&gt; {
+        if (!saved) return;
+        const parsed: unknown = JSON.parse(saved);
+        if (isSavedChats(parsed)) setChats(parsed);
+      })
+      .catch(() =&gt; {})
+      .finally(() =&gt; setReady(true));
+  }, []);
+  useEffect(() =&gt; {
+    if (ready) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(chats)).catch(() =&gt; {});
+  }, [chats, ready]);
+
+  const selected =
+    detail ?? (desktop &amp;&amp; tab === &#39;chats&#39; &amp;&amp; !newChat ? { kind: &#39;chat&#39; as const, id: chats[0].id } : null);
+  const activeChat = selected?.kind === &#39;chat&#39; ? chats.find((chat) =&gt; chat.id === selected.id) : null;
+  const unreadTotal = chats.reduce((total, chat) =&gt; total + chat.unread, 0);
+  const shownChats = chats.filter((chat) =&gt; {
+    const matches = `${chat.name} ${chat.messages[chat.messages.length - 1]?.text ?? &#39;&#39;}`
+      .toLowerCase()
+      .includes(query.trim().toLowerCase());
+    return (
+      matches &amp;&amp; (filter === &#39;all&#39; || (filter === &#39;unread&#39; &amp;&amp; chat.unread &gt; 0) || (filter === &#39;groups&#39; &amp;&amp; chat.isGroup))
+    );
+  });
+
+  function openChat(id: string) {
+    setChats((current) =&gt; current.map((chat) =&gt; (chat.id === id ? { ...chat, unread: 0 } : chat)));
+    setDetail({ kind: &#39;chat&#39;, id });
+    setNewChat(false);
+    setDraft(&#39;&#39;);
+    setPicker(null);
+    setReactingTo(null);
+  }
+
+  function sendMessage() {
+    const text = draft.trim();
+    if (!text || !activeChat) return;
+    const message: Message = { id: `local-${Date.now()}`, text, time: timeNow(), outgoing: true };
+    setChats((current) =&gt; {
+      const updated = current.find((chat) =&gt; chat.id === activeChat.id);
+      if (!updated) return current;
+      return [
+        { ...updated, unread: 0, messages: [...updated.messages, message] },
+        ...current.filter((chat) =&gt; chat.id !== updated.id),
+      ];
+    });
+    setDetail({ kind: &#39;chat&#39;, id: activeChat.id });
+    setDraft(&#39;&#39;);
+  }
+
+  function react(messageId: string, emoji: string) {
+    if (!activeChat) return;
+    setChats((current) =&gt;
+      current.map((chat) =&gt;
+        chat.id !== activeChat.id
+          ? chat
+          : {
+              ...chat,
+              messages: chat.messages.map((message) =&gt;
+                message.id === messageId
+                  ? { ...message, reaction: message.reaction === emoji ? undefined : emoji }
+                  : message,
+              ),
+            },
+      ),
+    );
+    setReactingTo(null);
+  }
+
+  function toggleEmojiPicker() {
+    if (picker) {
+      setPicker(null);
+    } else {
+      Keyboard.dismiss();
+      setReactingTo(null);
+      setPicker({ kind: &#39;draft&#39; });
+    }
+  }
+
+  function selectTab(next: Tab) {
+    setTab(next);
+    setDetail(null);
+    setNewChat(false);
+    setQuery(&#39;&#39;);
+  }
+
+  function startCall(chatId: string, video = false) {
+    setDetail({ kind: &#39;call&#39;, id: `new:${chatId}`, video });
+  }
+
+  function renderSidebarContent() {
+    if (newChat) {
+      return (
+        &lt;&gt;
+          &lt;Text c={COLORS.muted} size={13} fw=&quot;semibold&quot; px={16} pt={14} pb={6}&gt;
+            Contacts on Chatline
+          &lt;/Text&gt;
+          {chats
+            .filter((chat) =&gt; !chat.isGroup)
+            .map((chat) =&gt; (
+              &lt;ChatRow key={chat.id} chat={chat} active={false} onPress={() =&gt; openChat(chat.id)} /&gt;
+            ))}
+        &lt;/&gt;
+      );
+    }
+
+    if (tab === &#39;updates&#39;) {
+      return (
+        &lt;Block gap={0} direction=&quot;column&quot; pb={8}&gt;
+          &lt;SectionLabel&gt;Status&lt;/SectionLabel&gt;
+          &lt;Block align=&quot;center&quot; gap={14} direction=&quot;row&quot; px={16} py={8}&gt;
+            &lt;Block gap={0}&gt;
+              &lt;Avatar size=&quot;lg&quot; fallback={&lt;IconUser size={30} color={COLORS.white} /&gt;} bg=&quot;#CFD7DB&quot; textColor={COLORS.white} accessibilityLabel=&quot;Your avatar&quot; /&gt;
+              &lt;Block
+                gap={0}
+                position=&quot;absolute&quot;
+                right={-2}
+                bottom={-2}
+                w={22}
+                h={22}
+                radius={11}
+                align=&quot;center&quot;
+                justify=&quot;center&quot;
+                bg={COLORS.brightGreen}
+                borderWidth={2}
+                borderColor={COLORS.white}
+              &gt;
+                &lt;IconPlus size={13} color={COLORS.white} strokeWidth={3} /&gt;
+              &lt;/Block&gt;
+            &lt;/Block&gt;
+            &lt;Column gap={2}&gt;
+              &lt;Text c={COLORS.ink} fw=&quot;semibold&quot; size={16}&gt;
+                My status
+              &lt;/Text&gt;
+              &lt;Text c={COLORS.muted} size={13}&gt;
+                Tap to add status update
+              &lt;/Text&gt;
+            &lt;/Column&gt;
+          &lt;/Block&gt;
+          &lt;Text c={COLORS.muted} fw=&quot;semibold&quot; size={13} px={16} pt={14} pb={4}&gt;
+            Recent updates
+          &lt;/Text&gt;
+          {STATUSES.map((status) =&gt; {
+            const chat = chats.find((item) =&gt; item.id === status.chatId)!;
+            return (
+              &lt;Block
+                key={status.id}
+                align=&quot;center&quot;
+                gap={14}
+                direction=&quot;row&quot;
+                px={16}
+                py={8}
+                onPress={() =&gt; setDetail({ kind: &#39;status&#39;, id: status.id })}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel={`View ${chat.name}&#39;s status`}
+              &gt;
+                &lt;Block gap={0} p={2} borderWidth={2} radius={32} borderColor={COLORS.brightGreen}&gt;
+                  &lt;ChatAvatar chat={chat} size=&quot;lg&quot; /&gt;
+                &lt;/Block&gt;
+                &lt;Column gap={2}&gt;
+                  &lt;Text c={COLORS.ink} fw=&quot;semibold&quot; size={16}&gt;
+                    {chat.name}
+                  &lt;/Text&gt;
+                  &lt;Text c={COLORS.muted} size={13}&gt;
+                    {status.time}
+                  &lt;/Text&gt;
+                &lt;/Column&gt;
+              &lt;/Block&gt;
+            );
+          })}
+        &lt;/Block&gt;
+      );
+    }
+
+    if (tab === &#39;calls&#39;) {
+      const favourites = chats.filter((chat) =&gt; !chat.isGroup).slice(0, 4);
+      return (
+        &lt;Block gap={0} direction=&quot;column&quot; pb={8}&gt;
+          &lt;SectionLabel&gt;Favourites&lt;/SectionLabel&gt;
+          &lt;Row gap={18} px={16} pb={6}&gt;
+            {favourites.map((chat) =&gt; (
+              &lt;Block
+                key={chat.id}
+                align=&quot;center&quot;
+                gap={6}
+                direction=&quot;column&quot;
+                w={64}
+                onPress={() =&gt; startCall(chat.id)}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel={`Call ${chat.name}`}
+              &gt;
+                &lt;ChatAvatar chat={chat} size=&quot;xl&quot; /&gt;
+                &lt;Text c={COLORS.ink} size={12} numberOfLines={1}&gt;
+                  {chat.name.split(&#39; &#39;)[0]}
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+            ))}
+          &lt;/Row&gt;
+          &lt;SectionLabel&gt;Recent&lt;/SectionLabel&gt;
+          {RECENT_CALLS.map((call) =&gt; {
+            const chat = chats.find((item) =&gt; item.id === call.chatId)!;
+            const Direction = call.missed ? IconArrowDownLeft : IconArrowUpRight;
+            const CallType = call.type === &#39;video&#39; ? IconVideo : IconPhone;
+            return (
+              &lt;Block
+                key={call.id}
+                align=&quot;center&quot;
+                gap={14}
+                direction=&quot;row&quot;
+                px={16}
+                py={9}
+                onPress={() =&gt; setDetail({ kind: &#39;call&#39;, id: call.id })}
+                accessibilityRole=&quot;button&quot;
+                accessibilityLabel={`${call.missed ? &#39;Missed&#39; : &#39;Outgoing&#39;} ${call.type} call with ${chat.name}, ${call.time}`}
+              &gt;
+                &lt;ChatAvatar chat={chat} size=&quot;lg&quot; /&gt;
+                &lt;Block gap={3} direction=&quot;column&quot; flex={1}&gt;
+                  &lt;Text c={call.missed ? COLORS.missed : COLORS.ink} fw=&quot;semibold&quot; size={16}&gt;
+                    {chat.name}
+                  &lt;/Text&gt;
+                  &lt;Row align=&quot;center&quot; gap={4}&gt;
+                    &lt;Direction size={16} color={call.missed ? COLORS.missed : COLORS.brightGreen} /&gt;
+                    &lt;Text c={COLORS.muted} size={13}&gt;
+                      {call.time}
+                    &lt;/Text&gt;
+                  &lt;/Row&gt;
+                &lt;/Block&gt;
+                &lt;CallType size={22} color={COLORS.ink} /&gt;
+              &lt;/Block&gt;
+            );
+          })}
+        &lt;/Block&gt;
+      );
+    }
+
+    return (
+      &lt;&gt;
+        &lt;Block direction=&quot;row&quot; px={16} pt={4} pb={10}&gt;
+          &lt;Input
+            value={query}
+            onChangeText={setQuery}
+            placeholder=&quot;Search&quot;
+            startSection={&lt;IconSearch size={19} color={COLORS.muted} /&gt;}
+            variant=&quot;filled&quot;
+            radius=&quot;full&quot;
+            accessibilityLabel=&quot;Search chats&quot;
+          /&gt;
+        &lt;/Block&gt;
+        &lt;Row gap={8} px={16} pb={8} accessibilityRole=&quot;tablist&quot; accessibilityLabel=&quot;Filter chats&quot;&gt;
+          {([&#39;all&#39;, &#39;unread&#39;, &#39;groups&#39;] as const).map((item) =&gt; {
+            const on = filter === item;
+            return (
+              &lt;Block
+                key={item}
+                gap={0}
+                px={14}
+                py={7}
+                radius={999}
+                bg={on ? COLORS.pill : COLORS.chrome}
+                onPress={() =&gt; setFilter(item)}
+                accessibilityRole=&quot;tab&quot;
+                accessibilityState={{ selected: on }}
+              &gt;
+                &lt;Text c={on ? &#39;#0A5C36&#39; : COLORS.muted} fw=&quot;semibold&quot; size={14}&gt;
+                  {item === &#39;unread&#39; &amp;&amp; unreadTotal ? `Unread ${unreadTotal}` : item[0].toUpperCase() + item.slice(1)}
+                &lt;/Text&gt;
+              &lt;/Block&gt;
+            );
+          })}
+        &lt;/Row&gt;
+        {shownChats.length ? (
+          shownChats.map((chat) =&gt; (
+            &lt;ChatRow
+              key={chat.id}
+              chat={chat}
+              active={desktop &amp;&amp; selected?.kind === &#39;chat&#39; &amp;&amp; selected.id === chat.id}
+              onPress={() =&gt; openChat(chat.id)}
+            /&gt;
+          ))
+        ) : (
+          &lt;Block align=&quot;center&quot; gap=&quot;xs&quot; direction=&quot;column&quot; p={30}&gt;
+            &lt;IconSearch size={26} color={COLORS.faint} /&gt;
+            &lt;Text c={COLORS.muted} ta=&quot;center&quot;&gt;
+              No chats found. Try another search or filter.
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+        )}
+      &lt;/&gt;
+    );
+  }
+
+  function renderDetail() {
+    if (selected?.kind === &#39;status&#39;) {
+      const status = STATUSES.find((item) =&gt; item.id === selected.id)!;
+      const chat = chats.find((item) =&gt; item.id === status.chatId)!;
+      return (
+        &lt;Block direction=&quot;column&quot; flex={1} bg={status.color}&gt;
+          &lt;Block gap={0} mx={10} mt={10} h={3} radius={2} bg=&quot;rgba(255,255,255,0.9)&quot; /&gt;
+          &lt;Block align=&quot;center&quot; gap=&quot;sm&quot; direction=&quot;row&quot; px={8} py={10}&gt;
+            &lt;IconButton
+              icon={IconArrowLeft}
+              variant=&quot;ghost&quot;
+              iconColor={COLORS.ink}
+              accessibilityLabel=&quot;Close status&quot;
+              onPress={() =&gt; setDetail(null)}
+            /&gt;
+            &lt;ChatAvatar chat={chat} size=&quot;md&quot; /&gt;
+            &lt;Column gap={0}&gt;
+              &lt;Text c={COLORS.ink} fw=&quot;bold&quot;&gt;
+                {chat.name}
+              &lt;/Text&gt;
+              &lt;Text c={COLORS.ink} size={12}&gt;
+                {status.time}
+              &lt;/Text&gt;
+            &lt;/Column&gt;
+          &lt;/Block&gt;
+          &lt;Block align=&quot;center&quot; justify=&quot;center&quot; direction=&quot;row&quot; flex={1} p={32}&gt;
+            &lt;Text c={COLORS.ink} fw=&quot;bold&quot; size={30} ta=&quot;center&quot; lh={42}&gt;
+              {status.caption}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;Button
+            title={`Reply to ${chat.name}`}
+            variant=&quot;filled&quot;
+            color={COLORS.green}
+            radius=&quot;full&quot;
+            m={20}
+            onPress={() =&gt; {
+              setTab(&#39;chats&#39;);
+              openChat(chat.id);
+            }}
+          /&gt;
+        &lt;/Block&gt;
+      );
+    }
+
+    if (selected?.kind === &#39;call&#39;) {
+      const call = RECENT_CALLS.find((item) =&gt; item.id === selected.id);
+      const chat = chats.find((item) =&gt; item.id === (call?.chatId ?? selected.id.replace(&#39;new:&#39;, &#39;&#39;)))!;
+      const backToChat = selected.id.startsWith(&#39;new:&#39;);
+      return (
+        &lt;CallScreen
+          key={selected.id}
+          chat={chat}
+          video={selected.video ?? call?.type === &#39;video&#39;}
+          onEnd={() =&gt; setDetail(backToChat ? { kind: &#39;chat&#39;, id: chat.id } : null)}
+        /&gt;
+      );
+    }
+
+    if (!activeChat) {
+      return (
+        &lt;Block align=&quot;center&quot; justify=&quot;center&quot; gap=&quot;md&quot; direction=&quot;column&quot; flex={1} bg={COLORS.chrome} p={36}&gt;
+          &lt;Block align=&quot;center&quot; justify=&quot;center&quot; direction=&quot;row&quot; w={86} h={86} radius={43} bg=&quot;#DDECE7&quot;&gt;
+            &lt;IconMessageCircle size={40} color={COLORS.green} /&gt;
+          &lt;/Block&gt;
+          &lt;Title order={2} c={COLORS.ink}&gt;
+            A good conversation starts here.
+          &lt;/Title&gt;
+          &lt;Text c={COLORS.muted} ta=&quot;center&quot;&gt;
+            Pick a chat to catch up with someone.
+          &lt;/Text&gt;
+        &lt;/Block&gt;
+      );
+    }
+
+    const hasDraft = draft.trim().length &gt; 0;
+    return (
+      &lt;KeyboardAvoidingArea behavior={Platform.OS === &#39;ios&#39; ? &#39;padding&#39; : undefined} flex={1} bg={COLORS.chat} gap={0}&gt;
+        &lt;Block align=&quot;center&quot; gap={6} direction=&quot;row&quot; pl={4} pr={6} py={8} bg={COLORS.white} borderBottomWidth={1} borderBottomColor={COLORS.line}&gt;
+          {!desktop &amp;&amp; (
+            &lt;IconButton
+              icon={IconArrowLeft}
+              variant=&quot;ghost&quot;
+              iconColor={COLORS.ink}
+              accessibilityLabel=&quot;Back to chats&quot;
+              onPress={() =&gt; setDetail(null)}
+            /&gt;
+          )}
+          &lt;ChatAvatar chat={activeChat} size=&quot;md&quot; /&gt;
+          &lt;Block gap={1} direction=&quot;column&quot; flex={1} miw={0} pl={4}&gt;
+            &lt;Text c={COLORS.ink} fw=&quot;semibold&quot; size={16} numberOfLines={1}&gt;
+              {activeChat.name}
+            &lt;/Text&gt;
+            &lt;Text c={COLORS.muted} size={12} numberOfLines={1}&gt;
+              {activeChat.isGroup ? &#39;tap here for group info&#39; : activeChat.online ? &#39;online&#39; : &#39;last seen recently&#39;}
+            &lt;/Text&gt;
+          &lt;/Block&gt;
+          &lt;IconButton
+            icon={IconVideo}
+            variant=&quot;ghost&quot;
+            iconColor={COLORS.ink}
+            accessibilityLabel={`Video call ${activeChat.name}`}
+            onPress={() =&gt; startCall(activeChat.id, true)}
+          /&gt;
+          &lt;IconButton
+            icon={IconPhone}
+            variant=&quot;ghost&quot;
+            iconColor={COLORS.ink}
+            accessibilityLabel={`Voice call ${activeChat.name}`}
+            onPress={() =&gt; startCall(activeChat.id)}
+          /&gt;
+          &lt;IconButton icon={IconDotsVertical} variant=&quot;ghost&quot; iconColor={COLORS.ink} accessibilityLabel=&quot;More options&quot; /&gt;
+        &lt;/Block&gt;
+        &lt;Block gap={0} flex={1} position=&quot;relative&quot;&gt;
+          &lt;DoodleWallpaper color={COLORS.doodle} /&gt;
+          &lt;ScrollArea
+            ref={messageScroll}
+            flex={1}
+            keyboardShouldPersistTaps=&quot;handled&quot;
+            contentProps={{ px: 12, pt: 14, pb: 10, gap: 4, grow: 1, justify: &#39;flex-end&#39; }}
+            onContentSizeChange={() =&gt; messageScroll.current?.scrollToEnd({ animated: false })}
+          &gt;
+            &lt;Block gap={0} direction=&quot;row&quot; alignSelf=&quot;center&quot; bg={COLORS.white} px={12} py={5} radius={8} mb={6} shadow=&quot;xs&quot;&gt;
+              &lt;Text c={COLORS.muted} size={12} fw=&quot;medium&quot;&gt;
+                Today
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+            &lt;Block gap={0} direction=&quot;row&quot; alignSelf=&quot;center&quot; maw={320} bg=&quot;#FFF5C4&quot; px={12} py={7} radius={8} mb={10}&gt;
+              &lt;Text c=&quot;#54656F&quot; size={12} ta=&quot;center&quot;&gt;
+                🔒 Messages and calls are end-to-end encrypted. Only people in this chat can read them.
+              &lt;/Text&gt;
+            &lt;/Block&gt;
+            {activeChat.messages.map((message, index) =&gt; (
+              &lt;MessageBubble
+                key={message.id}
+                message={message}
+                first={activeChat.messages[index - 1]?.outgoing !== message.outgoing}
+                reacting={reactingTo === message.id}
+                onLongPress={() =&gt; {
+                  setPicker(null);
+                  setReactingTo((current) =&gt; (current === message.id ? null : message.id));
+                }}
+                onReact={(emoji) =&gt; react(message.id, emoji)}
+                onMoreReactions={() =&gt; {
+                  setReactingTo(null);
+                  setPicker({ kind: &#39;reaction&#39;, messageId: message.id });
+                }}
+              /&gt;
+            ))}
+          &lt;/ScrollArea&gt;
+          &lt;Row align=&quot;flex-end&quot; gap={6} px={6} pb={8} pt={4}&gt;
+            &lt;Block direction=&quot;row&quot; align=&quot;center&quot; flex={1} gap={0} bg={COLORS.white} radius={26} pl={4} pr={6} mih={50} shadow=&quot;xs&quot;&gt;
+              &lt;IconButton
+                icon={picker?.kind === &#39;draft&#39; ? IconKeyboard : IconMoodSmile}
+                variant=&quot;ghost&quot;
+                iconColor={COLORS.muted}
+                iconSize={24}
+                radius=&quot;full&quot;
+                accessibilityLabel={picker?.kind === &#39;draft&#39; ? &#39;Show keyboard&#39; : &#39;Emoji&#39;}
+                onPress={toggleEmojiPicker}
+              /&gt;
+              &lt;Block direction=&quot;row&quot; flex={1}&gt;
+                &lt;Input
+                  value={draft}
+                  onChangeText={setDraft}
+                  onEnter={sendMessage}
+                  onFocus={() =&gt; setPicker(null)}
+                  placeholder=&quot;Message&quot;
+                  variant=&quot;unstyled&quot;
+                  accessibilityLabel=&quot;Type a message&quot;
+                /&gt;
+              &lt;/Block&gt;
+              &lt;IconButton icon={IconPaperclip} variant=&quot;ghost&quot; iconColor={COLORS.muted} radius=&quot;full&quot; accessibilityLabel=&quot;Attach&quot; /&gt;
+              {!hasDraft &amp;&amp; (
+                &lt;IconButton icon={IconCamera} variant=&quot;ghost&quot; iconColor={COLORS.muted} radius=&quot;full&quot; accessibilityLabel=&quot;Camera&quot; /&gt;
+              )}
+            &lt;/Block&gt;
+            &lt;Block
+              gap={0}
+              w={50}
+              h={50}
+              radius={25}
+              align=&quot;center&quot;
+              justify=&quot;center&quot;
+              bg={COLORS.green}
+              onPress={hasDraft ? sendMessage : undefined}
+              accessibilityRole=&quot;button&quot;
+              accessibilityLabel={hasDraft ? &#39;Send message&#39; : &#39;Record voice message&#39;}
+            &gt;
+              {hasDraft ? &lt;IconSend2 size={22} color={COLORS.white} /&gt; : &lt;IconMicrophone size={23} color={COLORS.white} /&gt;}
+            &lt;/Block&gt;
+          &lt;/Row&gt;
+        &lt;/Block&gt;
+        {picker &amp;&amp; (
+          &lt;Block gap={0} bg={COLORS.chrome} px={6} pt={6} pb={8} borderTopWidth={1} borderTopColor={COLORS.line}&gt;
+            &lt;EmojiPicker
+              w=&quot;100%&quot;
+              h={300}
+              searchPlaceholder={picker.kind === &#39;reaction&#39; ? &#39;Search reactions&#39; : &#39;Search emoji&#39;}
+              onSelect={({ emoji }: EmojiPickerSelection) =&gt; {
+                if (picker.kind === &#39;reaction&#39;) {
+                  react(picker.messageId, emoji);
+                  setPicker(null);
+                } else {
+                  setDraft((value) =&gt; value + emoji);
+                }
+              }}
+            /&gt;
+          &lt;/Block&gt;
+        )}
+      &lt;/KeyboardAvoidingArea&gt;
+    );
+  }
+
+  const title = newChat ? &#39;New chat&#39; : null;
+
+  return (
+    &lt;SafeArea gap={0} flex={1} bg={selected?.kind === &#39;call&#39; &amp;&amp; !desktop ? COLORS.callBg : COLORS.white}&gt;
+      &lt;StatusBar barStyle=&quot;dark-content&quot; /&gt;
+      &lt;Block
+        align=&quot;stretch&quot;
+        direction=&quot;row&quot;
+        flex={1}
+        w=&quot;100%&quot;
+        maw={1440}
+        alignSelf=&quot;center&quot;
+        bg={COLORS.white}
+        borderLeftWidth={desktop ? 1 : 0}
+        borderRightWidth={desktop ? 1 : 0}
+        borderColor={COLORS.line}
+      &gt;
+        {(desktop || !detail) &amp;&amp; (
+          &lt;Block
+            align=&quot;stretch&quot;
+            gap={0}
+            direction=&quot;column&quot;
+            w={desktop ? 390 : &#39;100%&#39;}
+            shrink={0}
+            bg={COLORS.white}
+            borderRightWidth={desktop ? 1 : 0}
+            borderRightColor={COLORS.line}
+          &gt;
+            &lt;Block align=&quot;center&quot; justify=&quot;space-between&quot; direction=&quot;row&quot; pl={title ? 4 : 16} pr={6} pt={10} pb={6}&gt;
+              {title ? (
+                &lt;Row align=&quot;center&quot; gap={4}&gt;
+                  &lt;IconButton
+                    icon={IconArrowLeft}
+                    variant=&quot;ghost&quot;
+                    iconColor={COLORS.ink}
+                    accessibilityLabel=&quot;Back to chats&quot;
+                    onPress={() =&gt; setNewChat(false)}
+                  /&gt;
+                  &lt;Text c={COLORS.ink} fw=&quot;semibold&quot; size={20}&gt;
+                    {title}
+                  &lt;/Text&gt;
+                &lt;/Row&gt;
+              ) : (
+                &lt;Text c={tab === &#39;chats&#39; ? COLORS.green : COLORS.ink} fw=&quot;bold&quot; size={tab === &#39;chats&#39; ? 24 : 22}&gt;
+                  {tab === &#39;chats&#39; ? &#39;Chatline&#39; : tab === &#39;updates&#39; ? &#39;Updates&#39; : &#39;Calls&#39;}
+                &lt;/Text&gt;
+              )}
+              &lt;Row align=&quot;center&quot; gap={0}&gt;
+                {!title &amp;&amp; tab !== &#39;chats&#39; &amp;&amp; (
+                  &lt;IconButton icon={IconSearch} variant=&quot;ghost&quot; iconColor={COLORS.ink} accessibilityLabel=&quot;Search&quot; /&gt;
+                )}
+                {!title &amp;&amp; (
+                  &lt;IconButton icon={IconCamera} variant=&quot;ghost&quot; iconColor={COLORS.ink} accessibilityLabel=&quot;Camera&quot; /&gt;
+                )}
+                &lt;IconButton icon={IconDotsVertical} variant=&quot;ghost&quot; iconColor={COLORS.ink} accessibilityLabel=&quot;Menu&quot; /&gt;
+              &lt;/Row&gt;
+            &lt;/Block&gt;
+            &lt;ScrollArea flex={1} keyboardShouldPersistTaps=&quot;handled&quot; contentProps={{ pb: Platform.OS === &#39;web&#39; ? 88 : 160 }}&gt;
+              {renderSidebarContent()}
+            &lt;/ScrollArea&gt;
+            {!newChat &amp;&amp; (
+              &lt;Block position=&quot;absolute&quot; right={16} bottom={Platform.OS === &#39;web&#39; ? 86 : 96} zIndex={2}&gt;
+                &lt;Block
+                  gap={0}
+                  w={56}
+                  h={56}
+                  radius={16}
+                  align=&quot;center&quot;
+                  justify=&quot;center&quot;
+                  bg={COLORS.brightGreen}
+                  shadow=&quot;md&quot;
+                  onPress={() =&gt; {
+                    if (tab === &#39;updates&#39;) {
+                      setDetail({ kind: &#39;status&#39;, id: STATUSES[0].id });
+                    } else {
+                      setNewChat(true);
+                      setDetail(null);
+                    }
+                  }}
+                  accessibilityRole=&quot;button&quot;
+                  accessibilityLabel={tab === &#39;calls&#39; ? &#39;New call&#39; : tab === &#39;updates&#39; ? &#39;New status&#39; : &#39;New chat&#39;}
+                &gt;
+                  {tab === &#39;calls&#39; ? (
+                    &lt;IconPhonePlus size={24} color={COLORS.ink} /&gt;
+                  ) : tab === &#39;updates&#39; ? (
+                    &lt;IconCamera size={24} color={COLORS.ink} /&gt;
+                  ) : (
+                    &lt;IconMessageCirclePlus size={24} color={COLORS.ink} /&gt;
+                  )}
+                &lt;/Block&gt;
+              &lt;/Block&gt;
+            )}
+            &lt;BottomAppBar
+              accessibilityLabel=&quot;Main&quot;
+              activeKey={tab}
+              onItemPress={(key) =&gt; selectTab(key as Tab)}
+              bg={COLORS.white}
+              borderColor={COLORS.line}
+              activeColor={COLORS.ink}
+              inactiveColor={COLORS.muted}
+              indicator={COLORS.pill}
+              badgeColor={COLORS.brightGreen}
+              items={[
+                {
+                  key: &#39;chats&#39;,
+                  label: &#39;Chats&#39;,
+                  badgeCount: unreadTotal,
+                  icon: ({ active, color }) =&gt; (
+                    &lt;IconMessageCircle size={24} color={active ? &#39;#0A5C36&#39; : color} strokeWidth={active ? 2.2 : 1.8} /&gt;
+                  ),
+                },
+                {
+                  key: &#39;updates&#39;,
+                  label: &#39;Updates&#39;,
+                  icon: ({ active, color }) =&gt; (
+                    &lt;IconCircleDashed size={24} color={active ? &#39;#0A5C36&#39; : color} strokeWidth={active ? 2.2 : 1.8} /&gt;
+                  ),
+                },
+                {
+                  key: &#39;calls&#39;,
+                  label: &#39;Calls&#39;,
+                  icon: ({ active, color }) =&gt; (
+                    &lt;IconPhone size={24} color={active ? &#39;#0A5C36&#39; : color} strokeWidth={active ? 2.2 : 1.8} /&gt;
+                  ),
+                },
+              ]}
+            /&gt;
+          &lt;/Block&gt;
+        )}
+        {(desktop || detail) &amp;&amp; (
+          &lt;Block align=&quot;stretch&quot; direction=&quot;row&quot; flex={1} miw={0}&gt;
+            {renderDetail()}
+          &lt;/Block&gt;
+        )}
+      &lt;/Block&gt;
+    &lt;/SafeArea&gt;
+  );
+}
+
+export default function App() {
+  return (
+    &lt;SafeAreaProvider&gt;
+      &lt;PlocksProvider theme={THEME}&gt;
+        &lt;ChatlineScreen /&gt;
+      &lt;/PlocksProvider&gt;
+    &lt;/SafeAreaProvider&gt;
+  );
+}
+</code></pre></section><section id="file-1"><h2>data.ts</h2><pre><code>export type Message = {
+  id: string;
+  text: string;
+  time: string;
+  outgoing: boolean;
+  reaction?: string;
+};
+
+export type Chat = {
+  id: string;
+  name: string;
+  initials: string;
+  color: string;
+  isGroup?: boolean;
+  online?: boolean;
+  unread: number;
+  messages: Message[];
+};
+
+export const SEED_CHATS: Chat[] = [
+  {
+    id: &#39;maria&#39;, name: &#39;Maria Chen&#39;, initials: &#39;MC&#39;, color: &#39;#D7936C&#39;, online: true, unread: 2,
+    messages: [
+      { id: &#39;m1&#39;, text: &#39;Hey! Are we still on for coffee this afternoon?&#39;, time: &#39;10:31 AM&#39;, outgoing: false },
+      { id: &#39;m2&#39;, text: &#39;Absolutely. I found a little place near the park ☕&#39;, time: &#39;10:34 AM&#39;, outgoing: true },
+      { id: &#39;m3&#39;, text: &#39;Perfect, I can be there around 3.&#39;, time: &#39;10:42 AM&#39;, outgoing: false },
+      { id: &#39;m4&#39;, text: &#39;I will send you the address in a minute!&#39;, time: &#39;10:42 AM&#39;, outgoing: false },
+    ],
+  },
+  {
+    id: &#39;design&#39;, name: &#39;Design Team&#39;, initials: &#39;DT&#39;, color: &#39;#806DB9&#39;, isGroup: true, unread: 3,
+    messages: [
+      { id: &#39;d1&#39;, text: &#39;Morning team! The new concepts are ready to review.&#39;, time: &#39;9:12 AM&#39;, outgoing: false },
+      { id: &#39;d2&#39;, text: &#39;These look great. The colors are really coming together.&#39;, time: &#39;9:18 AM&#39;, outgoing: true },
+      { id: &#39;d3&#39;, text: &#39;I added my notes to the board.&#39;, time: &#39;9:24 AM&#39;, outgoing: false },
+    ],
+  },
+  {
+    id: &#39;dad&#39;, name: &#39;Dad&#39;, initials: &#39;D&#39;, color: &#39;#729A87&#39;, unread: 0,
+    messages: [
+      { id: &#39;f1&#39;, text: &#39;Just checked in. Everything is going well here!&#39;, time: &#39;Yesterday&#39;, outgoing: false },
+      { id: &#39;f2&#39;, text: &#39;Glad to hear it. Talk this weekend?&#39;, time: &#39;Yesterday&#39;, outgoing: true },
+      { id: &#39;f3&#39;, text: &#39;Sounds good ❤️&#39;, time: &#39;Yesterday&#39;, outgoing: false },
+    ],
+  },
+  {
+    id: &#39;alex&#39;, name: &#39;Alex Rivera&#39;, initials: &#39;AR&#39;, color: &#39;#6D9AB2&#39;, online: true, unread: 0,
+    messages: [
+      { id: &#39;a1&#39;, text: &#39;I finished that playlist I told you about.&#39;, time: &#39;Yesterday&#39;, outgoing: false },
+      { id: &#39;a2&#39;, text: &#39;Send it over! I need something new to listen to.&#39;, time: &#39;Yesterday&#39;, outgoing: true },
+      { id: &#39;a3&#39;, text: &#39;You are going to love the last track 🎵&#39;, time: &#39;Yesterday&#39;, outgoing: false },
+    ],
+  },
+  {
+    id: &#39;weekend&#39;, name: &#39;Weekend Plans&#39;, initials: &#39;WP&#39;, color: &#39;#C38A80&#39;, isGroup: true, unread: 0,
+    messages: [
+      { id: &#39;w1&#39;, text: &#39;Should we do a picnic on Saturday?&#39;, time: &#39;Monday&#39;, outgoing: false },
+      { id: &#39;w2&#39;, text: &#39;I can bring snacks and a blanket.&#39;, time: &#39;Monday&#39;, outgoing: true },
+      { id: &#39;w3&#39;, text: &#39;Saturday works for everyone! 🌿&#39;, time: &#39;Monday&#39;, outgoing: false },
+    ],
+  },
+  {
+    id: &#39;priya&#39;, name: &#39;Priya Shah&#39;, initials: &#39;PS&#39;, color: &#39;#B38EAB&#39;, unread: 0,
+    messages: [
+      { id: &#39;p1&#39;, text: &#39;Thank you for the recommendation!&#39;, time: &#39;Monday&#39;, outgoing: false },
+      { id: &#39;p2&#39;, text: &#39;Anytime. Let me know what you think.&#39;, time: &#39;Monday&#39;, outgoing: true },
+    ],
+  },
+];
+
+export type Status = { id: string; chatId: string; caption: string; color: string; time: string };
+export const STATUSES: Status[] = [
+  { id: &#39;s1&#39;, chatId: &#39;maria&#39;, caption: &#39;A little sunshine goes a long way ☀️&#39;, color: &#39;#A6C7A6&#39;, time: &#39;Today, 9:30 AM&#39; },
+  { id: &#39;s2&#39;, chatId: &#39;alex&#39;, caption: &#39;Found a new favorite corner of the city.&#39;, color: &#39;#9FBBD0&#39;, time: &#39;Today, 8:14 AM&#39; },
+  { id: &#39;s3&#39;, chatId: &#39;priya&#39;, caption: &#39;Taking the scenic route home 🌸&#39;, color: &#39;#D7AEC7&#39;, time: &#39;Yesterday, 6:20 PM&#39; },
+];
+
+export type RecentCall = { id: string; chatId: string; time: string; type: &#39;voice&#39; | &#39;video&#39;; missed?: boolean };
+export const RECENT_CALLS: RecentCall[] = [
+  { id: &#39;c1&#39;, chatId: &#39;maria&#39;, time: &#39;Today, 11:02 AM&#39;, type: &#39;voice&#39; },
+  { id: &#39;c2&#39;, chatId: &#39;dad&#39;, time: &#39;Yesterday, 7:45 PM&#39;, type: &#39;video&#39;, missed: true },
+  { id: &#39;c3&#39;, chatId: &#39;alex&#39;, time: &#39;Monday, 4:18 PM&#39;, type: &#39;voice&#39; },
+];
+
+export function timeNow(): string {
+  return new Date().toLocaleTimeString([], { hour: &#39;numeric&#39;, minute: &#39;2-digit&#39; });
+}
+</code></pre></section><section id="file-2"><h2>index.ts</h2><pre><code>import { registerRootComponent } from &#39;expo&#39;;
+import App from &#39;./App&#39;;
+
+registerRootComponent(App);
+</code></pre></section></main></body></html>
